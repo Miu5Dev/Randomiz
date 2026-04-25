@@ -1213,12 +1213,8 @@ MonoBehaviour:
   - targetObject: {fileID: 905338638}
     methodName: OnLook
     paramSources:
-    - mode: 0
-      eventFieldName: Source
-      fixedValue: 
-      componentMember: 
-    - mode: 0
-      eventFieldName: Delta
+    - mode: 3
+      eventFieldName: 
       fixedValue: 
       componentMember: 
     conditions: []
