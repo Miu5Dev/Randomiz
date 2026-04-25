@@ -13,53 +13,53 @@ public class InputSystem : MonoBehaviour
 
         // Movement
         inputs.Player.Move.performed += OnMovePerformed;
-        inputs.Player.Move.canceled += OnMoveCanceled;
+        inputs.Player.Move.canceled  += OnMoveCanceled;
 
-        // Look — detectar dispositivo en performed para saber cuál está activo
-        inputs.Player.Look.performed += OnLookDeviceDetect;
+        // Look
+        inputs.Player.Look.performed += OnLookPerformed;
+        inputs.Player.Look.canceled  += OnLookCanceled;
 
         // Button inputs
         inputs.Player.Action.performed += OnActionInput;
-        inputs.Player.Action.canceled += OnActionInput;
-        inputs.Player.Jump.performed += OnJumpInput;
-        inputs.Player.Jump.canceled += OnJumpInput;
+        inputs.Player.Action.canceled  += OnActionInput;
+        inputs.Player.Jump.performed   += OnJumpInput;
+        inputs.Player.Jump.canceled    += OnJumpInput;
         inputs.Player.Crouch.performed += OnCrouchInput;
-        inputs.Player.Crouch.canceled += OnCrouchInput;
-        inputs.Player.Swap.performed += OnSwapInput;
-        inputs.Player.Swap.canceled += OnSwapInput;
+        inputs.Player.Crouch.canceled  += OnCrouchInput;
+        inputs.Player.Swap.performed   += OnSwapInput;
+        inputs.Player.Swap.canceled    += OnSwapInput;
 
         Debug.Log("[InputSystem] Initialized");
     }
 
-    void OnEnable()
-    {
-        inputs.Player.Enable();
-    }
+    void OnEnable()  => inputs.Player.Enable();
+    void OnDisable() => inputs.Player.Disable();
 
-    void OnDisable()
-    {
-        inputs.Player.Disable();
-    }
+    // ========================================================================
+    // LOOK INPUT
+    // ========================================================================
 
-    private void OnLookDeviceDetect(InputAction.CallbackContext context)
+    private void OnLookPerformed(InputAction.CallbackContext context)
     {
-        // Detectar si el input viene de mouse o gamepad
-        var device = context.control.device;
+        currentLookSource = context.control.device is Gamepad
+            ? LookInputSource.Gamepad
+            : LookInputSource.Mouse;
 
-        if (device is Gamepad)
-            currentLookSource = LookInputSource.Gamepad;
-        else
-            currentLookSource = LookInputSource.Mouse;
-    }
-
-    void Update()
-    {
-        Vector2 lookValue = inputs.Player.Look.ReadValue<Vector2>();
         EventBus.Raise(new OnLookInputEvent()
         {
-            pressed = lookValue.sqrMagnitude > 0.01f,
-            Delta = lookValue,
-            Source = currentLookSource
+            pressed = true,
+            Delta   = context.ReadValue<Vector2>(),
+            Source  = currentLookSource
+        });
+    }
+
+    private void OnLookCanceled(InputAction.CallbackContext context)
+    {
+        EventBus.Raise(new OnLookInputEvent()
+        {
+            pressed = false,
+            Delta   = Vector2.zero,
+            Source  = currentLookSource
         });
     }
 
@@ -71,7 +71,7 @@ public class InputSystem : MonoBehaviour
     {
         EventBus.Raise(new OnMoveInputEvent()
         {
-            pressed = context.performed,
+            pressed   = true,
             Direction = context.ReadValue<Vector2>()
         });
     }
@@ -80,8 +80,8 @@ public class InputSystem : MonoBehaviour
     {
         EventBus.Raise(new OnMoveInputEvent()
         {
-            pressed = context.performed,
-            Direction = context.ReadValue<Vector2>()
+            pressed   = false,
+            Direction = Vector2.zero
         });
     }
 
@@ -97,17 +97,17 @@ public class InputSystem : MonoBehaviour
         });
     }
 
-    private void OnCrouchInput(InputAction.CallbackContext context)
+    private void OnJumpInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnCrouchInputEvent()
+        EventBus.Raise(new OnJumpInputEvent()
         {
             pressed = context.performed
         });
     }
 
-    private void OnJumpInput(InputAction.CallbackContext context)
+    private void OnCrouchInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnJumpInputEvent()
+        EventBus.Raise(new OnCrouchInputEvent()
         {
             pressed = context.performed
         });

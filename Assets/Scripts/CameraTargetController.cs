@@ -12,22 +12,19 @@ public class CameraTargetController : MonoBehaviour
 
     // -------------------------------------------------------
     private float pitch = 0f; // rotación vertical acumulada
-
-    void OnEnable()  => EventBus.Subscribe<OnLookInputEvent>(OnLook);
-    void OnDisable() => EventBus.Unsubscribe<OnLookInputEvent>(OnLook);
-
-    private void OnLook(OnLookInputEvent e)
+    
+    public void OnLook(LookInputSource Source , Vector2 Delta)
     {
-        float sens = e.Source == LookInputSource.Gamepad
+        float sens = Source == LookInputSource.Gamepad
             ? gamepadSensitivity * Time.deltaTime
             : mouseSensitivity;
 
         // Yaw (horizontal) → rotamos el CameraTarget en Y (world space)
-        float yaw = e.Delta.x * sens;
+        float yaw = Delta.x * sens;
         transform.Rotate(Vector3.up, yaw, Space.World);
 
         // Pitch (vertical) → clampado para no dar volteretas
-        pitch -= e.Delta.y * sens;
+        pitch -= Delta.y * sens;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
         
         // Aplica solo la rotación vertical preservando el yaw actual

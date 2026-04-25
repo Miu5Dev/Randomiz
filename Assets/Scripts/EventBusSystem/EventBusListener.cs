@@ -411,7 +411,7 @@ public class SmartBinding
     public BindingLogic logic = BindingLogic.If;
 
     public bool IsConfigured() =>
-        targetObject != null && !string.IsNullOrEmpty(methodName) && paramSources.Count > 0;
+        targetObject != null && !string.IsNullOrEmpty(methodName);
 
     public (Func<object, bool> check, Action<object> execute) CompileSplit(Type eventType)
     {
@@ -703,13 +703,79 @@ public class EventBusListenerEditor : Editor
 
             bool showCondition = logicVal != BindingLogic.Else;
 
-            // Component picker
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Component", GUILayout.Width(80));
-            EditorGUI.BeginChangeCheck();
-            EditorGUILayout.PropertyField(targetProp, GUIContent.none);
-            if (EditorGUI.EndChangeCheck()) { methodProp.stringValue = ""; fieldsProp.ClearArray(); _methodCache.Remove(i); }
-            EditorGUILayout.EndHorizontal();
+            // ── GameObject + Component picker (estilo UnityEvent) ─────────────────
+            {
+                var currentTarget = targetProp.objectReferenceValue;
+                GameObject currentGO = currentTarget is Component c0 ? c0.gameObject : currentTarget as GameObject;
+
+                // Fila 1: GameObject
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("GameObject", GUILayout.Width(80));
+                EditorGUI.BeginChangeCheck();
+                // Acepta tanto GameObject como Component directo
+                var droppedObj = EditorGUILayout.ObjectField(currentGO, typeof(UnityEngine.Object), true);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    GameObject newGO = droppedObj as GameObject
+                                    ?? (droppedObj as Component)?.gameObject;
+                    Component droppedComp = droppedObj as Component;
+
+                    if (newGO != currentGO || droppedComp != null)
+                    {
+                        if (newGO == null)
+                        {
+                            targetProp.objectReferenceValue = null;
+                        }
+                        else if (droppedComp != null)
+                        {
+                            // Arrastraron un componente directamente → usarlo tal cual
+                            targetProp.objectReferenceValue = droppedComp;
+                        }
+                        else
+                        {
+                            // Arrastraron un GameObject → auto-select primer componente significativo
+                            var comps = newGO.GetComponents<Component>();
+                            var first = comps.FirstOrDefault(c => !(c is Transform)) ?? comps.FirstOrDefault();
+                            targetProp.objectReferenceValue = first;
+                        }
+                        methodProp.stringValue = "";
+                        fieldsProp.ClearArray();
+                        _methodCache.Remove(i);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+
+                // Fila 2: Component picker (solo si hay un GO asignado)
+                if (currentGO != null)
+                {
+                    var allComps = currentGO.GetComponents<Component>();
+                    string[] compNames = allComps.Select(c => c.GetType().Name).ToArray();
+                    // Manejo de duplicados (ej: dos BoxCollider)
+                    var seen = new Dictionary<string, int>();
+                    string[] compLabels = allComps.Select(c => {
+                        string n = c.GetType().Name;
+                        if (!seen.ContainsKey(n)) { seen[n] = 0; return n; }
+                        seen[n]++; return $"{n} [{seen[n]}]";
+                    }).ToArray();
+
+                    int curIdx = currentTarget is Component curComp
+                        ? Mathf.Max(0, Array.IndexOf(allComps, curComp))
+                        : 0;
+
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField("Component", GUILayout.Width(80));
+                    EditorGUI.BeginChangeCheck();
+                    int newIdx = EditorGUILayout.Popup(curIdx, compLabels);
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        targetProp.objectReferenceValue = allComps[newIdx];
+                        methodProp.stringValue = "";
+                        fieldsProp.ClearArray();
+                        _methodCache.Remove(i);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                }
+            }
 
             // Method picker
             var targetObj = targetProp.objectReferenceValue;
@@ -723,6 +789,12 @@ public class EventBusListenerEditor : Editor
                 else
                 {
                     string[] methodLabels = methods.Select(m => {
+                        // Property setter → mostrar como "propName (type)"
+                        if (m.IsSpecialName && m.Name.StartsWith("set_"))
+                        {
+                            var p = m.GetParameters()[0];
+                            return $"{m.Name.Substring(4)} = ({p.ParameterType.Name})";
+                        }
                         var ps = m.GetParameters();
                         string pStr = ps.Length == 0 ? "()" : "(" + string.Join(", ", ps.Select(p => $"{p.ParameterType.Name} {p.Name}")) + ")";
                         return $"{m.Name}{pStr}";
@@ -1142,13 +1214,23 @@ public class EventBusListenerEditor : Editor
     // ── Helpers ─────────────────────────────────────────────────────────────
     private static MethodInfo[] GetEligibleMethods(Type type, FieldInfo[] eventFields)
     {
-        return type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+        // Métodos void normales
+        var regular = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
             .Where(m => !m.IsSpecialName && m.ReturnType == typeof(void))
             .Where(m => {
                 var ps = m.GetParameters();
                 if (ps.Length == 0) return true;
                 return ps.All(p => eventFields.Any(f => IsCompatible(f.FieldType, p.ParameterType)));
-            })
+            });
+
+        // Setters de propiedades (layer, tag, name, activeSelf, etc.)
+        // Solo los que tienen exactamente 1 parámetro compatible con un event field
+        var propSetters = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanWrite && p.GetSetMethod(false) != null)
+            .Where(p => eventFields.Length == 0 || eventFields.Any(f => IsCompatible(f.FieldType, p.PropertyType)))
+            .Select(p => p.GetSetMethod(false));
+
+        return regular.Concat(propSetters)
             .OrderBy(m => m.GetParameters().Length == 0 ? 1 : 0)
             .ThenBy(m => m.Name)
             .ToArray();
