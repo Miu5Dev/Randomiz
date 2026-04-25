@@ -132,7 +132,7 @@ GameObject:
   - component: {fileID: 35609748}
   - component: {fileID: 35609747}
   m_Layer: 0
-  m_Name: CAM
+  m_Name: '[CAM]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -229,11 +229,11 @@ Transform:
   m_GameObject: {fileID: 35609746}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 2.363, z: -4}
+  m_LocalPosition: {x: 0, y: 1.2199999, z: -4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1299545837}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &37250588
 GameObject:
@@ -1285,6 +1285,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 35609750}
   - {fileID: 146701543}
   - {fileID: 905338637}
   - {fileID: 1029293415}
@@ -1404,23 +1405,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   useBindings:
-  - targetObject: {fileID: 1470088472}
-    methodName: SetActive
-    paramSources:
-    - mode: 1
-      eventFieldName: 
-      fixedValue: false
-      componentMember: 
-    conditions:
-    - enabled: 1
-      fieldName: 
-      op: 0
-      source: 2
-      compareValue: true
-      componentFieldName: active
-    logic: 0
-  - targetObject: {fileID: 1470088472}
-    methodName: SetActive
+  - targetObject: {fileID: 1470088475}
+    methodName: set_enabled
     paramSources:
     - mode: 1
       eventFieldName: 
@@ -1432,7 +1418,22 @@ MonoBehaviour:
       op: 0
       source: 2
       compareValue: false
-      componentFieldName: active
+      componentFieldName: enabled
+    logic: 0
+  - targetObject: {fileID: 1470088475}
+    methodName: set_enabled
+    paramSources:
+    - mode: 1
+      eventFieldName: 
+      fixedValue: false
+      componentMember: 
+    conditions:
+    - enabled: 1
+      fieldName: 
+      op: 0
+      source: 2
+      compareValue: true
+      componentFieldName: enabled
     logic: 1
 --- !u!135 &1470088474
 SphereCollider:
@@ -1790,35 +1791,35 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   useBindings:
-  - targetObject: {fileID: 1868856807}
-    methodName: SetActive
+  - targetObject: {fileID: 1868856813}
+    methodName: set_localScale
     paramSources:
     - mode: 1
       eventFieldName: 
-      fixedValue: false
+      fixedValue: 3,3,3
       componentMember: 
     conditions:
     - enabled: 1
       fieldName: 
       op: 0
       source: 2
-      compareValue: true
-      componentFieldName: active
+      compareValue: 1,1,1
+      componentFieldName: localScale
     logic: 0
-  - targetObject: {fileID: 1868856807}
-    methodName: SetActive
+  - targetObject: {fileID: 1868856813}
+    methodName: set_localScale
     paramSources:
     - mode: 1
       eventFieldName: 
-      fixedValue: true
+      fixedValue: 1,1,1
       componentMember: 
     conditions:
     - enabled: 1
       fieldName: 
       op: 0
       source: 2
-      compareValue: false
-      componentFieldName: active
+      compareValue: 3,3,3
+      componentFieldName: size
     logic: 1
 --- !u!135 &1868856809
 SphereCollider:
@@ -1935,7 +1936,6 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 330585546}
-  - {fileID: 35609750}
   - {fileID: 410087041}
   - {fileID: 832575519}
   - {fileID: 213707228}

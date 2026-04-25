@@ -526,19 +526,36 @@ public class InteractableEditor : Editor
 
     private static string DrawTypedField(string label, string current, Type t)
     {
+        var ic = System.Globalization.CultureInfo.InvariantCulture;
         using (new EditorGUILayout.HorizontalScope())
         {
             if (!string.IsNullOrEmpty(label)) EditorGUILayout.LabelField(label, GUILayout.Width(80));
             if (t == typeof(bool))   { string[] o = {"true","false"}; return o[EditorGUILayout.Popup(current=="false"?1:0, o)]; }
             if (t.IsEnum)            { string[] v = Enum.GetNames(t); int c = Mathf.Max(0, Array.IndexOf(v, current)); return v[EditorGUILayout.Popup(c, v)]; }
             if (t == typeof(int))    { int.TryParse(current, out int v);   return EditorGUILayout.IntField(v).ToString(); }
-            if (t == typeof(float))  { float.TryParse(current, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v); return EditorGUILayout.FloatField(v).ToString(System.Globalization.CultureInfo.InvariantCulture); }
+            if (t == typeof(float))  { float.TryParse(current, System.Globalization.NumberStyles.Float, ic, out float v); return EditorGUILayout.FloatField(v).ToString(ic); }
+            if (t == typeof(double)) { double.TryParse(current, System.Globalization.NumberStyles.Float, ic, out double v); return EditorGUILayout.DoubleField(v).ToString(ic); }
             if (t == typeof(long))   { long.TryParse(current, out long v); return EditorGUILayout.LongField(v).ToString(); }
-            if (t == typeof(Vector2)) { var f=Split(current,2); var v=EditorGUILayout.Vector2Field("",new Vector2(f[0],f[1])); var ic=System.Globalization.CultureInfo.InvariantCulture; return $"{v.x.ToString(ic)},{v.y.ToString(ic)}"; }
-            if (t == typeof(Vector3)) { var f=Split(current,3); var v=EditorGUILayout.Vector3Field("",new Vector3(f[0],f[1],f[2])); var ic=System.Globalization.CultureInfo.InvariantCulture; return $"{v.x.ToString(ic)},{v.y.ToString(ic)},{v.z.ToString(ic)}"; }
-            if (t == typeof(Color) || t == typeof(Color32)) { var f=Split(current,4,1f); var v=EditorGUILayout.ColorField(new Color(f[0],f[1],f[2],f[3])); var ic=System.Globalization.CultureInfo.InvariantCulture; return $"{v.r.ToString(ic)},{v.g.ToString(ic)},{v.b.ToString(ic)},{v.a.ToString(ic)}"; }
+            if (t == typeof(Vector2))    { var f=Split(current,2); var v=EditorGUILayout.Vector2Field("",new Vector2(f[0],f[1])); return $"{v.x.ToString(ic)},{v.y.ToString(ic)}"; }
+            if (t == typeof(Vector3))    { var f=Split(current,3); var v=EditorGUILayout.Vector3Field("",new Vector3(f[0],f[1],f[2])); return $"{v.x.ToString(ic)},{v.y.ToString(ic)},{v.z.ToString(ic)}"; }
+            if (t == typeof(Vector4))    { var f=Split(current,4); var v=EditorGUILayout.Vector4Field("",new Vector4(f[0],f[1],f[2],f[3])); return $"{v.x.ToString(ic)},{v.y.ToString(ic)},{v.z.ToString(ic)},{v.w.ToString(ic)}"; }
+            if (t == typeof(Vector2Int)) { var f=SplitInt(current,2); var v=EditorGUILayout.Vector2IntField("",new Vector2Int(f[0],f[1])); return $"{v.x},{v.y}"; }
+            if (t == typeof(Vector3Int)) { var f=SplitInt(current,3); var v=EditorGUILayout.Vector3IntField("",new Vector3Int(f[0],f[1],f[2])); return $"{v.x},{v.y},{v.z}"; }
+            if (t == typeof(Color) || t == typeof(Color32)) { var f=Split(current,4,1f); var v=EditorGUILayout.ColorField(new Color(f[0],f[1],f[2],f[3])); return $"{v.r.ToString(ic)},{v.g.ToString(ic)},{v.b.ToString(ic)},{v.a.ToString(ic)}"; }
+            if (t == typeof(Quaternion)) { var f=Split(current,4); var q=new Quaternion(f[0],f[1],f[2],f[3]); var eu=EditorGUILayout.Vector3Field("",q.eulerAngles); var qr=Quaternion.Euler(eu); return $"{qr.x.ToString(ic)},{qr.y.ToString(ic)},{qr.z.ToString(ic)},{qr.w.ToString(ic)}"; }
+            if (t == typeof(Rect))    { var f=Split(current,4); var v=EditorGUILayout.RectField(new Rect(f[0],f[1],f[2],f[3])); return $"{v.x.ToString(ic)},{v.y.ToString(ic)},{v.width.ToString(ic)},{v.height.ToString(ic)}"; }
+            if (t == typeof(Bounds))  { var f=Split(current,6); var v=EditorGUILayout.BoundsField(new Bounds(new Vector3(f[0],f[1],f[2]),new Vector3(f[3],f[4],f[5]))); return $"{v.center.x.ToString(ic)},{v.center.y.ToString(ic)},{v.center.z.ToString(ic)},{v.size.x.ToString(ic)},{v.size.y.ToString(ic)},{v.size.z.ToString(ic)}"; }
+            if (t == typeof(RectInt)) { var f=SplitInt(current,4); var v=EditorGUILayout.RectIntField(new RectInt(f[0],f[1],f[2],f[3])); return $"{v.x},{v.y},{v.width},{v.height}"; }
+            if (t == typeof(BoundsInt)){ var f=SplitInt(current,6); var v=EditorGUILayout.BoundsIntField(new BoundsInt(f[0],f[1],f[2],f[3],f[4],f[5])); return $"{v.position.x},{v.position.y},{v.position.z},{v.size.x},{v.size.y},{v.size.z}"; }
             return EditorGUILayout.TextField(current ?? "");
         }
+    }
+
+    private static int[] SplitInt(string s, int n)
+    {
+        var p = (s ?? "").Split(','); var r = new int[n];
+        for (int i = 0; i < n; i++) { if (i < p.Length) int.TryParse(p[i].Trim(), out r[i]); }
+        return r;
     }
 
     private static float[] Split(string s, int n, float def = 0f)
@@ -560,23 +577,15 @@ public class InteractableEditor : Editor
 
     private static string DrawConditionLiteralField(string current, Type t)
     {
-        if (t == typeof(bool))   { string[] o = {"true","false"}; return o[EditorGUILayout.Popup(current=="false"?1:0, o, GUILayout.Width(70))]; }
-        if (t.IsEnum)            { string[] v = Enum.GetNames(t); int c = Mathf.Max(0, Array.IndexOf(v, current)); return v[EditorGUILayout.Popup(c, v, GUILayout.Width(90))]; }
-        if (t == typeof(int))    { int.TryParse(current, out int v);   return EditorGUILayout.IntField(v, GUILayout.Width(70)).ToString(); }
-        if (t == typeof(float))  { float.TryParse(current, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v); return EditorGUILayout.FloatField(v, GUILayout.Width(70)).ToString(System.Globalization.CultureInfo.InvariantCulture); }
-        return EditorGUILayout.TextField(current ?? "", GUILayout.Width(90));
+        // Reuse DrawTypedField (no label) — supports all types including Vector2/3, Color, etc.
+        return DrawTypedField("", current, t);
     }
 
     // Inline version — no HorizontalScope, expands to fill remaining space in the row
     private static string DrawConditionLiteralInline(string current, Type t)
     {
-        var ic = System.Globalization.CultureInfo.InvariantCulture;
-        if (t == typeof(bool))  { string[] o = {"true","false"}; return o[EditorGUILayout.Popup(current == "false" ? 1 : 0, o)]; }
-        if (t.IsEnum)           { string[] v = Enum.GetNames(t); int ci = Mathf.Max(0, Array.IndexOf(v, current)); return v[EditorGUILayout.Popup(ci, v)]; }
-        if (t == typeof(int))   { int.TryParse(current, out int v);   return EditorGUILayout.IntField(v).ToString(); }
-        if (t == typeof(float)) { float.TryParse(current, System.Globalization.NumberStyles.Float, ic, out float v); return EditorGUILayout.FloatField(v).ToString(ic); }
-        if (t == typeof(long))  { long.TryParse(current, out long v); return EditorGUILayout.LongField(v).ToString(); }
-        return EditorGUILayout.TextField(current ?? "");
+        // Reuse DrawTypedField (no label) — supports all types including Vector2/3, Color, etc.
+        return DrawTypedField("", current, t);
     }
 }
 
