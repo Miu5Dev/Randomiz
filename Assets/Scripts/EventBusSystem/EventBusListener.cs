@@ -130,16 +130,23 @@ public class EventBusListener : MonoBehaviour
     // =========================================================
     private static Dictionary<string, Type> _typeCache;
 
+    public static void InvalidateTypeCache() => _typeCache = null;
+
+    private static void RebuildTypeCache()
+    {
+        _typeCache = new Dictionary<string, Type>();
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            try { foreach (var t in asm.GetTypes()) if (!_typeCache.ContainsKey(t.Name)) _typeCache[t.Name] = t; }
+            catch { }
+    }
+
     public static Type ResolveType(string typeName)
     {
-        if (_typeCache == null)
-        {
-            _typeCache = new Dictionary<string, Type>();
-            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
-                try { foreach (var t in asm.GetTypes()) if (!_typeCache.ContainsKey(t.Name)) _typeCache[t.Name] = t; }
-                catch { }
-        }
-        return _typeCache.TryGetValue(typeName, out var type) ? type : null;
+        if (_typeCache == null) RebuildTypeCache();
+        if (_typeCache.TryGetValue(typeName, out var type)) return type;
+        // Tipo no encontrado — posible nuevo assembly cargado; reconstruir y reintentar
+        RebuildTypeCache();
+        return _typeCache.TryGetValue(typeName, out type) ? type : null;
     }
 
     public static MemberInfo GetBoolMember(Type t)
@@ -161,12 +168,38 @@ public class EventBusListener : MonoBehaviour
     private Delegate _subscribedDelegate;
     private MethodInfo _unsubscribeMethod;
 
+    // --- Bug fix: synthetic release on disable ---
+    private bool _wasPressed;
+    private MemberInfo _boolMemberRef;
+    private Type _subscribedEventType;
+    private Action<object> _innerCallback;
+
     private void OnEnable()
     {
         Unsubscribe();
         Subscribe(selectedEventTypeName);
     }
-    private void OnDisable() => Unsubscribe();
+    private void OnDisable()
+    {
+        // Si el GameObject se desactiva mientras pressed=true, emitir release sintético
+        // para que el juego no quede creyendo que el botón sigue presionado.
+        if (_wasPressed && _boolMemberRef != null && !callOnBothStates && _innerCallback != null)
+        {
+            try
+            {
+                var syntheticEvt = System.Activator.CreateInstance(_subscribedEventType);
+                if (_boolMemberRef is FieldInfo sfi) sfi.SetValue(syntheticEvt, false);
+                else if (_boolMemberRef is PropertyInfo spi) spi.SetValue(syntheticEvt, false);
+                _innerCallback.Invoke(syntheticEvt);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[EventBusListener] Could not send synthetic release: {ex.Message}");
+            }
+        }
+        Unsubscribe();
+        _wasPressed = false;
+    }
 
     private void Subscribe(string typeName)
     {
@@ -176,6 +209,10 @@ public class EventBusListener : MonoBehaviour
 
         MemberInfo boolMember = GetBoolMember(eventType);
         bool isButtonEvent = boolMember != null;
+
+        // Guardar para el release sintético en OnDisable
+        _boolMemberRef = boolMember;
+        _subscribedEventType = eventType;
 
         var splitBindings = smartBindings
             .Where(b => b.IsConfigured())
@@ -218,9 +255,12 @@ public class EventBusListener : MonoBehaviour
             if (!isButtonEvent) { onRaised?.Invoke(); return; }
             bool pressed = ReadBool(boolMember, evtObj);
             if (callOnBothStates) { onRaised?.Invoke(); return; }
+            _wasPressed = pressed; // Trackear para release sintético en OnDisable
             if (pressed) onRaised?.Invoke();
             else onReleased?.Invoke();
         };
+
+        _innerCallback = callback; // Guardar referencia al callback para release sintético
 
         var wrapper = typeof(EventBusListener)
             .GetMethod(nameof(CreateTypedCallback), BindingFlags.NonPublic | BindingFlags.Static)
@@ -246,6 +286,7 @@ public class EventBusListener : MonoBehaviour
         _unsubscribeMethod.Invoke(null, new object[] { _subscribedDelegate });
         _subscribedDelegate = null;
         _unsubscribeMethod = null;
+        _innerCallback = null;
     }
 
 #if UNITY_EDITOR
@@ -388,7 +429,7 @@ public class BindingCondition
 // SMART BINDING
 // =========================================================
 [Serializable]
-public enum ParamSourceMode { EventField, FixedValue, ComponentField, WholeEvent }
+public enum ParamSourceMode { EventField, FixedValue, ComponentField, WholeEvent, Toggle }
 
 [Serializable]
 public class ParamSource
@@ -456,6 +497,27 @@ public class SmartBinding
                 catch { Debug.LogWarning($"[SmartBinding] Could not parse '{ps.fixedValue}' as {pType.Name}"); return (null, null); }
                 var capParsed = parsed;
                 resolvers[i] = _ => capParsed;
+            }
+            else if (ps.mode == ParamSourceMode.Toggle)
+            {
+                // Lee el valor bool actual del member y lo invierte en cada llamada
+                if (pType != typeof(bool))
+                {
+                    Debug.LogWarning($"[SmartBinding] Toggle solo funciona con parámetros bool, pero el parámetro es {pType.Name}");
+                    return (null, null);
+                }
+                var capToggleTarget = targetObject;
+                var toggleMember = (MemberInfo)targetType.GetField(ps.componentMember, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic)
+                                   ?? targetType.GetProperty(ps.componentMember, BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
+                if (toggleMember == null)
+                {
+                    toggleMember = (MemberInfo)typeof(GameObject).GetField(ps.componentMember, BindingFlags.Public | BindingFlags.Instance)
+                                   ?? typeof(GameObject).GetProperty(ps.componentMember, BindingFlags.Public | BindingFlags.Instance);
+                    if (toggleMember != null && capToggleTarget is Component c4) capToggleTarget = c4.gameObject;
+                }
+                if (toggleMember == null) { Debug.LogWarning($"[SmartBinding] Toggle: member '{ps.componentMember}' not found"); return (null, null); }
+                var capTM = toggleMember; var capTT = capToggleTarget;
+                resolvers[i] = _ => !(bool)(capTM is FieldInfo tfi ? tfi.GetValue(capTT) : ((PropertyInfo)capTM).GetValue(capTT));
             }
             else // ComponentField
             {
@@ -608,7 +670,7 @@ public class EventBusListenerEditor : Editor
         typeof(Behaviour), typeof(MonoBehaviour), typeof(Transform),
     };
 
-    private static readonly string[] _goProps = { "activeSelf", "activeInHierarchy", "name", "tag" };
+    private static readonly string[] _goProps = { "activeSelf", "activeInHierarchy", "name", "tag", "layer", "isStatic" };
 
     public override void OnInspectorGUI()
     {
@@ -755,22 +817,26 @@ public class EventBusListenerEditor : Editor
                 }
                 EditorGUILayout.EndHorizontal();
 
-                // Fila 2: Component picker (solo si hay un GO asignado)
+                // Fila 2: Component picker — "── GameObject ──" en índice 0
                 if (currentGO != null)
                 {
                     var allComps = currentGO.GetComponents<Component>();
-                    string[] compNames = allComps.Select(c => c.GetType().Name).ToArray();
-                    // Manejo de duplicados (ej: dos BoxCollider)
-                    var seen = new Dictionary<string, int>();
-                    string[] compLabels = allComps.Select(c => {
-                        string n = c.GetType().Name;
-                        if (!seen.ContainsKey(n)) { seen[n] = 0; return n; }
-                        seen[n]++; return $"{n} [{seen[n]}]";
-                    }).ToArray();
 
-                    int curIdx = currentTarget is Component curComp
-                        ? Mathf.Max(0, Array.IndexOf(allComps, curComp))
-                        : 0;
+                    bool goIsSelected = targetProp.objectReferenceValue is GameObject;
+
+                    var seen = new Dictionary<string, int>();
+                    string[] compLabels = new[] { "── GameObject ──" }
+                        .Concat(allComps.Select(c => {
+                            string n = c.GetType().Name;
+                            if (!seen.ContainsKey(n)) { seen[n] = 0; return n; }
+                            seen[n]++; return $"{n} [{seen[n]}]";
+                        })).ToArray();
+
+                    int curIdx = goIsSelected
+                        ? 0
+                        : (targetProp.objectReferenceValue is Component curComp
+                            ? Mathf.Max(1, Array.IndexOf(allComps, curComp) + 1)
+                            : 1);
 
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField("Component", GUILayout.Width(80));
@@ -778,7 +844,9 @@ public class EventBusListenerEditor : Editor
                     int newIdx = EditorGUILayout.Popup(curIdx, compLabels);
                     if (EditorGUI.EndChangeCheck())
                     {
-                        targetProp.objectReferenceValue = allComps[newIdx];
+                        targetProp.objectReferenceValue = newIdx == 0
+                            ? (UnityEngine.Object)currentGO
+                            : allComps[newIdx - 1];
                         methodProp.stringValue = "";
                         fieldsProp.ClearArray();
                         _methodCache.Remove(i);
@@ -919,6 +987,53 @@ public class EventBusListenerEditor : Editor
                             else if (srcMode == ParamSourceMode.FixedValue)
                             {
                                 fixedProp.stringValue = DrawTypedField("Value", fixedProp.stringValue, pType);
+                            }
+                            else if (srcMode == ParamSourceMode.Toggle)
+                            {
+                                // Solo tiene sentido para parámetros bool
+                                if (pType != typeof(bool))
+                                {
+                                    EditorGUILayout.HelpBox("Toggle solo funciona con parámetros bool.", MessageType.Warning);
+                                }
+                                else
+                                {
+                                    var tObj3 = bp.FindPropertyRelative("targetObject").objectReferenceValue;
+                                    if (tObj3 == null)
+                                    {
+                                        EditorGUILayout.HelpBox("Assign component first.", MessageType.Warning);
+                                    }
+                                    else
+                                    {
+                                        // Recopilar todos los miembros bool del componente + GO
+                                        var boolMems = GetComponentMembers(tObj3, typeof(bool))
+                                            .Concat(GetGameObjectMembers()
+                                                .Where(m => { Type mt = m is FieldInfo fb ? fb.FieldType : ((PropertyInfo)m).PropertyType; return mt == typeof(bool); }))
+                                            .ToArray();
+                                        if (boolMems.Length == 0)
+                                        {
+                                            EditorGUILayout.HelpBox("No se encontraron miembros bool.", MessageType.Warning);
+                                        }
+                                        else
+                                        {
+                                            string[] tN = boolMems.Select(m => m.Name).ToArray();
+                                            string[] tL = boolMems.Select(m => {
+                                                string owner = m.DeclaringType == typeof(GameObject) ? "GO" : tObj3.GetType().Name;
+                                                return $"!{owner}.{m.Name}";
+                                            }).ToArray();
+                                            int cur3 = Mathf.Max(0, Array.IndexOf(tN, compProp.stringValue));
+                                            using (new EditorGUILayout.HorizontalScope())
+                                            {
+                                                GUI.color = new Color(1f, 0.85f, 0.5f);
+                                                EditorGUILayout.LabelField("Toggle", GUILayout.Width(80));
+                                                GUI.color = Color.white;
+                                                compProp.stringValue = tN[EditorGUILayout.Popup(cur3, tL)];
+                                            }
+                                            GUI.color = new Color(1f, 0.9f, 0.5f);
+                                            EditorGUILayout.LabelField($"  pasa: !{tObj3.GetType().Name}.{compProp.stringValue}", EditorStyles.miniLabel);
+                                            GUI.color = Color.white;
+                                        }
+                                    }
+                                }
                             }
                             else // ComponentField
                             {
@@ -1256,13 +1371,14 @@ public class EventBusListenerEditor : Editor
                 if (ps.Length == 0) return true;
                 return ps.All(p =>
                     (evtType != null && p.ParameterType.IsAssignableFrom(evtType)) ||  // whole event param
-                    eventFields.Any(f => IsCompatible(f.FieldType, p.ParameterType)));  // field param
+                    eventFields.Any(f => IsCompatible(f.FieldType, p.ParameterType)) || // field param
+                    TypeHelper.IsSupported(p.ParameterType));                            // fixed-value / toggle fallback
             });
 
         // Setters de propiedades compatibles con un event field
         var propSetters = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanWrite && p.GetSetMethod(false) != null)
-            .Where(p => eventFields.Length == 0 || eventFields.Any(f => IsCompatible(f.FieldType, p.PropertyType)))
+            .Where(p => eventFields.Length == 0 || eventFields.Any(f => IsCompatible(f.FieldType, p.PropertyType)) || TypeHelper.IsSupported(p.PropertyType))
             .Select(p => p.GetSetMethod(false));
 
         return regular.Concat(propSetters)
@@ -1303,6 +1419,14 @@ public class EventBusListenerEditor : Editor
 
     private static MemberInfo[] GetComponentMembers(UnityEngine.Object targetObj, Type filterType)
     {
+        if (targetObj is GameObject)
+            return GetGameObjectMembers()
+                .Where(m => {
+                    if (filterType == null) return true;
+                    Type mt = m is FieldInfo fi3 ? fi3.FieldType : ((PropertyInfo)m).PropertyType;
+                    return mt == filterType || (IsNumericType(mt) && IsNumericType(filterType));
+                }).ToArray();
+
         return targetObj.GetType()
             .GetFields(BindingFlags.Public | BindingFlags.Instance)
             .Where(f => !_unityBaseTypes.Contains(f.DeclaringType))

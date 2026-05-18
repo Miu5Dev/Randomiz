@@ -907,7 +907,6 @@ GameObject:
   - component: {fileID: 849218155}
   - component: {fileID: 849218157}
   - component: {fileID: 849218156}
-  - component: {fileID: 849218158}
   m_Layer: 0
   m_Name: '[INPUTS]'
   m_TagString: Untagged
@@ -942,7 +941,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectedEventTypeName: OnJumpInputEvent
+  selectedEventTypeName: OnInteractDodgeInputEvent
   onRaised:
     m_PersistentCalls:
       m_Calls: []
@@ -952,7 +951,7 @@ MonoBehaviour:
   callOnBothStates: 0
   smartBindings:
   - targetObject: {fileID: 1299545841}
-    methodName: OnJump
+    methodName: OnDash
     paramSources:
     - mode: 0
       eventFieldName: pressed
@@ -989,38 +988,6 @@ MonoBehaviour:
       fixedValue: 
       componentMember: 
     conditions: []
-    logic: 0
---- !u!114 &849218158
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 849218154}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  selectedEventTypeName: OnActionInputEvent
-  onRaised:
-    m_PersistentCalls:
-      m_Calls: []
-  onReleased:
-    m_PersistentCalls:
-      m_Calls: []
-  callOnBothStates: 0
-  smartBindings:
-  - targetObject: {fileID: 53187974}
-    methodName: Interact
-    paramSources: []
-    conditions:
-    - enabled: 1
-      fieldName: pressed
-      op: 0
-      source: 0
-      compareValue: true
-      componentFieldName: onInteractArea
     logic: 0
 --- !u!1 &905338636
 GameObject:
@@ -1265,6 +1232,8 @@ GameObject:
   - component: {fileID: 1299545842}
   - component: {fileID: 1299545841}
   - component: {fileID: 1299545838}
+  - component: {fileID: 1299545843}
+  - component: {fileID: 1299545844}
   m_Layer: 0
   m_Name: '[Player]'
   m_TagString: Untagged
@@ -1342,10 +1311,41 @@ MonoBehaviour:
   modelTransform: {fileID: 146701543}
   cameraTarget: {fileID: 905338637}
   moveSpeed: 5
+  runSpeed: 8
   rotationSpeed: 15
-  jumpForce: 8
+  runAcceleration: 5
+  runThreshold: 0.9
+  dashSpeed: 18
+  dashDuration: 0.6
+  dashCooldown: 0
+  dashCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   gravity: -20
   groundedGravity: -2
+  airControlFactor: 0.1
+  airDrag: 2
 --- !u!114 &1299545842
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1368,6 +1368,33 @@ MonoBehaviour:
   maxGroundAngle: 45
   autoSlopeHandling: 1
   groundSnapDistance: 0.3
+--- !u!114 &1299545843
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1299545836}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8cda94dc6cedc741822645489de7216, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHearts: 0
+  currentHealth: 0
+--- !u!114 &1299545844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1299545836}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5a2aae3265f74c4b9a40e0c43a5a11f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  invItems: []
 --- !u!1 &1470088472
 GameObject:
   m_ObjectHideFlags: 0

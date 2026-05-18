@@ -26,18 +26,30 @@ public class OnLookInputEvent : InputEventBase
     public LookInputSource Source;
 }
 
-public class OnActionInputEvent : InputEventBase
+public class OnAttackInputEvent : InputEventBase
 {
 }
 
-public class OnCrouchInputEvent : InputEventBase
+public class OnItemOneInputEvent : InputEventBase
 {
 }
 
-public class OnJumpInputEvent : InputEventBase
+public class OnItemTwoInputEvent : InputEventBase
 {
 }
 
-public class OnSwapInputEvent : InputEventBase
+public class OnInteractDodgeInputEvent : InputEventBase
+{
+}
+
+public class OnTargetInputEvent : InputEventBase
+{
+}
+
+public class OnInventoryInputEvent : InputEventBase
+{
+}
+
+public class OnPauseInputEvent : InputEventBase
 {
 }
