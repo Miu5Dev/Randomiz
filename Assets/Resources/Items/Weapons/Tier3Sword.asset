@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e45fd8450e7c95479e8fe8bbb6391d9, type: 3}
+  m_Name: Tier3Sword
+  m_EditorClassIdentifier: 
+  itemName: Divine Sword
+  itemDescription: 
+  itemSprite: {fileID: 0}
+  prefab: {fileID: 0}
+  PivotPoint: {fileID: 0}
+  handWeight: 0
+  damage: 8
+  range: 1
+  speed: 2
+  tier: 3
+  hitboxSize: {x: 0.81, y: 1.11, z: 1.31}
+  hitboxReach: 1.33
+  targetLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  hitboxOriginName: '[GFX]'
+  attackTrigger: 

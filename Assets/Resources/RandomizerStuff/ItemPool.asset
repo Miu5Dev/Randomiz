@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46ad81518d36b844687d15bbb24195bf, type: 3}
+  m_Name: ItemPool
+  m_EditorClassIdentifier: 
+  items:
+  - item: {fileID: 11400000, guid: c5cace5dc68a2f34a95d5f1b5a3e26fb, type: 2}
+    priority: 10
+    isProgression: 1
+    isRequired: 1
+  - item: {fileID: 11400000, guid: 6b2dbad357769c34e9e1f571ad337c98, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 0
+  - item: {fileID: 11400000, guid: f817c087a943d1b42857db1b8f3daed8, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 0
+  state: {fileID: 11400000, guid: 65e386dd95636f74c93c3d75d914ea87, type: 2}

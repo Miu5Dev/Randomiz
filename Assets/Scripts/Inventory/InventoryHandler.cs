@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 public class InventoryHandler : MonoBehaviour
@@ -12,26 +13,119 @@ public class InventoryHandler : MonoBehaviour
         return invItems[index];
     }
 
-    public bool AddItem(SOItem item)
+    public void OnItemPickedUp(OnItemPickedUpEvent e)
     {
-        if (item == null)
-        {
-            Debug.LogWarning("InventoryHandler: Tried to add a null item.");
-            return false;
-        }
+        if (e.receiver != gameObject) return;
+        AddItem(e.item);
+    }
+    
+    public bool AddItem(SOItem item)
+{
+    if (item == null)
+    {
+        Debug.LogWarning("InventoryHandler: Tried to add a null item.");
+        return false;
+    }
 
-        for (int i = 0; i < invItems.Length; i++)
+    if (item is SOSword newSword)
+    {
+        if (invItems[0] is SOSword existingSword)
         {
-            if (invItems[i] == null)
+            if (newSword.tier > existingSword.tier)
             {
-                invItems[i] = item;
-                Debug.Log($"InventoryHandler: '{item.itemName}' added to slot {i}.");
+                invItems[0] = newSword;
+                Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) replaced '{existingSword.itemName}' (tier {existingSword.tier}) in slot 0.");
                 return true;
             }
+            else
+            {
+                Debug.LogWarning($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) not added. Existing sword has equal or higher tier ({existingSword.tier}).");
+                return false;
+            }
         }
+        else
+        {
+            invItems[0] = newSword;
+            Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' placed in slot 0.");
+            return true;
+        }
+    }
 
-        Debug.LogWarning("InventoryHandler: Inventory is full. Could not add item.");
-        return false;
+    if (item is SOWeapon newWeapon)
+    {
+        // Buscar si ya existe una del mismo tipo para comparar tier
+        for (int i = 1; i < invItems.Length; i++)
+        {
+            if (invItems[i] != null && invItems[i].GetType() == newWeapon.GetType())
+            {
+                if (newWeapon.tier > ((SOWeapon)invItems[i]).tier)
+                {
+                    invItems[i] = newWeapon;
+                    Debug.Log($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) replaced existing in slot {i}.");
+                    return true;
+                }
+                else
+                {
+                    Debug.LogWarning($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) not added. Equal or higher tier already exists in slot {i}.");
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Item normal o arma sin duplicado: primer slot libre (saltando slot 0)
+    for (int i = 1; i < invItems.Length; i++)
+    {
+        if (invItems[i] == null)
+        {
+            invItems[i] = item;
+            Debug.Log($"InventoryHandler: '{item.itemName}' added to slot {i}.");
+            return true;
+        }
+    }
+
+    Debug.LogWarning("InventoryHandler: Inventory is full. Could not add item.");
+    return false;
+}
+
+
+    public void OnPotionConsume(OnPotionConsumeEvent e)
+    {
+        ConsumeItem(e.consumedPotionItem, e.emptyPotionItem);
+    }
+    
+    private void ConsumeItem(SOItem item, SOItem consumedItem)
+    {
+        if (invItems.Contains(item))
+        {
+            invItems[GetIndex(item)] = consumedItem;
+        }
+    }
+    
+    private int GetIndex(SOItem item)
+    {
+        for (int i = 0; i < invItems.Length; i++)
+        {
+            if (invItems[i] == item)
+                return i;
+        }
+        return -1;
+    }
+    
+    // Añade esto en InventoryHandler.cs
+    public int GetHighestWeaponTier()
+    {
+        // Slot 0 siempre es la espada — es suficiente para el tier check
+        if (invItems[0] is SOWeapon sword)
+            return sword.tier;
+
+        // Por si acaso hay otras weapons en slots 1-12
+        int max = 0;
+        for (int i = 1; i < invItems.Length; i++)
+            if (invItems[i] is SOWeapon w && w.tier > max)
+                max = w.tier;
+
+        return max;
     }
     
 }

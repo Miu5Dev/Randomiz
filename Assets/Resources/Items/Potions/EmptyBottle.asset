@@ -9,7 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe1db6134ab34494b9953d3fbb6360ad, type: 3}
-  m_Name: EventBusListenerConfig
+  m_Script: {fileID: 11500000, guid: ea0e853221c538740875e34646b60187, type: 3}
+  m_Name: EmptyBottle
   m_EditorClassIdentifier: 
-  eventsFolder: Scripts/Events
+  itemName: Empty Bottle
+  itemDescription: 
+  itemSprite: {fileID: 0}
+  prefab: {fileID: 0}
+  PivotPoint: {fileID: 0}
+  handWeight: 0
+  healAmount: 0

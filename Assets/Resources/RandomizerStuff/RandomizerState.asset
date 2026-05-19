@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe1db6134ab34494b9953d3fbb6360ad, type: 3}
-  m_Name: EventBusListenerConfig
+  m_Script: {fileID: 11500000, guid: caf28024b34142a418c083b9dad3d50c, type: 3}
+  m_Name: RandomizerState
   m_EditorClassIdentifier: 
-  eventsFolder: Scripts/Events
+  chests: []

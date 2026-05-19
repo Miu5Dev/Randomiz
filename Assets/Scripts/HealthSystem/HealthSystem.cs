@@ -7,6 +7,19 @@ public class HealthSystem : MonoBehaviour
                      private float maxHealth;
     [SerializeField] private float currentHealth;
 
+    
+    public void OnDamageEvent(OnDamageDealtEvent e)
+    {
+        if (e.Target != this.gameObject) return;
+        Damage(e.Damage);
+    }
+    
+    public void OnHealEvent(OnHealReceivedEvent e)
+    {
+        if (e.Target != this.gameObject) return;
+        Heal(e.Amount);
+    }
+    
     public void Awake()
     {
         

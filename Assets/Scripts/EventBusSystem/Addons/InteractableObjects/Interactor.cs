@@ -17,7 +17,7 @@ public class Interactor : MonoBehaviour
     public void Interact()
     {
         if (!onInteractArea) return;
-        interactableScript.Use();
+        interactableScript.Use(gameObject);
     }
 
     // ── Trigger events ────────────────────────────────────────────────────────
