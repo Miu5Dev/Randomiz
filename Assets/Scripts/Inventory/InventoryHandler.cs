@@ -19,74 +19,73 @@ public class InventoryHandler : MonoBehaviour
         AddItem(e.item);
     }
     
-    public bool AddItem(SOItem item)
-{
-    if (item == null)
-    {
-        Debug.LogWarning("InventoryHandler: Tried to add a null item.");
-        return false;
-    }
 
-    if (item is SOSword newSword)
+    public SOItem AddItem(SOItem item)
     {
-        if (invItems[0] is SOSword existingSword)
+        if (item == null)
         {
-            if (newSword.tier > existingSword.tier)
-            {
-                invItems[0] = newSword;
-                Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) replaced '{existingSword.itemName}' (tier {existingSword.tier}) in slot 0.");
-                return true;
-            }
-            else
-            {
-                Debug.LogWarning($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) not added. Existing sword has equal or higher tier ({existingSword.tier}).");
-                return false;
-            }
+            Debug.LogWarning("InventoryHandler: Tried to add a null item.");
+            return null;
         }
-        else
-        {
-            invItems[0] = newSword;
-            Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' placed in slot 0.");
-            return true;
-        }
-    }
 
-    if (item is SOWeapon newWeapon)
-    {
-        // Buscar si ya existe una del mismo tipo para comparar tier
-        for (int i = 1; i < invItems.Length; i++)
+        if (item is SOSword newSword)
         {
-            if (invItems[i] != null && invItems[i].GetType() == newWeapon.GetType())
+            if (invItems[0] is SOSword existingSword)
             {
-                if (newWeapon.tier > ((SOWeapon)invItems[i]).tier)
+                if (newSword.tier > existingSword.tier)
                 {
-                    invItems[i] = newWeapon;
-                    Debug.Log($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) replaced existing in slot {i}.");
-                    return true;
+                    invItems[0] = newSword;
+                    Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) replaced '{existingSword.itemName}' (tier {existingSword.tier}) in slot 0.");
+                    return newSword;
                 }
                 else
                 {
-                    Debug.LogWarning($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) not added. Equal or higher tier already exists in slot {i}.");
-                    return false;
+                    Debug.LogWarning($"InventoryHandler: Sword '{newSword.itemName}' (tier {newSword.tier}) not added. Existing sword has equal or higher tier ({existingSword.tier}).");
+                    return null;  // ← Fallback a filler
+                }
+            }
+            else
+            {
+                invItems[0] = newSword;
+                Debug.Log($"InventoryHandler: Sword '{newSword.itemName}' placed in slot 0.");
+                return newSword;
+            }
+        }
+
+        if (item is SOWeapon newWeapon)
+        {
+            for (int i = 1; i < invItems.Length; i++)
+            {
+                if (invItems[i] != null && invItems[i].GetType() == newWeapon.GetType())
+                {
+                    if (newWeapon.tier > ((SOWeapon)invItems[i]).tier)
+                    {
+                        invItems[i] = newWeapon;
+                        Debug.Log($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) replaced existing in slot {i}.");
+                        return newWeapon;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"InventoryHandler: '{newWeapon.itemName}' (tier {newWeapon.tier}) not added. Equal or higher tier already exists in slot {i}.");
+                        return null;  // ← Fallback a filler
+                    }
                 }
             }
         }
-    }
 
-    // Item normal o arma sin duplicado: primer slot libre (saltando slot 0)
-    for (int i = 1; i < invItems.Length; i++)
-    {
-        if (invItems[i] == null)
+        for (int i = 1; i < invItems.Length; i++)
         {
-            invItems[i] = item;
-            Debug.Log($"InventoryHandler: '{item.itemName}' added to slot {i}.");
-            return true;
+            if (invItems[i] == null)
+            {
+                invItems[i] = item;
+                Debug.Log($"InventoryHandler: '{item.itemName}' added to slot {i}.");
+                return item;
+            }
         }
-    }
 
-    Debug.LogWarning("InventoryHandler: Inventory is full. Could not add item.");
-    return false;
-}
+        Debug.LogWarning("InventoryHandler: Inventory is full. Could not add item.");
+        return null;  // ← Fallback a filler
+    }
 
 
     public void OnPotionConsume(OnPotionConsumeEvent e)

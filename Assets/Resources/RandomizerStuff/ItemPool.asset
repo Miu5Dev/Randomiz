@@ -25,4 +25,14 @@ MonoBehaviour:
     priority: 0
     isProgression: 1
     isRequired: 0
+  - item: {fileID: 11400000, guid: 4c91af57b9bb8084d8adeed8ca5c6529, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 0
+  - item: {fileID: 11400000, guid: 4c91af57b9bb8084d8adeed8ca5c6529, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 0
+  fillerItems:
+  - {fileID: 11400000, guid: e5c34576838a4b0479c456f504d6898b, type: 2}
   state: {fileID: 11400000, guid: 65e386dd95636f74c93c3d75d914ea87, type: 2}

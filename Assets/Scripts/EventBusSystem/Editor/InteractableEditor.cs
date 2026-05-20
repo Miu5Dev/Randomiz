@@ -12,10 +12,24 @@ public class InteractableEditor : Editor
     private Dictionary<int, MethodInfo[]> _methodCache = new();
 
     // Only FixedValue and ComponentField make sense without an event payload
-    private static readonly string[]          _srcLabels = { "Fixed Value", "Component Field", "Toggle", "Object Reference", "Caller Object" };
-    private static readonly ParamSourceMode[] _srcModes  =
-        { ParamSourceMode.FixedValue, ParamSourceMode.ComponentField, ParamSourceMode.Toggle, ParamSourceMode.ObjectReference, ParamSourceMode.CallerObject };
+    private static readonly string[] _srcLabels = {
+        "Fixed Value",
+        "Component Field",
+        "Toggle",
+        "Object Reference",
+        "Caller Object",   // el GameObject caller directo
+        "Caller Root"      // el root principal del caller
+    };
 
+    private static readonly ParamSourceMode[] _srcModes = {
+        ParamSourceMode.FixedValue,
+        ParamSourceMode.ComponentField,
+        ParamSourceMode.Toggle,
+        ParamSourceMode.ObjectReference,
+        ParamSourceMode.CallerObject,
+        ParamSourceMode.CallerRoot
+    };
+    
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -289,6 +303,16 @@ public class InteractableEditor : Editor
                 {
                     GUI.color = new Color(0.5f, 1f, 0.7f);
                     EditorGUILayout.LabelField($"  ← runtime: caller.GetComponent<{pType.Name}>()", EditorStyles.miniLabel);
+                    GUI.color = Color.white;
+                    break;
+                }
+                
+                case ParamSourceMode.CallerRoot:
+                {
+                    GUI.color = new Color(0.4f, 0.8f, 1f); // azul distinto al verde de CallerObject
+                    EditorGUILayout.LabelField(
+                        $"  ← runtime: caller.transform.root.GetComponent<{pType.Name}>()",
+                        EditorStyles.miniLabel);
                     GUI.color = Color.white;
                     break;
                 }

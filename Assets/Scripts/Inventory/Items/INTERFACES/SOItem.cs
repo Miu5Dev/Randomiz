@@ -7,6 +7,10 @@ public abstract class SOItem : ScriptableObject
     public string itemDescription = "";
     public Sprite itemSprite;
     
+    [Header("Filler Settings")]
+    [Tooltip("Este item se usa como fallback cuando no hay tier mayor disponible")]
+    public bool isFiller = false;
+    
     [Header("Prefab")]
     public GameObject prefab;
     

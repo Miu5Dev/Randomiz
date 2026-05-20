@@ -21,6 +21,10 @@ public class EventBusListener : MonoBehaviour
     public UnityEvent onRaised;
     public UnityEvent onReleased;
     public bool callOnBothStates = false;
+    
+    [Tooltip("Listeners con mayor prioridad se ejecutan primero y pueden cancelar a los de menor prioridad.\n" +
+             "Default: 0. Puede ser negativo para ejecutarse al final.")]
+    public int priority = 0;
 
     // Smart bindings: each one maps N event fields → a method with N params
     [HideInInspector] public List<SmartBinding> smartBindings = new();
@@ -216,7 +220,7 @@ public class EventBusListener : MonoBehaviour
         typeof(EventBus)
             .GetMethod("Subscribe", BindingFlags.Public | BindingFlags.Static)
             .MakeGenericMethod(eventType)
-            .Invoke(null, new object[] { _subscribedDelegate });
+            .Invoke(null, new object[] { _subscribedDelegate, priority });
     }
 
     // ── Cancellation helper ───────────────────────────────────────────────

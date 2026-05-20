@@ -17,8 +17,9 @@ public enum ParamSourceMode
     ComponentField,
     WholeEvent,
     Toggle,
-    ObjectReference,  // drag & drop a UnityEngine.Object in the Inspector
-    CallerObject      // the GameObject that called Use() at runtime (e.g. the Interactor)
+    ObjectReference,
+    CallerObject,   // el GameObject que llamó Use() directamente
+    CallerRoot      // el transform.root.gameObject del caller
 }
 
 [Serializable]
@@ -209,6 +210,37 @@ public class SmartBinding
                     else
                     {
                         Debug.LogWarning($"[SmartBinding] CallerObject: {pType.Name} must be GameObject or Component.");
+                        return null;
+                    }
+                    break;
+                }
+                
+                case ParamSourceMode.CallerRoot:
+                {
+                    if (pType == typeof(GameObject) || pType.IsAssignableFrom(typeof(GameObject)))
+                    {
+                        resolvers[i] = _ =>
+                        {
+                            if (callerObject == null) return null;
+                            return callerObject.transform.root.gameObject;
+                        };
+                    }
+                    else if (typeof(Component).IsAssignableFrom(pType))
+                    {
+                        resolvers[i] = _ =>
+                        {
+                            if (callerObject == null) return null;
+                            var root = callerObject.transform.root.gameObject;
+                            var comp = root.GetComponent(pType);
+                            if (comp == null)
+                                Debug.LogWarning(
+                                    $"[SmartBinding] CallerRoot: no {pType.Name} on root '{root.name}'");
+                            return comp;
+                        };
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[SmartBinding] CallerRoot: {pType.Name} must be GameObject or Component.");
                         return null;
                     }
                     break;

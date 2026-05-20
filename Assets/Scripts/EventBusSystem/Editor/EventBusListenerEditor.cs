@@ -112,7 +112,15 @@ public class EventBusListenerEditor : Editor
             EditorGUI.indentLevel--;
         }
         EditorGUILayout.Space(6);
-
+        
+        EditorGUILayout.Space(4);
+        EditorGUILayout.LabelField("Execution Order", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(
+            serializedObject.FindProperty("priority"),
+            new GUIContent("Priority",
+                "Higher = executes first. Listeners with cancelAfterHandle=true and high priority " +
+                "will cancel all lower-priority listeners."));
+        
         // ── Smart bindings ───────────────────────────────────────────────
         EditorGUILayout.LabelField("Method Bindings", EditorStyles.boldLabel);
         EditorGUILayout.LabelField(

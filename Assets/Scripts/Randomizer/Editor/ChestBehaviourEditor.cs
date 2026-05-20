@@ -31,27 +31,27 @@ public class ChestBehaviourEditor : Editor
         EditorGUILayout.Space(6);
 
         // ── Estado actual (solo en Play Mode)
-        if (Application.isPlaying && chest.GetComponent<SOItemPool>() == null)
+        var poolRef = serializedObject.FindProperty("pool").objectReferenceValue as SOItemPool;
+        if (Application.isPlaying && poolRef != null)
         {
             EditorGUILayout.LabelField("🎲  Estado en Runtime", EditorStyles.boldLabel);
-            var pool = serializedObject.FindProperty("pool").objectReferenceValue as SOItemPool;
-            if (pool?.state != null)
+            if (poolRef.state != null)
             {
-                var s = pool.state.GetChest(chest.locationId);
+                var s = poolRef.state.GetChest(chest.locationId);
                 if (s != null)
                 {
                     var prevBg = GUI.backgroundColor;
                     GUI.backgroundColor = s.opened
-                        ? new Color(0.6f, 0.6f, 0.6f)   // gris = abierto
+                        ? new Color(0.6f, 0.6f, 0.6f)
                         : !string.IsNullOrEmpty(s.itemName)
-                            ? new Color(0.5f, 1f, 0.5f)  // verde = tiene item
-                            : new Color(1f, 0.85f, 0.4f);// naranja = vacío
+                            ? new Color(0.5f, 1f, 0.5f)
+                            : new Color(1f, 0.85f, 0.4f);
 
-                    string stateLabel = s.opened          ? "✓ Abierto"
-                                      : string.IsNullOrEmpty(s.itemName) ? "⏳ Sin asignar"
-                                      : $"🎁 {s.itemName}";
+                    string stateLabel = s.opened               ? "✓ Abierto"
+                        : string.IsNullOrEmpty(s.itemName) ? "⏳ Sin asignar"
+                        : $"🎁 {s.itemName}";
 
-                    var item = pool.FindItem(s.itemName);
+                    var item = poolRef.FindItem(s.itemName);
                     if (item is SOWeapon w) stateLabel += $" [Tier {w.tier}]";
 
                     EditorGUILayout.HelpBox(stateLabel, MessageType.None);

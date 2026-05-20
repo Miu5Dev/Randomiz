@@ -68,6 +68,21 @@ public class RandomizerSystem : MonoBehaviour
             return;
         }
 
+        // Validar duplicados
+        var duplicates = locationIds
+            .GroupBy(id => id)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicates.Count > 0)
+        {
+            Debug.LogError(
+                $"[Randomizer] ✗ Duplicados detectados: {string.Join(", ", duplicates)}\n" +
+                $"⚠️ Solución: Cambia el nombre de los GameObjects para que sean únicos.");
+            return;
+        }
+
         int usedSeed = seed == -1 ? Random.Range(0, int.MaxValue) : seed;
         Random.InitState(usedSeed);
         State.SetSeed(usedSeed);
@@ -106,23 +121,37 @@ public class RandomizerSystem : MonoBehaviour
     // ASSUMED FILL
     // ─────────────────────────────────────────────
 
-    private void AssumedFill(List<SOItem> itemsToPlace)
+private void AssumedFill(List<SOItem> itemsToPlace)
+{
+    // Agrupa items por tier para colocarlos en orden correcto
+    var itemsByTier = new Dictionary<int, List<SOItem>>();
+    foreach (var item in itemsToPlace)
     {
-        var remaining = itemsToPlace
-            .OrderBy(i => GetTier(i))
-            .ThenBy(_ => Random.value)
-            .ToList();
+        int tier = GetTier(item);
+        if (!itemsByTier.ContainsKey(tier))
+            itemsByTier[tier] = new List<SOItem>();
+        itemsByTier[tier].Add(item);
+    }
 
-        foreach (var item in remaining)
+    // Ordena tiers ascendente (0 → 1 → 2 → ...)
+    var sortedTiers = itemsByTier.Keys.OrderBy(t => t).ToList();
+    var placed = new HashSet<string>();  // items ya colocados
+
+    foreach (var tier in sortedTiers)
+    {
+        var tierItems = itemsByTier[tier];
+        
+        // Baraja items del mismo tier para aleatoriedad
+        Shuffle(tierItems);
+
+        foreach (var item in tierItems)
         {
-            var assumed = itemsToPlace
-                .Where(i => i != item)
-                .Select(i => i.itemName)
-                .ToHashSet();
-
+            var assumed = placed.ToHashSet();
             int currentMaxTier = GetReachableTierSoFar(assumed);
-            int itemTier       = GetTier(item);
+            int itemTier = GetTier(item);
+            
 
+            // Buscar cofres accesibles y válidos
             var reachable = State.chests
                 .Where(c =>
                     string.IsNullOrEmpty(c.itemName) &&
@@ -132,16 +161,74 @@ public class RandomizerSystem : MonoBehaviour
 
             if (reachable.Count == 0)
             {
+                // Intento de recuperación: fuerza accesibilidad si es Tier 0 o 1
+                if (itemTier <= 1)
+                {
+                    var anyEmpty = State.chests
+                        .Where(c => string.IsNullOrEmpty(c.itemName))
+                        .FirstOrDefault();
+                    
+                    if (anyEmpty != null)
+                    {
+                        Debug.LogWarning($"[Randomizer] ⚠ No hay cofres accesibles para '{item.itemName}' " +
+                                        $"(T{itemTier}), forzando colocación en {anyEmpty.locationId}");
+                        State.SetItem(anyEmpty.locationId, item);
+                        placed.Add(item.itemName);
+                        continue;
+                    }
+                }
+
                 Debug.LogError(
-                    $"[Randomizer] Sin ubicación para '{item.itemName}' " +
+                    $"[Randomizer] ✗ Sin ubicación para '{item.itemName}' " +
                     $"(tier {itemTier}, maxTierActual={currentMaxTier}). " +
-                    $"¿Suficientes cofres accesibles para ese tier?");
-                return;
+                    $"¿Suficientes cofres accesibles para ese tier? " +
+                    $"Items colocados: {placed.Count}, Todavía por colocar: {itemsToPlace.Count - placed.Count}");
+                
+                // NO retornar temprano — continuar para intentar colocar los demás items
+                continue;
             }
 
             State.SetItem(reachable[Random.Range(0, reachable.Count)].locationId, item);
+            placed.Add(item.itemName);
         }
+        
+        
     }
+
+        // Verificación final: ¿quedaron items sin colocar?
+            var unplaced = itemsToPlace.Where(i => !placed.Contains(i.itemName)).ToList();
+            if (unplaced.Count > 0)
+            {
+                Debug.LogWarning($"[Randomizer] ⚠ {unplaced.Count} items no se pudieron colocar: " +
+                                 $"{string.Join(", ", unplaced.Select(i => i.itemName))}");
+            }
+
+        // ← AGREGA ESTO: Rellenar cofres vacíos con filler infinito
+            var emptyChests = State.chests
+                .Where(c => string.IsNullOrEmpty(c.itemName))
+                .ToList();
+
+            if (emptyChests.Count > 0)
+            {
+                if (pool.fillerItems.Count > 0)
+                {
+                    Debug.Log($"[Randomizer] ℹ️ {emptyChests.Count} cofres vacíos — rellenando con filler infinito");
+                
+                    foreach (var chest in emptyChests)
+                    {
+                        var filler = pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
+                        State.SetItem(chest.locationId, filler);
+                        Debug.Log($"[Randomizer] ✓ {chest.locationId} → {filler.itemName} (filler, tier {GetTier(filler)})");
+                    }
+                }
+                else
+                {
+                    Debug.LogError(
+                        $"[Randomizer] ✗ CRÍTICO: {emptyChests.Count} cofres vacíos y **fillerItems está vacío** en SOItemPool.\n" +
+                        $"⚠️ Solución: Abre el SOItemPool y arrastra al menos 1 item a 'Filler items'");
+                }
+            }
+}
 
     private void FillRemaining(List<SOItem> fillItems)
     {
@@ -201,7 +288,10 @@ public class RandomizerSystem : MonoBehaviour
 
     private bool IsTierProgressionValid(int itemTier, int currentMaxTier)
     {
-        if (itemTier == 0 || itemTier == 1) return true;
+        // Tier 0 (pociones, llaves) y Tier 1 (espada inicial) siempre validan
+        if (itemTier <= 1) return true;
+    
+        // Tier 2+ requiere maxTier actual >= tier - 1
         return itemTier <= currentMaxTier + 1;
     }
 
