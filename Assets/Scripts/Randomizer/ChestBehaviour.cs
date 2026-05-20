@@ -15,14 +15,8 @@ public class ChestBehaviour : MonoBehaviour
     private RandomizerState State => pool.state;
     public bool IsOpened => pool?.state?.GetChest(locationId)?.opened ?? false;
 
-
-    // ─────────────────────────────────────────────
-    // CICLO DE VIDA
-    // ─────────────────────────────────────────────
-
     private void Awake()
     {
-        // Auto-asignar locationId desde el nombre del GameObject si está vacío
         if (string.IsNullOrEmpty(locationId))
         {
             locationId = gameObject.name;
@@ -46,10 +40,6 @@ public class ChestBehaviour : MonoBehaviour
             SetVisualOpened();
     }
 
-    // ─────────────────────────────────────────────
-    // APERTURA
-    // ─────────────────────────────────────────────
-
     public void Open(GameObject opener)
     {
         var s = State.GetChest(locationId);
@@ -62,50 +52,57 @@ public class ChestBehaviour : MonoBehaviour
             return;
         }
 
-        var resolved = ResolveItem(item, opener);
+        var resolved = ResolveItem(item);
         if (resolved == null)
         {
             Debug.LogWarning($"[Chest:{locationId}] Bloqueado — consigue primero el tier anterior.");
             return;
         }
 
-        // Determinar qué ítem se va a entregar (resolved o un filler)
-        SOItem actualItemGiven = resolved;
-        
-        if (actualItemGiven == null && pool.fillerItems.Count > 0)
+        // Intentar añadir el ítem resuelto
+        SOItem addedItem = InventoryHandler.Instance?.AddItem(resolved);
+
+        // Si falla, probar todos los fillers (mezclados)
+        if (addedItem == null && pool.fillerItems.Count > 0)
         {
-            actualItemGiven = pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
-            Debug.Log($"[Chest:{locationId}] ⚠️ {resolved?.itemName} no se pudo usar, dando filler: {actualItemGiven.itemName}");
+            List<SOItem> shuffled = new List<SOItem>(pool.fillerItems);
+            for (int i = 0; i < shuffled.Count; i++)
+            {
+                int rand = Random.Range(i, shuffled.Count);
+                (shuffled[i], shuffled[rand]) = (shuffled[rand], shuffled[i]);
+            }
+
+            foreach (var filler in shuffled)
+            {
+                addedItem = InventoryHandler.Instance?.AddItem(filler);
+                if (addedItem != null)
+                {
+                    Debug.Log($"[Chest:{locationId}] ⚠️ {resolved.itemName} no se pudo agregar. Se dio filler: {filler.itemName}");
+                    break;
+                }
+            }
         }
 
-        if (actualItemGiven == null)
+        if (addedItem == null)
         {
-            Debug.LogError($"[Chest:{locationId}] ✗ CRÍTICO: No hay ningún ítem para entregar. Cofre no se abrió.");
+            Debug.LogError($"[Chest:{locationId}] ✗ CRÍTICO: No se pudo añadir ningún ítem (ni siquiera filler). Cofre permanece cerrado.");
             return;
         }
 
-        // Solo notificar mediante evento, sin tocar el inventario
-        EventBus.Raise(new OnItemPickedUpEvent(actualItemGiven, opener));
-    
-        // Marcar como abierto y cambiar visual
+        EventBus.Raise(new OnItemPickedUpEvent(addedItem, opener));
         State.SetOpened(locationId);
         SetVisualOpened();
 
-        Debug.Log($"[Chest:{locationId}] {opener.name} recibió (vía evento): {actualItemGiven.itemName}" +
-                  (actualItemGiven is SOWeapon w ? $" [Tier {w.tier}]" : ""));
+        Debug.Log($"[Chest:{locationId}] {opener.name} obtuvo: {addedItem.itemName}" +
+                  (addedItem is SOWeapon w ? $" [Tier {w.tier}]" : ""));
     }
 
-    // ─────────────────────────────────────────────
-    // SEQUENCE BREAK PROTECTION
-    // ─────────────────────────────────────────────
-
-    private SOItem ResolveItem(SOItem intended, GameObject opener)
+    private SOItem ResolveItem(SOItem intended)
     {
         if (intended is not SOWeapon intendedWeapon)
             return intended;
 
-        var inv = GetInventoryHandler(opener);
-        int playerMaxTier = inv?.GetHighestWeaponTier() ?? 0;
+        int playerMaxTier = InventoryHandler.Instance?.GetHighestWeaponTier() ?? 0;
         int intendedTier = intendedWeapon.tier;
 
         Debug.Log($"[Chest:{locationId}] Player maxTier={playerMaxTier}, cofre tiene T{intendedTier}");
@@ -117,40 +114,33 @@ public class ChestBehaviour : MonoBehaviour
             return GetRandomFiller();
         }
 
-        // Progresión normal: tier == maxTier + 1
+        // Progresión normal
         if (intendedTier == playerMaxTier + 1)
             return intended;
 
-        // Sequence break: tier > maxTier + 1 → intentar swap
+        // Sequence break → intentar swap
         int neededTier = playerMaxTier + 1;
-        Debug.LogWarning($"[Chest:{locationId}] ⚠️ Sequence break — buscando T{neededTier}...");
-
-        var swapped = TrySwapForNextTier(neededTier);   // ✅ ahora un solo argumento
+        Debug.LogWarning($"[Chest:{locationId}] Sequence break — buscando T{neededTier}...");
+        var swapped = TrySwapForNextTier(neededTier);
         if (swapped != null)
             return swapped;
 
-        // No hay tier disponible para swap → filler
+        // No hay swap → filler
         Debug.LogWarning($"[Chest:{locationId}] No hay T{neededTier} disponible. Dando filler.");
         return GetRandomFiller();
     }
 
-    /// <summary>
-    /// Devuelve un filler aleatorio del pool, o null si no hay.
-    /// </summary>
     private SOItem GetRandomFiller()
     {
         if (pool.fillerItems.Count == 0)
         {
-            Debug.LogError($"[Chest:{locationId}] ✗ No hay filler items. Cofre no se abrirá.");
+            Debug.LogError($"[Chest:{locationId}] ✗ No hay filler items configurados.");
             return null;
         }
         return pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
     }
-    
-    /// <summary>
-    /// Busca y swap con el cofre que tiene el tier EXACTO que el player necesita (maxTier + 1).
-    /// </summary>
-    private SOWeapon TrySwapForNextTier(int neededTier)   // ← sin opener
+
+    private SOWeapon TrySwapForNextTier(int neededTier)
     {
         var myState = State.GetChest(locationId);
         if (myState == null || myState.opened) return null;
@@ -162,95 +152,44 @@ public class ChestBehaviour : MonoBehaviour
             var otherItem = pool.FindItem(other.itemName);
             if (otherItem is SOWeapon w && w.tier == neededTier)
             {
-                // Intercambiar nombres
                 string temp = myState.itemName;
                 myState.itemName = other.itemName;
                 other.itemName = temp;
                 State.Save();
-
                 return (SOWeapon)pool.FindItem(myState.itemName);
             }
         }
         return null;
     }
-    /// <summary>
-    /// Helper para obtener InventoryHandler con fallback a parent/child.
-    /// </summary>
-    private InventoryHandler GetInventoryHandler(GameObject opener)
-    {
-        return opener.GetComponent<InventoryHandler>()
-            ?? opener.GetComponentInParent<InventoryHandler>()
-            ?? opener.GetComponentInChildren<InventoryHandler>();
-    }
-
-    private SOWeapon SwapWithLowestPending(int neededTier)
-    {
-        var myState = State.GetChest(locationId);
-
-        // Busca en el STATE global — funciona aunque el otro cofre esté en otra escena
-        foreach (var other in State.chests)
-        {
-            if (other.locationId == locationId || other.opened) continue;
-            var otherItem = pool.FindItem(other.itemName);
-            if (otherItem is SOWeapon w && w.tier == neededTier)
-            {
-                string temp      = myState.itemName;
-                myState.itemName = other.itemName;
-                other.itemName   = temp;
-                State.Save(); // persiste el swap
-
-                var give = (SOWeapon)pool.FindItem(myState.itemName);
-                Debug.Log($"[Chest] Swap: {locationId} ↔ {other.locationId} | Entrego {give.itemName}");
-                return give;
-            }
-        }
-
-        Debug.LogWarning($"[Chest:{locationId}] No hay T{neededTier} disponible. Cofre bloqueado.");
-        return null;
-    }
-
-    // ─────────────────────────────────────────────
-    // VISUAL (implementa con tu sistema de animación)
-    // ─────────────────────────────────────────────
 
     private void SetVisualOpened()
     {
-        // Ejemplo: GetComponent<Animator>()?.SetTrigger("Open");
-        // Ejemplo: GetComponent<SpriteRenderer>().sprite = openedSprite;
+        // Implementar animación/sprite
     }
 
-    // ─────────────────────────────────────────────
-    // GIZMO — muestra el contenido en Scene View
-    // ─────────────────────────────────────────────
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        if (string.IsNullOrEmpty(locationId))
+            locationId = gameObject.name;
+    }
 
-    #if UNITY_EDITOR
-        private void OnValidate()
+    private void OnDrawGizmosSelected()
+    {
+        var s = pool?.state?.GetChest(locationId);
+        string label;
+        if (s == null)
+            label = "[ sin state ]";
+        else if (s.opened)
+            label = "✓ abierto";
+        else if (!string.IsNullOrEmpty(s.itemName))
         {
-            // Auto-sincronizar locationId con el nombre del GameObject
-            if (string.IsNullOrEmpty(locationId))
-            {
-                locationId = gameObject.name;
-            }
+            var item = pool.FindItem(s.itemName);
+            label = s.itemName + (item is SOWeapon w ? $" [T{w.tier}]" : "");
         }
-
-        private void OnDrawGizmosSelected()
-        {
-            var s = pool?.state?.GetChest(locationId);
-            string label;
-
-            if (s == null)
-                label = "[ sin state ]";
-            else if (s.opened)
-                label = "✓ abierto";
-            else if (!string.IsNullOrEmpty(s.itemName))
-            {
-                var item = pool.FindItem(s.itemName);
-                label = s.itemName + (item is SOWeapon w ? $" [T{w.tier}]" : "");
-            }
-            else
-                label = "[ vacío ]";
-
-            UnityEditor.Handles.Label(transform.position + Vector3.up * 1.5f, label);
-        }
-    #endif
+        else
+            label = "[ vacío ]";
+        UnityEditor.Handles.Label(transform.position + Vector3.up * 1.5f, label);
+    }
+#endif
 }

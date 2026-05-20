@@ -1791,6 +1791,10 @@ PrefabInstance:
       value: '[Player]'
       objectReference: {fileID: 0}
     - target: {fileID: 5230418838899386553, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: defaultBottle
+      value: 
+      objectReference: {fileID: 11400000, guid: 7e1ad2b9ccecfb747ac4522ab31e180f, type: 2}
+    - target: {fileID: 5230418838899386553, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: invItems.Array.size
       value: 13
       objectReference: {fileID: 0}
