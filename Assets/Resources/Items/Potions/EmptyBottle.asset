@@ -15,7 +15,8 @@ MonoBehaviour:
   itemName: Empty Bottle
   itemDescription: 
   itemSprite: {fileID: 0}
+  isFiller: 0
   prefab: {fileID: 0}
   PivotPoint: {fileID: 0}
-  handWeight: 0
+  handWeightMultiplier: 1
   healAmount: 0

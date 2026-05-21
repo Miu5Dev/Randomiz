@@ -8,7 +8,6 @@ public class EquipHandler : MonoBehaviour
     
     [Space(10)]
     [Header("CONFIGS")]
-    // ❌ Ya no necesitas este campo: public SOItem defaultBottle;
     public Transform ItemsPivotPoint;
 
     private void Awake()
@@ -26,17 +25,29 @@ public class EquipHandler : MonoBehaviour
         // Opcional: comprobar que InventoryHandler existe
         if (InventoryHandler.Instance == null)
             Debug.LogError("InventoryHandler no encontrado. Asegúrate de que hay un InventoryHandler en la escena.");
+        
+        if(EquipedItem != null)EquipItem(EquipedItem);
     }
-
+    
     public void EquipItem(SOItem item)
     {
         if (EquipedItem != null && EquipedItem != item)
             EquipedItem = item;
         item.PivotPoint = ItemsPivotPoint;
+
+        EventBus.Raise(new OnItemEquipEvent()
+        {
+            item = item
+        });
     }
 
     public void UnEquipItem()
     {
+        EventBus.Raise(new OnItemEquipEvent()
+        {
+            item = EquipedItem
+        });
+        
         EquipedItem = null;
     }
 

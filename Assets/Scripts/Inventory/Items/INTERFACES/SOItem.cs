@@ -19,12 +19,12 @@ public abstract class SOItem : ScriptableObject
 
     [Header("Weight")]
     [Min(0f)]
-    public float handWeight = 0f;
+    public float handWeightMultiplier = 1f;
     
     // Método virtual que los hijos pueden override
     public virtual string GetDescription()
     {
-        return $"{itemName} (peso: {handWeight}kg)";
+        return $"{itemName} (peso: {handWeightMultiplier}kg)";
     }
     
     public abstract void Use(GameObject user);

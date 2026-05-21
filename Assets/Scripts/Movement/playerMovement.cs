@@ -9,7 +9,7 @@ public class PlayerMovement : MonoBehaviour
 
     [Tooltip("Assign the CameraTarget (NOT the camera). Only its yaw (Y axis) is used.")]
     public Transform cameraTarget;
-
+    
     [Header("Movement")]
     public float moveSpeed = 4f;
     public float runSpeed = 8f;
@@ -221,6 +221,17 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
 
+    public void onItemEquip(OnItemEquipEvent e)
+    {
+        ChangeMoveSpeed(e.item.handWeightMultiplier);
+    }
+
+    public void OnItemUnequip(OnItemUnequipEvent e)
+    {
+        ResetMoveSpeed();
+    }
+    
+    
     public void ChangeMoveSpeed(float multiplier)
     {
         moveSpeed = baseMoveSpeed * multiplier;
@@ -232,4 +243,7 @@ public class PlayerMovement : MonoBehaviour
         moveSpeed = baseMoveSpeed;
         runSpeed  = baseRunSpeed;
     }
+    
+    public Vector2 MoveInput    => moveInput;
+    public Transform CameraTarget => cameraTarget;
 }
