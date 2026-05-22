@@ -4,10 +4,7 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     [Header("References")]
-    [Tooltip("Child of the Player that holds the mesh. NEVER the root.")]
     public Transform modelTransform;
-
-    [Tooltip("Assign the CameraTarget (NOT the camera). Only its yaw (Y axis) is used.")]
     public Transform cameraTarget;
     
     [Header("Movement")]
@@ -16,36 +13,19 @@ public class PlayerMovement : MonoBehaviour
     public float rotationSpeed = 15f;
 
     [Header("Run Acceleration")]
-    [Tooltip("How fast the speed transitions between moveSpeed and runSpeed.")]
     public float runAcceleration = 5f;
-
-    [Range(0.85f, 1f)]
-    public float runThreshold = 0.9f;
+    [Range(0.85f, 1f)] public float runThreshold = 0.9f;
 
     [Header("Dash / Roll")]
-    [Tooltip("Velocidad máxima del dash.")]
     public float dashSpeed = 18f;
-
-    [Tooltip("Duración total del dash en segundos.")]
     public float dashDuration = 0.2f;
-
-    [Tooltip("Cooldown tras el dash (segundos).")]
     public float dashCooldown = 0.8f;
-
-    [Tooltip("Curva de velocidad del dash. X = tiempo normalizado (0-1), Y = multiplicador de dashSpeed.")]
     public AnimationCurve dashCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
     [Header("Targeting Jump / Backflip")]
-    [Tooltip("Optional TargetingSystem reference. If assigned, pressing dash while targeting becomes a backflip / forward jump instead of a dash.")]
     public TargetingSystem targetingSystem;
-
-    [Tooltip("Vertical impulse used by the jump and backflip while targeting.")]
     public float targetingJumpForce = 8f;
-
-    [Tooltip("Horizontal impulse used by the backflip (opposite to the target). Set 0 for a pure vertical hop.")]
     public float backflipHorizontalForce = 6f;
-
-    [Tooltip("Horizontal impulse used when targeting is active but there is no current target. Set 0 for a vertical jump.")]
     public float targetingForwardJumpForce = 4f;
 
     [Header("Gravity")]
@@ -53,11 +33,9 @@ public class PlayerMovement : MonoBehaviour
     public float groundedGravity = -2f;
 
     [Header("Air Control")]
-    [Range(0f, 1f)]
-    public float airControlFactor = 0.1f;
+    [Range(0f, 1f)] public float airControlFactor = 0.1f;
     public float airDrag = 2f;
 
-    // PRIVATE
     private PhysicsController physics;
     private Vector3 velocity;
     private float currentSpeed;
@@ -65,148 +43,153 @@ public class PlayerMovement : MonoBehaviour
     private float baseRunSpeed;
 
     private Vector2 moveInput;
+    private Vector2 lastTargetingInput;     // Para detectar última tecla
+    private Vector2 lastTargetingMoveDir;   // Última dirección cardinal seleccionada
     private bool dashPressed;
 
-    // Dash state
     private bool isDashing;
     private float dashTimer;
     private float dashCooldownTimer;
     private Vector3 dashDirection;
-
-    // Set when a target jump launches the player upward. Blocks further dashes
-    // (normal or target) until the player lands, so isGrounded grace frames
-    // right after the impulse can't be exploited to re-dash mid-air.
     private bool isJumping;
 
     void Awake()
     {
         physics = GetComponent<PhysicsController>();
         currentSpeed = moveSpeed;
-
         baseMoveSpeed = moveSpeed;
-        baseRunSpeed  = runSpeed;
+        baseRunSpeed = runSpeed;
 
-        // Auto-resolve TargetingSystem if it lives on the same GameObject and was not wired up in the Inspector.
-        if (targetingSystem == null)
-            TryGetComponent(out targetingSystem);
-
+        if (targetingSystem == null) TryGetComponent(out targetingSystem);
         if (modelTransform == null)
         {
             modelTransform = transform;
             Debug.LogWarning("[PlayerMovement] modelTransform not assigned.");
         }
+        if (cameraTarget == null) Debug.LogError("[PlayerMovement] Assign CameraTarget.");
 
-        if (cameraTarget == null)
-            Debug.LogError("[PlayerMovement] Assign the CameraTarget in the Inspector.");
+        lastTargetingInput = Vector2.zero;
+        lastTargetingMoveDir = Vector2.zero;
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
     public void OnMove(Vector2 direction) => moveInput = direction;
-
-    /// <summary>Llama esto desde tu InputHandler cuando se pulse el botón de dash.</summary>
     public void OnDash(bool pressed) => dashPressed = pressed;
 
     void FixedUpdate()
     {
         GroundInfo ground = physics.Ground;
+        if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
+        if (isJumping && ground.isGrounded && velocity.y <= 0f) isJumping = false;
 
-        // Cooldown tick
-        if (dashCooldownTimer > 0f)
-            dashCooldownTimer -= Time.fixedDeltaTime;
-
-        // Clear the jumping flag once we've actually landed again.
-        if (isJumping && ground.isGrounded && velocity.y <= 0f)
-            isJumping = false;
-
-        // ── Iniciar dash ──────────────────────────────────────────────────
+        // Iniciar dash / salto targeting
         if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping)
         {
             dashPressed = false;
-
-            // While targeting, the dash button performs a backflip / forward jump instead of a normal dash.
             if (targetingSystem != null && targetingSystem.IsTargeting)
                 StartTargetingJump();
             else
                 StartDash();
         }
-        else if (dashPressed)
-        {
-            // Consume the press even when blocked, so it doesn't queue up for a later frame.
-            dashPressed = false;
-        }
+        else if (dashPressed) dashPressed = false;
 
-        // ── Durante el dash ───────────────────────────────────────────────
+        // Durante el dash
         if (isDashing)
         {
             dashTimer += Time.fixedDeltaTime;
             float t = Mathf.Clamp01(dashTimer / dashDuration);
             float speedMultiplier = dashCurve.Evaluate(t);
-
             velocity.x = dashDirection.x * dashSpeed * speedMultiplier;
             velocity.z = dashDirection.z * dashSpeed * speedMultiplier;
-
-            // Gravedad mínima durante el dash (se mantiene pegado al suelo)
             velocity.y = ground.isGrounded ? groundedGravity : velocity.y;
-
             if (dashTimer >= dashDuration)
             {
                 isDashing = false;
                 dashCooldownTimer = dashCooldown;
             }
-
             physics.Move(velocity * Time.fixedDeltaTime);
-            return; // Saltar el resto del movimiento mientras dasheas
+            return;
         }
 
-        // ── Movimiento normal ─────────────────────────────────────────────
         bool isTargeting = targetingSystem != null && targetingSystem.IsTargeting;
 
-        Vector3 forwardAxis;
-        Vector3 rightAxis;
-
+        // Calcular ejes de movimiento (forward/right)
+        Vector3 forwardAxis, rightAxis;
         if (isTargeting)
         {
-            // Zelda TP-style: forward axis points toward target (or camera yaw if no target).
-            // Strafe: moveInput.x = lateral strafe, moveInput.y = toward/away from facing.
             Vector3 facing;
             if (targetingSystem.CurrentTarget != null)
             {
                 facing = targetingSystem.CurrentTarget.position - transform.position;
                 facing.y = 0f;
-                if (facing.sqrMagnitude < 0.0001f)
-                    facing = modelTransform.forward;
+                if (facing.sqrMagnitude < 0.0001f) facing = modelTransform.forward;
             }
             else
             {
-                // No target → use camera forward yaw and snap the model to it so the strafe axes match.
                 float yawNoTarget = cameraTarget != null ? cameraTarget.eulerAngles.y : modelTransform.eulerAngles.y;
                 facing = Quaternion.Euler(0f, yawNoTarget, 0f) * Vector3.forward;
-                modelTransform.rotation = Quaternion.Slerp(
-                    modelTransform.rotation,
-                    Quaternion.LookRotation(facing, Vector3.up),
-                    rotationSpeed * Time.fixedDeltaTime);
+                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, Quaternion.LookRotation(facing, Vector3.up), rotationSpeed * Time.fixedDeltaTime);
             }
-
             forwardAxis = facing.normalized;
-            rightAxis   = Vector3.Cross(Vector3.up, forwardAxis);
+            rightAxis = Vector3.Cross(Vector3.up, forwardAxis);
         }
         else
         {
             float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
             Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
-
             forwardAxis = yawOnly * Vector3.forward;
-            rightAxis   = yawOnly * Vector3.right;
+            rightAxis = yawOnly * Vector3.right;
         }
 
-        Vector3 moveDir = forwardAxis * moveInput.y + rightAxis * moveInput.x;
+        // ✅ Prioridad de la última tecla (movimiento cardinal sin diagonales)
+        Vector2 rawInput = moveInput;
+        Vector2 cardinalInput = Vector2.zero;
+
+        if (isTargeting)
+        {
+            bool xActive = Mathf.Abs(rawInput.x) > 0.01f;
+            bool yActive = Mathf.Abs(rawInput.y) > 0.01f;
+
+            if (!xActive && !yActive)
+            {
+                cardinalInput = Vector2.zero;
+            }
+            else if (xActive && !yActive)
+            {
+                cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
+            }
+            else if (!xActive && yActive)
+            {
+                cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
+            }
+            else // Ambos activos
+            {
+                float deltaX = Mathf.Abs(rawInput.x - lastTargetingInput.x);
+                float deltaY = Mathf.Abs(rawInput.y - lastTargetingInput.y);
+                if (deltaX > deltaY)
+                    cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
+                else if (deltaY > deltaX)
+                    cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
+                else
+                    cardinalInput = lastTargetingMoveDir; // mantiene la anterior
+            }
+
+            lastTargetingInput = rawInput;
+            lastTargetingMoveDir = cardinalInput;
+        }
+        else
+        {
+            // Fuera de targeting, movimiento normal (diagonales permitidas)
+            cardinalInput = rawInput;
+        }
+
+        Vector3 moveDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
 
         float inputMagnitude = moveInput.magnitude;
         float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
-
         bool hasInput = moveInput.sqrMagnitude > 0.01f;
 
         if (ground.isGrounded)
@@ -229,10 +212,7 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        // While targeting, rotation is controlled by TargetingSystem (towards target)
-        // or by the snap-to-camera fallback above when no target exists.
-        if (!isTargeting)
-            HandleRotation(moveDir);
+        if (!isTargeting) HandleRotation(moveDir);
 
         if (!ground.isGrounded)
             velocity.y += gravity * Time.fixedDeltaTime;
@@ -240,62 +220,41 @@ public class PlayerMovement : MonoBehaviour
             velocity.y = groundedGravity;
 
         MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
-
-        if (result.HitCeiling() && velocity.y > 0f)
-            velocity.y = 0f;
+        if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
     }
 
     private void StartDash()
     {
-        // Dirección: hacia donde nos movemos; si estamos quietos, hacia donde miramos
         float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
         Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
-
         if (moveInput.sqrMagnitude > 0.01f)
         {
             Vector3 camForward = yawOnly * Vector3.forward;
-            Vector3 camRight   = yawOnly * Vector3.right;
+            Vector3 camRight = yawOnly * Vector3.right;
             dashDirection = (camForward * moveInput.y + camRight * moveInput.x).normalized;
         }
-        else
-        {
-            // Sin input → dash hacia donde mira el modelo
-            dashDirection = modelTransform.forward;
-        }
-
-        // Snap de rotación al inicio del dash
+        else dashDirection = modelTransform.forward;
         modelTransform.rotation = Quaternion.LookRotation(dashDirection, Vector3.up);
-
-        isDashing  = true;
-        dashTimer  = 0f;
-        velocity.y = 0f; // Cancelar caída al iniciar dash
+        isDashing = true;
+        dashTimer = 0f;
+        velocity.y = 0f;
     }
 
     private void StartTargetingJump()
     {
         Vector3 direction;
-
-        if (moveInput.magnitude < 0.1f)
-        {
-            direction = modelTransform.forward;
-        }
+        if (moveInput.magnitude < 0.1f) direction = modelTransform.forward;
         else
         {
-            // Snap input to a single cardinal axis: dominant component wins,
-            // Y (forward/back) breaks ties so |y| >= |x| stays on the forward axis.
             Vector2 cardinal = Mathf.Abs(moveInput.x) > Mathf.Abs(moveInput.y)
                 ? new Vector2(Mathf.Sign(moveInput.x), 0f)
                 : new Vector2(0f, Mathf.Sign(moveInput.y));
-
             direction = (modelTransform.forward * cardinal.y + modelTransform.right * cardinal.x).normalized;
         }
-
         Vector3 horizontal = direction * dashSpeed;
-
         velocity.x = horizontal.x;
         velocity.z = horizontal.z;
         velocity.y = targetingJumpForce;
-
         isJumping = true;
         dashCooldownTimer = dashCooldown;
     }
@@ -303,49 +262,16 @@ public class PlayerMovement : MonoBehaviour
     private void HandleRotation(Vector3 moveDir)
     {
         if (moveDir.sqrMagnitude <= 0.01f) return;
-
         Quaternion targetRot = Quaternion.LookRotation(moveDir, Vector3.up);
-        modelTransform.rotation = Quaternion.Slerp(
-            modelTransform.rotation,
-            targetRot,
-            rotationSpeed * Time.fixedDeltaTime
-        );
+        modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
     }
 
-    /// <summary>
-    /// Expone si el jugador está en medio de un dash (útil para el Animator).
-    /// </summary>
     public bool IsDashing => isDashing;
-
-    /// <summary>
-    /// Devuelve el progreso del cooldown normalizado (0 = listo, 1 = recién usado).
-    /// Útil para pintar el icono del dash en la UI.
-    /// </summary>
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
-
-    public void onItemEquip(OnItemEquipEvent e)
-    {
-        ChangeMoveSpeed(e.item.handWeightMultiplier);
-    }
-
-    public void OnItemUnequip(OnItemUnequipEvent e)
-    {
-        ResetMoveSpeed();
-    }
-    
-    
-    public void ChangeMoveSpeed(float multiplier)
-    {
-        moveSpeed = baseMoveSpeed * multiplier;
-        runSpeed  = baseRunSpeed  * multiplier;
-    }
-
-    public void ResetMoveSpeed()
-    {
-        moveSpeed = baseMoveSpeed;
-        runSpeed  = baseRunSpeed;
-    }
-    
-    public Vector2 MoveInput    => moveInput;
+    public void onItemEquip(OnItemEquipEvent e) => ChangeMoveSpeed(e.item.handWeightMultiplier);
+    public void OnItemUnequip(OnItemUnequipEvent e) => ResetMoveSpeed();
+    public void ChangeMoveSpeed(float multiplier) { moveSpeed = baseMoveSpeed * multiplier; runSpeed = baseRunSpeed * multiplier; }
+    public void ResetMoveSpeed() { moveSpeed = baseMoveSpeed; runSpeed = baseRunSpeed; }
+    public Vector2 MoveInput => moveInput;
     public Transform CameraTarget => cameraTarget;
 }
