@@ -48,6 +48,13 @@ public class TargetingSystem : MonoBehaviour
     [Tooltip("If true (default), the target button works as Press & Hold: targeting stays active only while the button is held. If false, behaves as a toggle.")]
     [SerializeField] private bool holdToTarget = true;
 
+    [Header("Look-cycle")]
+    [Tooltip("Magnitude on the X axis of the Look input required to trigger a target cycle.")]
+    [SerializeField] private float lookCycleThreshold = 0.5f;
+
+    [Tooltip("Minimum time (seconds) between two consecutive cycles triggered by the Look input.")]
+    [SerializeField] private float cycleCooldown = 0.4f;
+
     // ────────────────────────────────────────────────────────────────────────
     // PUBLIC STATE
     // ────────────────────────────────────────────────────────────────────────
@@ -67,6 +74,7 @@ public class TargetingSystem : MonoBehaviour
     // Internal
     private readonly Collider[] _overlapBuffer = new Collider[32];
     private bool _consumedThisPress;
+    private float _lastCycleTime = -999f;
 
     // ────────────────────────────────────────────────────────────────────────
     // LIFECYCLE
@@ -84,11 +92,14 @@ public class TargetingSystem : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<OnTargetInputEvent>(HandleTargetInput);
+        // High priority so we run before CameraTargetController and can cancel the event while targeting.
+        EventBus.Subscribe<OnLookInputEvent>(HandleLookInput, priority: 100);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnTargetInputEvent>(HandleTargetInput);
+        EventBus.Unsubscribe<OnLookInputEvent>(HandleLookInput);
 
         if (IsTargeting)
             SetTargeting(false);
@@ -154,6 +165,23 @@ public class TargetingSystem : MonoBehaviour
         }
     }
 
+    private void HandleLookInput(OnLookInputEvent e)
+    {
+        if (!IsTargeting) return;
+
+        // Swallow the look input while locked on so the camera doesn't fight the lock-on yaw.
+        EventBus.Cancel<OnLookInputEvent>();
+
+        if (e == null || !e.pressed) return;
+        if (Time.time - _lastCycleTime < cycleCooldown) return;
+
+        float x = e.Delta.x;
+        if (Mathf.Abs(x) < lookCycleThreshold) return;
+
+        CycleTargetDirectional(x > 0f ? 1 : -1);
+        _lastCycleTime = Time.time;
+    }
+
     // ────────────────────────────────────────────────────────────────────────
     // TARGETING LOGIC
     // ────────────────────────────────────────────────────────────────────────
@@ -186,6 +214,61 @@ public class TargetingSystem : MonoBehaviour
     public void CycleTarget()
     {
         SetTarget(FindBestCandidate(CurrentTarget));
+    }
+
+    /// <summary>
+    /// Cycle to the next enemy on the left (direction == -1) or right (direction == +1) of the current target,
+    /// ordered by their angular position around the player on the XZ plane. Wraps around if it runs out.
+    /// </summary>
+    public void CycleTargetDirectional(int direction)
+    {
+        if (direction == 0) return;
+
+        Vector3 origin = transform.position;
+        int count = Physics.OverlapSphereNonAlloc(
+            origin, searchRadius, _overlapBuffer, searchMask, QueryTriggerInteraction.Collide);
+
+        var candidates = new List<(Transform t, float angle)>();
+        for (int i = 0; i < count; i++)
+        {
+            Collider c = _overlapBuffer[i];
+            if (c == null) continue;
+            if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
+            if (!c.CompareTag(enemyTag)) continue;
+
+            if (requireLineOfSight &&
+                Physics.Linecast(origin + Vector3.up, c.transform.position + Vector3.up, out _, searchMask, QueryTriggerInteraction.Ignore))
+                continue;
+
+            Vector3 d = c.transform.position - origin;
+            d.y = 0f;
+            if (d.sqrMagnitude < 0.0001f) continue;
+
+            // Signed angle around world up. Positive = clockwise from player forward = right.
+            float angle = Vector3.SignedAngle(modelTransform.forward, d.normalized, Vector3.up);
+            candidates.Add((c.transform, angle));
+        }
+
+        if (candidates.Count <= 1) return;
+
+        candidates.Sort((a, b) => a.angle.CompareTo(b.angle));
+
+        int currentIndex = -1;
+        if (CurrentTarget != null)
+        {
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (candidates[i].t == CurrentTarget) { currentIndex = i; break; }
+            }
+        }
+
+        int nextIndex;
+        if (currentIndex < 0)
+            nextIndex = direction > 0 ? 0 : candidates.Count - 1;
+        else
+            nextIndex = (currentIndex + direction + candidates.Count) % candidates.Count;
+
+        SetTarget(candidates[nextIndex].t);
     }
 
     private Transform FindBestCandidate(Transform excluding)
