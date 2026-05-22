@@ -1,13 +1,13 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
 /// Camera-side reaction to the targeting system.
 /// While the player is locked on, this component:
-///   • Zooms the camera in (FieldOfView or distance to the CameraTarget).
-///   • Shows cinematic letterbox bars (top/bottom UI panels).
+///   • Smoothly zooms the camera (FieldOfView or distance) using SmoothDamp.
+///   • Shows cinematic letterbox bars created entirely by code (no scene UI needed).
 /// Restores everything smoothly when targeting ends.
-/// Compatible with the existing third-person Camera that follows a CameraTarget transform.
 /// </summary>
 [DisallowMultipleComponent]
 public class CameraTargetingState : MonoBehaviour
@@ -38,53 +38,61 @@ public class CameraTargetingState : MonoBehaviour
     [Range(0.1f, 1f)]
     [SerializeField] private float targetingDistanceMultiplier = 0.7f;
 
-    [Tooltip("How fast the zoom transitions in/out (higher = snappier).")]
-    [SerializeField] private float zoomLerpSpeed = 6f;
+    [Tooltip("SmoothDamp time (seconds) for the zoom transition. ~0.3 = smooth cinematic feel.")]
+    [SerializeField] private float zoomSmoothTime = 0.3f;
 
     [Header("Letterbox")]
-    [Tooltip("Top black bar. RectTransform with a black Image, anchored to the top, height = 0 by default.")]
-    [SerializeField] private RectTransform topBar;
-
-    [Tooltip("Bottom black bar. RectTransform with a black Image, anchored to the bottom, height = 0 by default.")]
-    [SerializeField] private RectTransform bottomBar;
-
-    [Tooltip("Final bar height as a fraction of screen height (0..0.5). 0.10 ≈ 10% of the screen on top and bottom.")]
-    [Range(0f, 0.3f)]
-    [SerializeField] private float barHeightPercent = 0.10f;
-
-    [Tooltip("If true, uses an absolute pixel height instead of barHeightPercent.")]
-    [SerializeField] private bool useAbsolutePixels = false;
-
-    [Tooltip("Absolute bar height in pixels when useAbsolutePixels = true.")]
+    [Tooltip("Bar height in pixels (top and bottom).")]
     [SerializeField] private float barHeightPixels = 90f;
 
-    [Tooltip("How fast the letterbox bars open / close (higher = snappier).")]
-    [SerializeField] private float barLerpSpeed = 8f;
+    [Tooltip("Total time for the bars to enter or exit, in seconds.")]
+    [SerializeField] private float letterboxDuration = 0.4f;
+
+    [Tooltip("Easing curve applied to the bar entry/exit animation.")]
+    [SerializeField] private AnimationCurve letterboxCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    [Tooltip("Sorting order of the procedural Canvas. Keep it high so the bars sit above gameplay UI.")]
+    [SerializeField] private int letterboxSortingOrder = 999;
 
     // ────────────────────────────────────────────────────────────────────────
-    // INTERNAL STATE
+    // INTERNAL STATE — Zoom (SmoothDamp)
     // ────────────────────────────────────────────────────────────────────────
     private float _baseFOV;
     private float _baseLocalZ;
-    private float _currentBarHeight;
-    private float _targetBarHeight;
+    private float _currentFOV;
+    private float _fovVelocity;
+    private float _currentLocalZ;
+    private float _localZVelocity;
     private bool _active;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // INTERNAL STATE — Letterbox
+    // ────────────────────────────────────────────────────────────────────────
+    private Canvas _letterboxCanvas;
+    private RectTransform _topBar;
+    private RectTransform _bottomBar;
+    private Coroutine _letterboxRoutine;
 
     private void Awake()
     {
         if (cameraToZoom == null) cameraToZoom = Camera.main;
 
         if (cameraToZoom != null)
+        {
             _baseFOV = cameraToZoom.fieldOfView;
+            _currentFOV = _baseFOV;
+        }
 
         if (cameraRig == null && cameraToZoom != null)
             cameraRig = cameraToZoom.transform;
 
         if (cameraRig != null)
+        {
             _baseLocalZ = cameraRig.localPosition.z;
+            _currentLocalZ = _baseLocalZ;
+        }
 
-        InitBar(topBar);
-        InitBar(bottomBar);
+        BuildLetterbox();
     }
 
     private void OnEnable()
@@ -99,63 +107,143 @@ public class CameraTargetingState : MonoBehaviour
             targetingSystem.OnTargetingChanged -= HandleTargetingChanged;
     }
 
-    private void InitBar(RectTransform bar)
+    // ────────────────────────────────────────────────────────────────────────
+    // PROCEDURAL LETTERBOX BUILD
+    // ────────────────────────────────────────────────────────────────────────
+    private void BuildLetterbox()
     {
-        if (bar == null) return;
-        Vector2 size = bar.sizeDelta;
-        size.y = 0f;
-        bar.sizeDelta = size;
+        var canvasGO = new GameObject("TargetingLetterboxCanvas",
+            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+        canvasGO.transform.SetParent(transform, false);
+
+        _letterboxCanvas = canvasGO.GetComponent<Canvas>();
+        _letterboxCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        _letterboxCanvas.sortingOrder = letterboxSortingOrder;
+
+        var scaler = canvasGO.GetComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.matchWidthOrHeight = 0.5f;
+
+        var raycaster = canvasGO.GetComponent<GraphicRaycaster>();
+        raycaster.enabled = false;
+
+        _topBar = CreateBar("LetterboxTop", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f));
+        _bottomBar = CreateBar("LetterboxBottom", new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f));
+
+        // Start off-screen (height = barHeightPixels but pivoted so they sit just beyond the edge).
+        PositionBar(_topBar, 0f);
+        PositionBar(_bottomBar, 0f);
     }
 
+    private RectTransform CreateBar(string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(_letterboxCanvas.transform, false);
+
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = anchorMin;
+        rt.anchorMax = anchorMax;
+        rt.pivot = pivot;
+        rt.sizeDelta = new Vector2(0f, barHeightPixels);
+        rt.anchoredPosition = Vector2.zero;
+
+        var img = go.GetComponent<Image>();
+        img.color = Color.black;
+        img.raycastTarget = false;
+
+        return rt;
+    }
+
+    /// <summary>
+    /// Drives bar visibility by a 0..1 progress value.
+    /// 0 = fully off-screen, 1 = fully on-screen.
+    /// </summary>
+    private void PositionBar(RectTransform bar, float progress)
+    {
+        if (bar == null) return;
+        // Size stays constant; we slide the bar in via anchoredPosition so the motion is purely vertical.
+        // Top bar: anchored at top with pivot (0.5, 1). anchoredPosition.y = 0 → fully visible. Positive y pushes it up (off-screen).
+        // Bottom bar: anchored at bottom with pivot (0.5, 0). anchoredPosition.y = 0 → fully visible. Negative y pushes it down (off-screen).
+        float hiddenOffset = barHeightPixels;
+        float visibleY = 0f;
+        float hiddenY = bar == _topBar ? hiddenOffset : -hiddenOffset;
+        float y = Mathf.Lerp(hiddenY, visibleY, progress);
+        bar.anchoredPosition = new Vector2(0f, y);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // TARGETING REACTION
+    // ────────────────────────────────────────────────────────────────────────
     private void HandleTargetingChanged(bool active)
     {
         _active = active;
-        _targetBarHeight = active ? ResolveTargetBarHeight() : 0f;
+
+        if (_letterboxRoutine != null)
+            StopCoroutine(_letterboxRoutine);
+        _letterboxRoutine = StartCoroutine(AnimateLetterbox(active));
     }
 
-    private float ResolveTargetBarHeight()
+    private IEnumerator AnimateLetterbox(bool show)
     {
-        if (useAbsolutePixels) return barHeightPixels;
-        return Mathf.Max(0f, Screen.height * barHeightPercent);
-    }
+        // Determine starting progress from current bar position so a mid-animation reverse is smooth.
+        float startProgress = InferCurrentProgress();
+        float endProgress = show ? 1f : 0f;
 
-    private void LateUpdate()
-    {
-        // ── Zoom ────────────────────────────────────────────────────────────
-        if (cameraToZoom != null)
+        if (Mathf.Approximately(startProgress, endProgress))
+            yield break;
+
+        float distance = Mathf.Abs(endProgress - startProgress);
+        float duration = Mathf.Max(0.0001f, letterboxDuration * distance);
+
+        float t = 0f;
+        while (t < duration)
         {
-            if (zoomMode == ZoomMode.FieldOfView)
-            {
-                float desiredFOV = _active ? targetingFOV : _baseFOV;
-                cameraToZoom.fieldOfView = Mathf.Lerp(
-                    cameraToZoom.fieldOfView, desiredFOV, zoomLerpSpeed * Time.deltaTime);
-            }
-            else if (cameraRig != null)
-            {
-                float desiredZ = _active ? _baseLocalZ * targetingDistanceMultiplier : _baseLocalZ;
-                Vector3 lp = cameraRig.localPosition;
-                lp.z = Mathf.Lerp(lp.z, desiredZ, zoomLerpSpeed * Time.deltaTime);
-                cameraRig.localPosition = lp;
-            }
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / duration);
+            float eased = letterboxCurve.Evaluate(k);
+            float progress = Mathf.Lerp(startProgress, endProgress, eased);
+
+            PositionBar(_topBar, progress);
+            PositionBar(_bottomBar, progress);
+            yield return null;
         }
 
-        // ── Letterbox bars ──────────────────────────────────────────────────
-        if (_active) _targetBarHeight = ResolveTargetBarHeight();
-        _currentBarHeight = Mathf.Lerp(_currentBarHeight, _targetBarHeight, barLerpSpeed * Time.deltaTime);
-
-        if (Mathf.Abs(_currentBarHeight - _targetBarHeight) < 0.5f)
-            _currentBarHeight = _targetBarHeight;
-
-        SetBarHeight(topBar, _currentBarHeight);
-        SetBarHeight(bottomBar, _currentBarHeight);
+        PositionBar(_topBar, endProgress);
+        PositionBar(_bottomBar, endProgress);
+        _letterboxRoutine = null;
     }
 
-    private static void SetBarHeight(RectTransform bar, float height)
+    private float InferCurrentProgress()
     {
-        if (bar == null) return;
-        Vector2 size = bar.sizeDelta;
-        if (Mathf.Approximately(size.y, height)) return;
-        size.y = height;
-        bar.sizeDelta = size;
+        if (_topBar == null) return 0f;
+        float hiddenOffset = barHeightPixels;
+        float y = _topBar.anchoredPosition.y;
+        // y goes from hiddenOffset (hidden) → 0 (shown). Map to progress 0..1.
+        float p = 1f - Mathf.Clamp01(y / Mathf.Max(0.0001f, hiddenOffset));
+        return p;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // UPDATE (zoom only — letterbox runs in coroutine)
+    // ────────────────────────────────────────────────────────────────────────
+    private void LateUpdate()
+    {
+        if (cameraToZoom == null) return;
+
+        if (zoomMode == ZoomMode.FieldOfView)
+        {
+            float desiredFOV = _active ? targetingFOV : _baseFOV;
+            _currentFOV = Mathf.SmoothDamp(_currentFOV, desiredFOV, ref _fovVelocity, zoomSmoothTime);
+            cameraToZoom.fieldOfView = _currentFOV;
+        }
+        else if (cameraRig != null)
+        {
+            float desiredZ = _active ? _baseLocalZ * targetingDistanceMultiplier : _baseLocalZ;
+            _currentLocalZ = Mathf.SmoothDamp(_currentLocalZ, desiredZ, ref _localZVelocity, zoomSmoothTime);
+            Vector3 lp = cameraRig.localPosition;
+            lp.z = _currentLocalZ;
+            cameraRig.localPosition = lp;
+        }
     }
 }

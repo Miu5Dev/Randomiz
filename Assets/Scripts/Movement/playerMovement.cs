@@ -147,13 +147,47 @@ public class PlayerMovement : MonoBehaviour
         }
 
         // ── Movimiento normal ─────────────────────────────────────────────
-        float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
-        Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
+        bool isTargeting = targetingSystem != null && targetingSystem.IsTargeting;
 
-        Vector3 camForward = yawOnly * Vector3.forward;
-        Vector3 camRight   = yawOnly * Vector3.right;
+        Vector3 forwardAxis;
+        Vector3 rightAxis;
 
-        Vector3 moveDir = camForward * moveInput.y + camRight * moveInput.x;
+        if (isTargeting)
+        {
+            // Zelda TP-style: forward axis points toward target (or camera yaw if no target).
+            // Strafe: moveInput.x = lateral strafe, moveInput.y = toward/away from facing.
+            Vector3 facing;
+            if (targetingSystem.CurrentTarget != null)
+            {
+                facing = targetingSystem.CurrentTarget.position - transform.position;
+                facing.y = 0f;
+                if (facing.sqrMagnitude < 0.0001f)
+                    facing = modelTransform.forward;
+            }
+            else
+            {
+                // No target → use camera forward yaw and snap the model to it so the strafe axes match.
+                float yawNoTarget = cameraTarget != null ? cameraTarget.eulerAngles.y : modelTransform.eulerAngles.y;
+                facing = Quaternion.Euler(0f, yawNoTarget, 0f) * Vector3.forward;
+                modelTransform.rotation = Quaternion.Slerp(
+                    modelTransform.rotation,
+                    Quaternion.LookRotation(facing, Vector3.up),
+                    rotationSpeed * Time.fixedDeltaTime);
+            }
+
+            forwardAxis = facing.normalized;
+            rightAxis   = Vector3.Cross(Vector3.up, forwardAxis);
+        }
+        else
+        {
+            float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
+            Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
+
+            forwardAxis = yawOnly * Vector3.forward;
+            rightAxis   = yawOnly * Vector3.right;
+        }
+
+        Vector3 moveDir = forwardAxis * moveInput.y + rightAxis * moveInput.x;
 
         float inputMagnitude = moveInput.magnitude;
         float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
@@ -181,7 +215,10 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        HandleRotation(moveDir);
+        // While targeting, rotation is controlled by TargetingSystem (towards target)
+        // or by the snap-to-camera fallback above when no target exists.
+        if (!isTargeting)
+            HandleRotation(moveDir);
 
         if (!ground.isGrounded)
             velocity.y += gravity * Time.fixedDeltaTime;

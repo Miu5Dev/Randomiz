@@ -45,6 +45,9 @@ public class TargetingSystem : MonoBehaviour
     [Tooltip("If true, pressing target again while already locked cycles to the next valid enemy. Otherwise it untargets.")]
     [SerializeField] private bool cycleOnRepress = true;
 
+    [Tooltip("If true (default), the target button works as Press & Hold: targeting stays active only while the button is held. If false, behaves as a toggle.")]
+    [SerializeField] private bool holdToTarget = true;
+
     // ────────────────────────────────────────────────────────────────────────
     // PUBLIC STATE
     // ────────────────────────────────────────────────────────────────────────
@@ -97,7 +100,37 @@ public class TargetingSystem : MonoBehaviour
 
     private void HandleTargetInput(OnTargetInputEvent e)
     {
-        // We treat the event as a toggle on the "pressed" edge only.
+        if (holdToTarget)
+        {
+            // Press & Hold: targeting follows the button state directly.
+            if (e.pressed)
+            {
+                if (!IsTargeting)
+                {
+                    SetTargeting(true);
+                    AcquireTarget();
+                }
+                else if (cycleOnRepress && CurrentTarget != null)
+                {
+                    // Re-press while already holding cycles to the next target.
+                    if (!_consumedThisPress)
+                    {
+                        CycleTarget();
+                        _consumedThisPress = true;
+                    }
+                }
+            }
+            else
+            {
+                // Released → end targeting.
+                _consumedThisPress = false;
+                if (IsTargeting)
+                    SetTargeting(false);
+            }
+            return;
+        }
+
+        // Toggle behaviour (legacy): act on the "pressed" edge only.
         if (!e.pressed)
         {
             _consumedThisPress = false;
@@ -109,13 +142,11 @@ public class TargetingSystem : MonoBehaviour
 
         if (!IsTargeting)
         {
-            // Begin lock-on.
             SetTargeting(true);
             AcquireTarget();
         }
         else
         {
-            // Already locked: cycle if requested AND there is at least one candidate, otherwise untarget.
             if (cycleOnRepress && CurrentTarget != null)
                 CycleTarget();
             else
