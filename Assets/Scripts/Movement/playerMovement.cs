@@ -220,28 +220,15 @@ public class PlayerMovement : MonoBehaviour
         velocity.y = 0f; // Cancelar caída al iniciar dash
     }
 
-    /// <summary>
-    /// Targeting-mode replacement for the dash:
-    ///   • If a target is locked → backflip away from the target (horizontal impulse opposite to the target + vertical impulse).
-    ///   • If targeting is active but no target → vertical/forward hop in the model's facing direction.
-    /// Uses the same Velocity-based system as the normal movement, so PhysicsController handles collisions.
-    /// </summary>
     private void StartTargetingJump()
     {
-        Vector3 horizontal = Vector3.zero;
+        Vector3 inputWorld = modelTransform.forward * moveInput.y + modelTransform.right * moveInput.x;
 
-        if (targetingSystem.CurrentTarget != null)
-        {
-            Vector3 awayFromTarget = -targetingSystem.DirectionToTarget;
-            if (awayFromTarget.sqrMagnitude < 0.0001f)
-                awayFromTarget = -modelTransform.forward;
-            horizontal = awayFromTarget * backflipHorizontalForce;
-        }
-        else
-        {
-            // No target: simple forward hop (or vertical if force is 0).
-            horizontal = modelTransform.forward * targetingForwardJumpForce;
-        }
+        Vector3 direction = inputWorld.magnitude < 0.1f
+            ? modelTransform.forward
+            : inputWorld.normalized;
+
+        Vector3 horizontal = direction * dashSpeed;
 
         velocity.x = horizontal.x;
         velocity.z = horizontal.z;
