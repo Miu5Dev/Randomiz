@@ -35,6 +35,19 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Curva de velocidad del dash. X = tiempo normalizado (0-1), Y = multiplicador de dashSpeed.")]
     public AnimationCurve dashCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0f);
 
+    [Header("Targeting Jump / Backflip")]
+    [Tooltip("Optional TargetingSystem reference. If assigned, pressing dash while targeting becomes a backflip / forward jump instead of a dash.")]
+    public TargetingSystem targetingSystem;
+
+    [Tooltip("Vertical impulse used by the jump and backflip while targeting.")]
+    public float targetingJumpForce = 8f;
+
+    [Tooltip("Horizontal impulse used by the backflip (opposite to the target). Set 0 for a pure vertical hop.")]
+    public float backflipHorizontalForce = 6f;
+
+    [Tooltip("Horizontal impulse used when targeting is active but there is no current target. Set 0 for a vertical jump.")]
+    public float targetingForwardJumpForce = 4f;
+
     [Header("Gravity")]
     public float gravity = -20f;
     public float groundedGravity = -2f;
@@ -68,6 +81,10 @@ public class PlayerMovement : MonoBehaviour
         baseMoveSpeed = moveSpeed;
         baseRunSpeed  = runSpeed;
 
+        // Auto-resolve TargetingSystem if it lives on the same GameObject and was not wired up in the Inspector.
+        if (targetingSystem == null)
+            TryGetComponent(out targetingSystem);
+
         if (modelTransform == null)
         {
             modelTransform = transform;
@@ -98,7 +115,12 @@ public class PlayerMovement : MonoBehaviour
         if (dashPressed && !isDashing && dashCooldownTimer <= 0f)
         {
             dashPressed = false;
-            StartDash();
+
+            // While targeting, the dash button performs a backflip / forward jump instead of a normal dash.
+            if (targetingSystem != null && targetingSystem.IsTargeting && ground.isGrounded)
+                StartTargetingJump();
+            else
+                StartDash();
         }
 
         // ── Durante el dash ───────────────────────────────────────────────
@@ -196,6 +218,36 @@ public class PlayerMovement : MonoBehaviour
         isDashing  = true;
         dashTimer  = 0f;
         velocity.y = 0f; // Cancelar caída al iniciar dash
+    }
+
+    /// <summary>
+    /// Targeting-mode replacement for the dash:
+    ///   • If a target is locked → backflip away from the target (horizontal impulse opposite to the target + vertical impulse).
+    ///   • If targeting is active but no target → vertical/forward hop in the model's facing direction.
+    /// Uses the same Velocity-based system as the normal movement, so PhysicsController handles collisions.
+    /// </summary>
+    private void StartTargetingJump()
+    {
+        Vector3 horizontal = Vector3.zero;
+
+        if (targetingSystem.CurrentTarget != null)
+        {
+            Vector3 awayFromTarget = -targetingSystem.DirectionToTarget;
+            if (awayFromTarget.sqrMagnitude < 0.0001f)
+                awayFromTarget = -modelTransform.forward;
+            horizontal = awayFromTarget * backflipHorizontalForce;
+        }
+        else
+        {
+            // No target: simple forward hop (or vertical if force is 0).
+            horizontal = modelTransform.forward * targetingForwardJumpForce;
+        }
+
+        velocity.x = horizontal.x;
+        velocity.z = horizontal.z;
+        velocity.y = targetingJumpForce;
+
+        dashCooldownTimer = dashCooldown;
     }
 
     private void HandleRotation(Vector3 moveDir)
