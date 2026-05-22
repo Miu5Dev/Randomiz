@@ -73,6 +73,11 @@ public class PlayerMovement : MonoBehaviour
     private float dashCooldownTimer;
     private Vector3 dashDirection;
 
+    // Set when a target jump launches the player upward. Blocks further dashes
+    // (normal or target) until the player lands, so isGrounded grace frames
+    // right after the impulse can't be exploited to re-dash mid-air.
+    private bool isJumping;
+
     void Awake()
     {
         physics = GetComponent<PhysicsController>();
@@ -111,16 +116,25 @@ public class PlayerMovement : MonoBehaviour
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.fixedDeltaTime;
 
+        // Clear the jumping flag once we've actually landed again.
+        if (isJumping && ground.isGrounded && velocity.y <= 0f)
+            isJumping = false;
+
         // ── Iniciar dash ──────────────────────────────────────────────────
-        if (dashPressed && !isDashing && dashCooldownTimer <= 0f)
+        if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping)
         {
             dashPressed = false;
 
             // While targeting, the dash button performs a backflip / forward jump instead of a normal dash.
-            if (targetingSystem != null && targetingSystem.IsTargeting && ground.isGrounded)
+            if (targetingSystem != null && targetingSystem.IsTargeting)
                 StartTargetingJump();
             else
                 StartDash();
+        }
+        else if (dashPressed)
+        {
+            // Consume the press even when blocked, so it doesn't queue up for a later frame.
+            dashPressed = false;
         }
 
         // ── Durante el dash ───────────────────────────────────────────────
@@ -259,11 +273,22 @@ public class PlayerMovement : MonoBehaviour
 
     private void StartTargetingJump()
     {
-        Vector3 inputWorld = modelTransform.forward * moveInput.y + modelTransform.right * moveInput.x;
+        Vector3 direction;
 
-        Vector3 direction = inputWorld.magnitude < 0.1f
-            ? modelTransform.forward
-            : inputWorld.normalized;
+        if (moveInput.magnitude < 0.1f)
+        {
+            direction = modelTransform.forward;
+        }
+        else
+        {
+            // Snap input to a single cardinal axis: dominant component wins,
+            // Y (forward/back) breaks ties so |y| >= |x| stays on the forward axis.
+            Vector2 cardinal = Mathf.Abs(moveInput.x) > Mathf.Abs(moveInput.y)
+                ? new Vector2(Mathf.Sign(moveInput.x), 0f)
+                : new Vector2(0f, Mathf.Sign(moveInput.y));
+
+            direction = (modelTransform.forward * cardinal.y + modelTransform.right * cardinal.x).normalized;
+        }
 
         Vector3 horizontal = direction * dashSpeed;
 
@@ -271,6 +296,7 @@ public class PlayerMovement : MonoBehaviour
         velocity.z = horizontal.z;
         velocity.y = targetingJumpForce;
 
+        isJumping = true;
         dashCooldownTimer = dashCooldown;
     }
 
