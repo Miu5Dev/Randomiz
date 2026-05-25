@@ -529,8 +529,9 @@ public class PlayerMovement : MonoBehaviour
             ? (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized
             : Vector3.zero;
 
-        // Soltar si el jugador presiona alejándose de la pared (S / atrás)
-        if (hasInput && Vector3.Dot(inputDir3D, ledgeWallNormal) > wallhugExitThreshold)
+        // Soltar solo si el jugador presiona explícitamente hacia atrás (S)
+        // Usar cardinalInput.y evita falsos positivos cuando la cámara está girada respecto a la pared
+        if (cardinalInput.y < -wallhugExitThreshold)
         {
             isLedgeGrabbing = false;
             return;
