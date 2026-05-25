@@ -36,6 +36,16 @@ public class PlayerMovement : MonoBehaviour
     [Range(0f, 1f)] public float airControlFactor = 0.1f;
     public float airDrag = 2f;
 
+    [Header("Wallhug")]
+    public float wallhugJumpForce = 6f;
+    [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
+
+    [Header("Ledge Grab")]
+    public float ledgeDetectionDistance = 0.6f;
+    public float ledgeTopSearchHeight = 0.5f;
+    public float ledgeClimbDuration = 0.25f;
+    public float ledgeCornerHeightTolerance = 0.3f;
+
     private PhysicsController physics;
     private Vector3 velocity;
     private float currentSpeed;
@@ -52,6 +62,19 @@ public class PlayerMovement : MonoBehaviour
     private float dashCooldownTimer;
     private Vector3 dashDirection;
     private bool isJumping;
+
+    private bool isWallhugging;
+    private Vector3 wallNormal;
+    private bool isWallJumping;
+    private Vector3 wallJumpNormal;
+
+    private bool isLedgeGrabbing;
+    private Vector3 ledgeTopPoint;
+    private Vector3 ledgeWallNormal;
+    private bool isClimbingLedge;
+    private float climbTimer;
+    private Vector3 climbStartPos;
+    private Vector3 climbEndPos;
 
     void Awake()
     {
@@ -82,10 +105,47 @@ public class PlayerMovement : MonoBehaviour
     {
         GroundInfo ground = physics.Ground;
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
-        if (isJumping && ground.isGrounded && velocity.y <= 0f) isJumping = false;
+        if (isJumping && ground.isGrounded && velocity.y <= 0f)
+        {
+            isJumping = false;
+            if (isWallJumping)
+            {
+                isWallJumping = false;
+                // Si la pared sigue ahí al aterrizar, volver a wallhug
+                CollisionInfo reentry = physics.CheckDirection(-wallJumpNormal, 0.15f);
+                if (reentry.hit && reentry.IsWall(physics.maxGroundAngle))
+                {
+                    isWallhugging = true;
+                    wallNormal = reentry.normal;
+                }
+            }
+        }
 
+        // Animación de subida — bloquea todo input
+        if (isClimbingLedge)
+        {
+            dashPressed = false;
+            TickLedgeClimb();
+            return;
+        }
+
+        // Subir cornisa (ledge grab → climb)
+        if (dashPressed && isLedgeGrabbing)
+        {
+            dashPressed = false;
+            StartLedgeClimb();
+            return;
+        }
+        // Salto wallhug tiene prioridad (solo arriba, sin velocidad horizontal)
+        else if (dashPressed && isWallhugging)
+        {
+            dashPressed = false;
+            StartWallhugJump();
+            physics.Move(velocity * Time.fixedDeltaTime);
+            return;
+        }
         // Iniciar dash / salto targeting
-        if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping)
+        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
         {
             dashPressed = false;
             if (targetingSystem != null && targetingSystem.IsTargeting)
@@ -185,6 +245,25 @@ public class PlayerMovement : MonoBehaviour
             cardinalInput = rawInput;
         }
 
+        // Wallhug tick (return early, gestiona su propio Move)
+        if (isWallhugging)
+        {
+            TickWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+            return;
+        }
+        // Intentar entrar a wallhug si el jugador camina hacia una pared
+        if (!isJumping) TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+
+        // Ledge grab tick
+        if (isLedgeGrabbing)
+        {
+            TickLedgeGrab(forwardAxis, rightAxis, cardinalInput);
+            return;
+        }
+        // Detección de cornisa mientras está en el aire
+        if (!ground.isGrounded && !isDashing && velocity.y > -8f)
+            TryGrabLedge();
+
         Vector3 moveDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
 
         float inputMagnitude = moveInput.magnitude;
@@ -192,7 +271,12 @@ public class PlayerMovement : MonoBehaviour
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
         bool hasInput = moveInput.sqrMagnitude > 0.01f;
 
-        if (ground.isGrounded)
+        if (isWallJumping)
+        {
+            velocity.x = 0f;
+            velocity.z = 0f;
+        }
+        else if (ground.isGrounded)
         {
             velocity.x = moveDir.x * currentSpeed;
             velocity.z = moveDir.z * currentSpeed;
@@ -212,7 +296,16 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        if (!isTargeting) HandleRotation(moveDir);
+        if (isWallJumping)
+        {
+            Vector3 faceWall = new Vector3(-wallJumpNormal.x, 0f, -wallJumpNormal.z);
+            if (faceWall.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(faceWall.normalized, Vector3.up);
+                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+            }
+        }
+        else if (!isTargeting) HandleRotation(moveDir);
 
         if (!ground.isGrounded)
             velocity.y += gravity * Time.fixedDeltaTime;
@@ -266,7 +359,312 @@ public class PlayerMovement : MonoBehaviour
         modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
     }
 
+    private void TickWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        // Verificar que la pared sigue ahí
+        CollisionInfo wallCheck = physics.CheckDirection(-wallNormal, 0.15f);
+        if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle))
+        {
+            isWallhugging = false;
+            ApplyGravityAndMove(ground);
+            return;
+        }
+        wallNormal = wallCheck.normal;
+
+        // Salir si se cayó del borde (ni saltando ni en suelo)
+        if (!ground.isGrounded && !isJumping)
+        {
+            isWallhugging = false;
+            ApplyGravityAndMove(ground);
+            return;
+        }
+
+        // Salir si el input apunta en dirección contraria a la pared
+        if (cardinalInput.sqrMagnitude > 0.01f)
+        {
+            Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+            if (Vector3.Dot(inputDir, wallNormal) > wallhugExitThreshold)
+            {
+                isWallhugging = false;
+                ApplyGravityAndMove(ground);
+                return;
+            }
+        }
+
+        // Proyectar movimiento sobre el plano de la pared (solo componente horizontal)
+        Vector3 moveDir = Vector3.zero;
+        if (cardinalInput.sqrMagnitude > 0.01f)
+        {
+            Vector3 rawDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
+            Vector3 projected = Vector3.ProjectOnPlane(rawDir, wallNormal);
+            projected.y = 0f;
+            if (projected.sqrMagnitude > 0.01f)
+                moveDir = projected.normalized;
+        }
+
+        float inputMagnitude = moveInput.magnitude;
+        float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
+        currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
+
+        velocity.x = moveDir.x * currentSpeed;
+        velocity.z = moveDir.z * currentSpeed;
+
+        // Mirar hacia la pared
+        Vector3 faceWall = new Vector3(-wallNormal.x, 0f, -wallNormal.z);
+        if (faceWall.sqrMagnitude > 0.01f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(faceWall.normalized, Vector3.up);
+            modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+        }
+
+        ApplyGravityAndMove(ground);
+    }
+
+    private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        if (!ground.isGrounded || isDashing) return;
+        if (cardinalInput.sqrMagnitude < 0.01f) return;
+
+        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+        CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
+        if (wallCheck.hit && wallCheck.IsWall(physics.maxGroundAngle))
+        {
+            isWallhugging = true;
+            wallNormal = wallCheck.normal;
+        }
+    }
+
+    private void StartWallhugJump()
+    {
+        velocity.x = 0f;
+        velocity.z = 0f;
+        velocity.y = wallhugJumpForce;
+        isJumping = true;
+        isWallJumping = true;
+        wallJumpNormal = wallNormal;
+        isWallhugging = false;
+        dashCooldownTimer = dashCooldown;
+    }
+
+    private void ApplyGravityAndMove(GroundInfo ground)
+    {
+        if (!ground.isGrounded)
+            velocity.y += gravity * Time.fixedDeltaTime;
+        else if (velocity.y < 0f)
+            velocity.y = groundedGravity;
+
+        MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
+        if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
+    }
+
+    private void TryGrabLedge()
+    {
+        Vector3 horizontalVel = new Vector3(velocity.x, 0f, velocity.z);
+        Vector3 checkDir;
+        if (isWallJumping)
+            checkDir = -wallJumpNormal;
+        else if (horizontalVel.sqrMagnitude > 0.01f)
+            checkDir = horizontalVel.normalized;
+        else
+            checkDir = new Vector3(modelTransform.forward.x, 0f, modelTransform.forward.z).normalized;
+
+        if (TryDetectLedge(checkDir, out Vector3 ledgeTop, out Vector3 wallNorm))
+        {
+            isLedgeGrabbing = true;
+            isWallJumping = false;
+            isJumping = false;
+            ledgeTopPoint = ledgeTop;
+            ledgeWallNormal = wallNorm;
+            velocity = Vector3.zero;
+            SnapToHangPosition();
+        }
+    }
+
+    private bool TryDetectLedge(Vector3 wallDirection, out Vector3 ledgeTopOut, out Vector3 wallNormalOut)
+    {
+        ledgeTopOut = Vector3.zero;
+        wallNormalOut = Vector3.zero;
+
+        Vector3 headPos = physics.GetHeadPosition();
+
+        // 1. Buscar pared a la altura de la cabeza
+        if (!Physics.Raycast(headPos, wallDirection, out RaycastHit wallHit, ledgeDetectionDistance, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        float angle = Vector3.Angle(wallHit.normal, Vector3.up);
+        if (angle < physics.maxGroundAngle || angle >= 135f) return false;
+
+        // 2. Rechazar paredes demasiado altas: si la pared sigue existiendo por encima del rango
+        // de cornisa esperado, NO es una cornisa agarrable.
+        Vector3 tallCheckOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) + wallHit.normal * 0.05f;
+        if (Physics.Raycast(tallCheckOrigin, -wallHit.normal, 0.2f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        // 3. Encontrar el top casteando hacia abajo desde sobre el final de la pared.
+        // El origen está en aire (la pared ya terminó arriba), así no hay raycasts desde dentro
+        // de un collider que devuelvan resultados inesperados.
+        Vector3 searchOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) - wallHit.normal * 0.05f;
+        if (!Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
+            ledgeTopSearchHeight + 0.5f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        // 4. La cornisa debe estar al alcance de las manos del jugador
+        float headY = headPos.y;
+        if (ledgeHit.point.y < headY - 0.4f || ledgeHit.point.y > headY + 0.4f)
+            return false;
+
+        ledgeTopOut = ledgeHit.point;
+        wallNormalOut = wallHit.normal;
+        return true;
+    }
+
+    private void SnapToHangPosition()
+    {
+        CapsuleCollider col = physics.Collider;
+        Vector3 pos;
+        pos.y = ledgeTopPoint.y - col.center.y - col.height * 0.5f;
+        pos.x = ledgeTopPoint.x + ledgeWallNormal.x * col.radius;
+        pos.z = ledgeTopPoint.z + ledgeWallNormal.z * col.radius;
+        physics.SetPosition(pos);
+    }
+
+    private void TickLedgeGrab(Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        CapsuleCollider col = physics.Collider;
+
+        // Input una sola vez
+        bool hasInput = cardinalInput.sqrMagnitude > 0.01f;
+        Vector3 inputDir3D = hasInput
+            ? (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized
+            : Vector3.zero;
+
+        // Soltar solo si el jugador presiona explícitamente hacia atrás (S)
+        // Usar cardinalInput.y evita falsos positivos cuando la cámara está girada respecto a la pared
+        if (cardinalInput.y < -wallhugExitThreshold)
+        {
+            isLedgeGrabbing = false;
+            return;
+        }
+
+        // Verificar que la pared sigue ahí; si no, caer
+        if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+        {
+            isLedgeGrabbing = false;
+            return;
+        }
+
+        // Movimiento lateral a lo largo de la cornisa
+        Vector3 ledgeRight = Vector3.Cross(Vector3.up, ledgeWallNormal).normalized;
+        float lateralInput = hasInput ? Vector3.Dot(inputDir3D, ledgeRight) : 0f;
+
+        velocity = ledgeRight * (lateralInput * moveSpeed);
+        velocity.y = 0f;
+
+        if (velocity.sqrMagnitude > 0.001f)
+        {
+            Vector3 prevPos = transform.position;
+            MoveResult moveResult = physics.Move(velocity * Time.fixedDeltaTime);
+
+            if (moveResult.collided)
+            {
+                CollisionInfo? cornerWall = moveResult.GetWallCollision(physics.maxGroundAngle);
+                if (cornerWall.HasValue && Vector3.Dot(cornerWall.Value.normal, ledgeWallNormal) < 0.9f)
+                {
+                    Vector3 searchOrigin = new Vector3(
+                        cornerWall.Value.point.x - cornerWall.Value.normal.x * 0.05f,
+                        ledgeTopPoint.y + ledgeCornerHeightTolerance + 0.2f,
+                        cornerWall.Value.point.z - cornerWall.Value.normal.z * 0.05f
+                    );
+                    float searchDepth = 2f * ledgeCornerHeightTolerance + 0.4f;
+
+                    if (Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
+                        searchDepth, physics.collisionMask, QueryTriggerInteraction.Ignore))
+                    {
+                        float heightDiff = Mathf.Abs(ledgeHit.point.y - ledgeTopPoint.y);
+                        if (heightDiff <= ledgeCornerHeightTolerance)
+                        {
+                            // Cornisa compatible → transición
+                            ledgeTopPoint   = ledgeHit.point;
+                            ledgeWallNormal = cornerWall.Value.normal;
+                            SnapToHangPosition();
+                            ApplyWallFacing(ledgeWallNormal);
+                            return;
+                        }
+                    }
+                    // Incompatible o sin cornisa → revertir movimiento y quedarse colgado
+                    physics.SetPosition(prevPos);
+                    velocity = Vector3.zero;
+                }
+            }
+            else
+            {
+                // Sin colisión: si tras moverse la pared ya no está, salimos del extremo del ledge.
+                // Revertir en vez de soltar.
+                if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+                {
+                    physics.SetPosition(prevPos);
+                    velocity = Vector3.zero;
+                }
+            }
+        }
+
+        // Mantener altura de cuelgue tras movimiento lateral
+        Vector3 pos = transform.position;
+        pos.y = ledgeTopPoint.y - col.center.y - col.height * 0.5f;
+        physics.SetPosition(pos);
+
+        ApplyWallFacing(ledgeWallNormal);
+    }
+
+    private void ApplyWallFacing(Vector3 wallNormal)
+    {
+        Vector3 faceDir = new Vector3(-wallNormal.x, 0f, -wallNormal.z);
+        if (faceDir.sqrMagnitude < 0.01f) return;
+        Quaternion targetRot = Quaternion.LookRotation(faceDir.normalized, Vector3.up);
+        modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+    }
+
+    private void StartLedgeClimb()
+    {
+        CapsuleCollider col = physics.Collider;
+        climbStartPos = transform.position;
+
+        // Posición final: de pie encima de la cornisa desde donde está AHORA (no del punto original del grab)
+        Vector3 endPos;
+        endPos.y = ledgeTopPoint.y - col.center.y + col.height * 0.5f + 0.05f;
+        Vector3 inward = -ledgeWallNormal * (col.radius * 2f + 0.2f);
+        endPos.x = transform.position.x + inward.x;
+        endPos.z = transform.position.z + inward.z;
+        climbEndPos = endPos;
+
+        isClimbingLedge = true;
+        isLedgeGrabbing = false;
+        climbTimer = 0f;
+        velocity = Vector3.zero;
+        dashCooldownTimer = dashCooldown;
+    }
+
+    private void TickLedgeClimb()
+    {
+        climbTimer += Time.fixedDeltaTime;
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(climbTimer / ledgeClimbDuration));
+        physics.SetPosition(Vector3.Lerp(climbStartPos, climbEndPos, t));
+
+        if (climbTimer >= ledgeClimbDuration)
+        {
+            isClimbingLedge = false;
+            velocity = Vector3.zero;
+            physics.ResolveOverlaps();
+        }
+    }
+
     public bool IsDashing => isDashing;
+    public bool IsWallhugging => isWallhugging;
+    public Vector3 WallNormal => wallNormal;
+    public bool IsWallJumping => isWallJumping;
+    public Vector3 WallJumpNormal => wallJumpNormal;
+    public bool IsLedgeGrabbing => isLedgeGrabbing;
+    public bool IsClimbingLedge => isClimbingLedge;
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
     public void onItemEquip(OnItemEquipEvent e) => ChangeMoveSpeed(e.item.handWeightMultiplier);
     public void OnItemUnequip(OnItemUnequipEvent e) => ResetMoveSpeed();
