@@ -130,6 +130,9 @@ public class PlayerMovement : MonoBehaviour
         if (targetingSystem != null)
             targetingSystem.Locked = isLedgeGrabbing || isClimbingLedge;
 
+        // Desactivar slope handling mientras wallhug para que el bordillo no se trate como rampa
+        physics.autoSlopeHandling = !isWallhugging;
+
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
         if (isJumping && ground.isGrounded && velocity.y <= 0f)
         {
