@@ -411,16 +411,15 @@ public class PlayerMovement : MonoBehaviour
 
         // Detección de suelo extendida: en ledges estrechos pegados a la pared, el SphereCast
         // estándar puede fallar porque el centro de la esfera queda sobre el vacío. Complementamos
-        // con un raycast desde el lado de la pared (justo en la superficie del muro, a nivel de pies)
-        // para detectar esas superficies estrechas que el movimiento normal no alcanzaría.
+        // con un raycast desde el lado de la pared a nivel de pies.
+        // Se usa col.radius * 0.85f (no el radio completo) para quedar con margen seguro fuera
+        // de la geometría de la pared y evitar que el origen caiga dentro del collider.
         CapsuleCollider col = physics.Collider;
         bool isGrounded = ground.isGrounded;
         if (!isGrounded)
         {
             Vector3 feetPos = physics.GetFeetPosition();
-            // La normal apunta hacia el jugador, así que -wallNormal apunta hacia la pared.
-            // Offset = col.radius en esa dirección → queda justo en la superficie del muro.
-            Vector3 wallSideProbe = feetPos - wallNormal * col.radius + Vector3.up * 0.05f;
+            Vector3 wallSideProbe = feetPos - wallNormal * (col.radius * 0.85f) + Vector3.up * 0.05f;
             isGrounded = Physics.Raycast(wallSideProbe, Vector3.down,
                 physics.groundCheckDistance + 0.15f, physics.collisionMask, QueryTriggerInteraction.Ignore);
         }
@@ -539,14 +538,15 @@ public class PlayerMovement : MonoBehaviour
         CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
         if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
 
-        // Chequeo de altura independiente de wallCheck.point (que es poco fiable cuando el jugador
-        // está muy cerca). Raycast desde la posición del jugador a wallhugMinWallHeight sobre los
-        // pies, en la dirección del input. Si no hay pared a esa altura, es un escalón bajo → no wallhug.
+        // Chequeo de altura: desde el centro XZ del jugador (no del punto de contacto) a
+        // wallhugMinWallHeight sobre los pies. El centro de la cápsula nunca está dentro de
+        // un collider (ResolveOverlaps lo garantiza), así que el raycast siempre arranca en aire.
         CapsuleCollider col = physics.Collider;
         Vector3 feetPos = physics.GetFeetPosition();
-        Vector3 heightCheckOrigin = feetPos + Vector3.up * wallhugMinWallHeight
-                                             + inputDir * (col.radius - physics.skinWidth);
-        if (!Physics.Raycast(heightCheckOrigin, inputDir, 0.25f,
+        Vector3 heightCheckOrigin = new Vector3(transform.position.x,
+                                                feetPos.y + wallhugMinWallHeight,
+                                                transform.position.z);
+        if (!Physics.Raycast(heightCheckOrigin, inputDir, col.radius + 0.25f,
             physics.collisionMask, QueryTriggerInteraction.Ignore))
             return;
 
