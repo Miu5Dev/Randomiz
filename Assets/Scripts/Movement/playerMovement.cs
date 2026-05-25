@@ -298,6 +298,9 @@ public class PlayerMovement : MonoBehaviour
         if (!ground.isGrounded && !isDashing && velocity.y > -8f)
             TryGrabLedge();
 
+        // Si TryGrabLedge enganchó este frame, no ejecutar movimiento normal
+        if (isLedgeGrabbing) return;
+
         Vector3 moveDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
 
         float inputMagnitude = moveInput.magnitude;
@@ -724,8 +727,10 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Verificar que la pared sigue ahí; si no, caer
-        if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+        // Verificar que el borde sigue ahí; si no, caer.
+        // Raycast horizontal a nivel del ledge top — más fiable que el CapsuleCast completo
+        // en plataformas delgadas donde el cast cuelga por debajo de la cara de la plataforma.
+        if (!IsLedgeEdgePresent())
         {
             isLedgeGrabbing = false;
             return;
@@ -780,9 +785,8 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                // Sin colisión: si tras moverse la pared ya no está, salimos del extremo del ledge.
-                // Revertir en vez de soltar.
-                if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+                // Sin colisión: si tras moverse el borde ya no está, revertir (fin del ledge).
+                if (!IsLedgeEdgePresent())
                 {
                     physics.SetPosition(prevPos);
                     velocity = Vector3.zero;
@@ -796,6 +800,16 @@ public class PlayerMovement : MonoBehaviour
         physics.SetPosition(pos);
 
         ApplyWallFacing(ledgeWallNormal);
+    }
+
+    private bool IsLedgeEdgePresent()
+    {
+        // Raycast horizontal justo bajo el top del ledge, desde la posición XZ actual del jugador.
+        // Detecta el borde incluso en plataformas delgadas donde el CapsuleCast de altura completa
+        // cuelga por debajo de la cara de la plataforma y no la encuentra.
+        Vector3 origin = new Vector3(transform.position.x, ledgeTopPoint.y - 0.05f, transform.position.z);
+        return Physics.Raycast(origin, -ledgeWallNormal, physics.Collider.radius + 0.2f,
+            physics.collisionMask, QueryTriggerInteraction.Ignore);
     }
 
     private void ApplyWallFacing(Vector3 wallNormal)
