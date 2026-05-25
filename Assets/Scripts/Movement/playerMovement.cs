@@ -772,18 +772,6 @@ public class PlayerMovement : MonoBehaviour
         Vector3 ledgeRight = Vector3.Cross(Vector3.up, ledgeWallNormal).normalized;
         float lateralInput = hasInput ? Vector3.Dot(inputDir3D, ledgeRight) : 0f;
 
-        // Bloquear si no hay espacio libre en esa dirección (la pared no deja pasar las manos).
-        // Raycast horizontal al nivel del ledge desde la posición XZ del jugador.
-        if (Mathf.Abs(lateralInput) > 0.01f)
-        {
-            Vector3 sideCheckOrigin = new Vector3(transform.position.x,
-                                                   ledgeTopPoint.y - 0.05f,
-                                                   transform.position.z);
-            if (Physics.Raycast(sideCheckOrigin, ledgeRight * Mathf.Sign(lateralInput),
-                col.radius + 0.15f, physics.collisionMask, QueryTriggerInteraction.Ignore))
-                lateralInput = 0f;
-        }
-
         velocity = ledgeRight * (lateralInput * moveSpeed);
         velocity.y = 0f;
 
