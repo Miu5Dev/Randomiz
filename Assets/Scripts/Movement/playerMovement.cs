@@ -539,15 +539,14 @@ public class PlayerMovement : MonoBehaviour
         CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
         if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
 
-        // Verificar que la pared sea alta. Si es un escalón pequeño, no entramos a wallhug;
-        // el movimiento normal debería poderlo manejar.
+        // Chequeo de altura independiente de wallCheck.point (que es poco fiable cuando el jugador
+        // está muy cerca). Raycast desde la posición del jugador a wallhugMinWallHeight sobre los
+        // pies, en la dirección del input. Si no hay pared a esa altura, es un escalón bajo → no wallhug.
+        CapsuleCollider col = physics.Collider;
         Vector3 feetPos = physics.GetFeetPosition();
-        Vector3 highProbe = new Vector3(
-            wallCheck.point.x + wallCheck.normal.x * 0.05f,
-            feetPos.y + wallhugMinWallHeight,
-            wallCheck.point.z + wallCheck.normal.z * 0.05f
-        );
-        if (!Physics.Raycast(highProbe, -wallCheck.normal, 0.2f,
+        Vector3 heightCheckOrigin = feetPos + Vector3.up * wallhugMinWallHeight
+                                             + inputDir * (col.radius - physics.skinWidth);
+        if (!Physics.Raycast(heightCheckOrigin, inputDir, 0.25f,
             physics.collisionMask, QueryTriggerInteraction.Ignore))
             return;
 
