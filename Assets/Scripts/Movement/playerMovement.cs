@@ -96,6 +96,8 @@ public class PlayerMovement : MonoBehaviour
         {
             dashPressed = false;
             StartWallhugJump();
+            physics.Move(velocity * Time.fixedDeltaTime);
+            return;
         }
         // Iniciar dash / salto targeting
         else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
@@ -338,7 +340,13 @@ public class PlayerMovement : MonoBehaviour
         velocity.x = moveDir.x * currentSpeed;
         velocity.z = moveDir.z * currentSpeed;
 
-        if (moveDir.sqrMagnitude > 0.01f) HandleRotation(moveDir);
+        // Mirar hacia la pared
+        Vector3 faceWall = new Vector3(-wallNormal.x, 0f, -wallNormal.z);
+        if (faceWall.sqrMagnitude > 0.01f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(faceWall.normalized, Vector3.up);
+            modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+        }
 
         ApplyGravityAndMove(ground);
     }
