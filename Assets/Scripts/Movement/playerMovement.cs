@@ -468,16 +468,69 @@ public class PlayerMovement : MonoBehaviour
         else
             checkDir = new Vector3(modelTransform.forward.x, 0f, modelTransform.forward.z).normalized;
 
+        // Caso normal: cornisa a la altura de la cabeza en la dirección de movimiento
         if (TryDetectLedge(checkDir, out Vector3 ledgeTop, out Vector3 wallNorm))
         {
-            isLedgeGrabbing = true;
-            isWallJumping = false;
-            isJumping = false;
-            ledgeTopPoint = ledgeTop;
-            ledgeWallNormal = wallNorm;
-            velocity = Vector3.zero;
-            SnapToHangPosition();
+            AttachToLedge(ledgeTop, wallNorm);
+            return;
         }
+
+        // Auto-grab al caer de un bordillo: jugador sin saltar, con velocidad horizontal,
+        // cayendo lentamente (ventana pequeña tras dejar el suelo). Cornisa detrás, a los pies.
+        if (!isJumping && velocity.y < 0.5f && velocity.y > -4f && horizontalVel.sqrMagnitude > 0.01f)
+        {
+            Vector3 backDir = -horizontalVel.normalized;
+            if (TryDetectLedgeAtFeet(backDir, out ledgeTop, out wallNorm))
+            {
+                AttachToLedge(ledgeTop, wallNorm);
+            }
+        }
+    }
+
+    private void AttachToLedge(Vector3 top, Vector3 norm)
+    {
+        isLedgeGrabbing = true;
+        isWallJumping = false;
+        isJumping = false;
+        ledgeTopPoint = top;
+        ledgeWallNormal = norm;
+        velocity = Vector3.zero;
+        SnapToHangPosition();
+    }
+
+    private bool TryDetectLedgeAtFeet(Vector3 wallDirection, out Vector3 ledgeTopOut, out Vector3 wallNormalOut)
+    {
+        ledgeTopOut = Vector3.zero;
+        wallNormalOut = Vector3.zero;
+
+        Vector3 feetPos = physics.GetFeetPosition();
+        Vector3 castOrigin = feetPos + Vector3.up * 0.15f;
+
+        if (!Physics.Raycast(castOrigin, wallDirection, out RaycastHit wallHit,
+            ledgeDetectionDistance, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        float angle = Vector3.Angle(wallHit.normal, Vector3.up);
+        if (angle < physics.maxGroundAngle || angle >= 135f) return false;
+
+        // Misma verificación de "no es pared alta" que TryDetectLedge
+        Vector3 tallCheckOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) + wallHit.normal * 0.05f;
+        if (Physics.Raycast(tallCheckOrigin, -wallHit.normal, 0.2f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        Vector3 searchOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) - wallHit.normal * 0.05f;
+        if (!Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
+            ledgeTopSearchHeight + 0.5f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        // El top debe estar cerca de la altura de los pies (acaba de salirse de ese borde)
+        float feetY = feetPos.y;
+        if (ledgeHit.point.y < feetY - 0.3f || ledgeHit.point.y > feetY + 0.5f)
+            return false;
+
+        ledgeTopOut = ledgeHit.point;
+        wallNormalOut = wallHit.normal;
+        return true;
     }
 
     private bool TryDetectLedge(Vector3 wallDirection, out Vector3 ledgeTopOut, out Vector3 wallNormalOut)
@@ -627,7 +680,6 @@ public class PlayerMovement : MonoBehaviour
     private void StartLedgeClimb()
     {
         CapsuleCollider col = physics.Collider;
-        climbStartPos = transform.position;
 
         // Posición final: de pie encima de la cornisa desde donde está AHORA (no del punto original del grab)
         Vector3 endPos;
@@ -635,8 +687,19 @@ public class PlayerMovement : MonoBehaviour
         Vector3 inward = -ledgeWallNormal * (col.radius * 2f + 0.2f);
         endPos.x = transform.position.x + inward.x;
         endPos.z = transform.position.z + inward.z;
-        climbEndPos = endPos;
 
+        // Verificar que haya espacio para pararse encima. Si no, cancelar y seguir colgado.
+        Vector3 checkCenter = endPos + col.center;
+        Vector3 capsuleBottom = checkCenter + Vector3.down * (col.height * 0.5f - col.radius);
+        Vector3 capsuleTop    = checkCenter + Vector3.up   * (col.height * 0.5f - col.radius);
+        if (Physics.CheckCapsule(capsuleBottom, capsuleTop, col.radius - 0.02f,
+            physics.collisionMask, QueryTriggerInteraction.Ignore))
+        {
+            return;
+        }
+
+        climbStartPos = transform.position;
+        climbEndPos = endPos;
         isClimbingLedge = true;
         isLedgeGrabbing = false;
         climbTimer = 0f;
