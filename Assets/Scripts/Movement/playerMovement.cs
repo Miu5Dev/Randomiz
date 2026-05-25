@@ -91,7 +91,21 @@ public class PlayerMovement : MonoBehaviour
     {
         GroundInfo ground = physics.Ground;
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
-        if (isJumping && ground.isGrounded && velocity.y <= 0f) { isJumping = false; isWallJumping = false; }
+        if (isJumping && ground.isGrounded && velocity.y <= 0f)
+        {
+            isJumping = false;
+            if (isWallJumping)
+            {
+                isWallJumping = false;
+                // Si la pared sigue ahí al aterrizar, volver a wallhug
+                CollisionInfo reentry = physics.CheckDirection(-wallJumpNormal, 0.15f);
+                if (reentry.hit && reentry.IsWall(physics.maxGroundAngle))
+                {
+                    isWallhugging = true;
+                    wallNormal = reentry.normal;
+                }
+            }
+        }
 
         // Salto wallhug tiene prioridad (solo arriba, sin velocidad horizontal)
         if (dashPressed && isWallhugging)
@@ -218,7 +232,12 @@ public class PlayerMovement : MonoBehaviour
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
         bool hasInput = moveInput.sqrMagnitude > 0.01f;
 
-        if (ground.isGrounded)
+        if (isWallJumping)
+        {
+            velocity.x = 0f;
+            velocity.z = 0f;
+        }
+        else if (ground.isGrounded)
         {
             velocity.x = moveDir.x * currentSpeed;
             velocity.z = moveDir.z * currentSpeed;
