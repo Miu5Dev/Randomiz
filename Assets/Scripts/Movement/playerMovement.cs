@@ -560,27 +560,35 @@ public class PlayerMovement : MonoBehaviour
                 CollisionInfo? cornerWall = moveResult.GetWallCollision(physics.maxGroundAngle);
                 if (cornerWall.HasValue && Vector3.Dot(cornerWall.Value.normal, ledgeWallNormal) < 0.9f)
                 {
-                    // Buscar cornisa desde el punto de contacto real (no desde la cabeza).
-                    // Así funciona tanto para esquinas que suben como para las que bajan.
-                    Vector3 searchOrigin = cornerWall.Value.point
-                        + Vector3.up * ledgeTopSearchHeight
-                        - cornerWall.Value.normal * 0.05f;
-                    float searchDepth = ledgeTopSearchHeight + ledgeCornerHeightTolerance + 0.1f;
+                    // Origen del raycast en altura relativa al ledge actual (no al punto de contacto
+                    // del CapsuleCast, que varía con la velocidad lateral).
+                    // XZ: punto de contacto desplazado ligeramente HACIA la nueva pared para que
+                    // el cast vertical caiga sobre la superficie de la cornisa.
+                    Vector3 searchOrigin = new Vector3(
+                        cornerWall.Value.point.x - cornerWall.Value.normal.x * 0.05f,
+                        ledgeTopPoint.y + ledgeCornerHeightTolerance + 0.2f,
+                        cornerWall.Value.point.z - cornerWall.Value.normal.z * 0.05f
+                    );
+                    float searchDepth = 2f * ledgeCornerHeightTolerance + 0.4f;
 
                     if (Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
-                        searchDepth, physics.collisionMask, QueryTriggerInteraction.Ignore)
-                        && Mathf.Abs(ledgeHit.point.y - ledgeTopPoint.y) <= ledgeCornerHeightTolerance)
+                        searchDepth, physics.collisionMask, QueryTriggerInteraction.Ignore))
                     {
-                        ledgeTopPoint   = ledgeHit.point;
-                        ledgeWallNormal = cornerWall.Value.normal;
-                        SnapToHangPosition();
-                        ApplyWallFacing(ledgeWallNormal);
+                        float heightDiff = Mathf.Abs(ledgeHit.point.y - ledgeTopPoint.y);
+                        if (heightDiff <= ledgeCornerHeightTolerance)
+                        {
+                            // Cornisa compatible → transición
+                            ledgeTopPoint   = ledgeHit.point;
+                            ledgeWallNormal = cornerWall.Value.normal;
+                            SnapToHangPosition();
+                            ApplyWallFacing(ledgeWallNormal);
+                            return;
+                        }
+                        // Cornisa encontrada pero demasiado alta/baja → soltar
+                        isLedgeGrabbing = false;
                         return;
                     }
-
-                    // Cornisa incompatible o inexistente → soltar
-                    isLedgeGrabbing = false;
-                    return;
+                    // No hay cornisa en la nueva pared → solo parar lateralmente, seguir colgado
                 }
             }
         }
