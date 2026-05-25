@@ -88,6 +88,7 @@ public class PlayerMovement : MonoBehaviour
     private bool isLedgeGrabbing;
     private Vector3 ledgeTopPoint;
     private Vector3 ledgeWallNormal;
+    private bool ledgeBackwardBlocked; // S estaba presionada al entrar; requiere soltar antes de poder salir
     private bool isClimbingLedge;
     private float climbTimer;
     private Vector3 climbStartPos;
@@ -622,6 +623,8 @@ public class PlayerMovement : MonoBehaviour
         isJumping = false;
         ledgeTopPoint = top;
         ledgeWallNormal = norm;
+        // Si S ya estaba presionada al entrar, bloquear la salida por S hasta que se suelte.
+        ledgeBackwardBlocked = moveInput.y < -wallhugExitThreshold;
         velocity = Vector3.zero;
         SnapToHangPosition();
     }
@@ -719,9 +722,13 @@ public class PlayerMovement : MonoBehaviour
             ? (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized
             : Vector3.zero;
 
-        // Soltar solo si el jugador presiona explícitamente hacia atrás (S)
-        // Usar cardinalInput.y evita falsos positivos cuando la cámara está girada respecto a la pared
-        if (cardinalInput.y < -wallhugExitThreshold)
+        // Soltar con S solo si es una pulsación nueva (no heredada del momento de entrar al grab).
+        if (ledgeBackwardBlocked)
+        {
+            if (cardinalInput.y >= -wallhugExitThreshold)
+                ledgeBackwardBlocked = false; // S soltada — próxima pulsación ya puede soltar
+        }
+        else if (cardinalInput.y < -wallhugExitThreshold)
         {
             isLedgeGrabbing = false;
             return;
