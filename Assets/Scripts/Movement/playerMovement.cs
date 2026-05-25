@@ -59,6 +59,8 @@ public class PlayerMovement : MonoBehaviour
 
     private bool isWallhugging;
     private Vector3 wallNormal;
+    private bool isWallJumping;
+    private Vector3 wallJumpNormal;
 
     void Awake()
     {
@@ -89,7 +91,7 @@ public class PlayerMovement : MonoBehaviour
     {
         GroundInfo ground = physics.Ground;
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
-        if (isJumping && ground.isGrounded && velocity.y <= 0f) isJumping = false;
+        if (isJumping && ground.isGrounded && velocity.y <= 0f) { isJumping = false; isWallJumping = false; }
 
         // Salto wallhug tiene prioridad (solo arriba, sin velocidad horizontal)
         if (dashPressed && isWallhugging)
@@ -236,7 +238,16 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
-        if (!isTargeting) HandleRotation(moveDir);
+        if (isWallJumping)
+        {
+            Vector3 faceWall = new Vector3(-wallJumpNormal.x, 0f, -wallJumpNormal.z);
+            if (faceWall.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(faceWall.normalized, Vector3.up);
+                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+            }
+        }
+        else if (!isTargeting) HandleRotation(moveDir);
 
         if (!ground.isGrounded)
             velocity.y += gravity * Time.fixedDeltaTime;
@@ -371,6 +382,8 @@ public class PlayerMovement : MonoBehaviour
         velocity.z = 0f;
         velocity.y = wallhugJumpForce;
         isJumping = true;
+        isWallJumping = true;
+        wallJumpNormal = wallNormal;
         isWallhugging = false;
         dashCooldownTimer = dashCooldown;
     }
@@ -389,6 +402,8 @@ public class PlayerMovement : MonoBehaviour
     public bool IsDashing => isDashing;
     public bool IsWallhugging => isWallhugging;
     public Vector3 WallNormal => wallNormal;
+    public bool IsWallJumping => isWallJumping;
+    public Vector3 WallJumpNormal => wallJumpNormal;
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
     public void onItemEquip(OnItemEquipEvent e) => ChangeMoveSpeed(e.item.handWeightMultiplier);
     public void OnItemUnequip(OnItemUnequipEvent e) => ResetMoveSpeed();
