@@ -410,7 +410,7 @@ public class PlayerMovement : MonoBehaviour
         wallNormal = wallCheck.normal;
 
         // Detección de bordillos / superficies estrechas pegadas a la pared.
-        bool isGrounded = ground.isGrounded || HasWallSideGround(wallNormal);
+        bool isGrounded = ground.isGrounded || HasWallSideGround(wallCheck.point, wallNormal);
 
         // Salir si se cayó del borde (ni saltando ni en suelo)
         if (!isGrounded && !isJumping)
@@ -527,7 +527,7 @@ public class PlayerMovement : MonoBehaviour
         if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
 
         // Debe haber suelo (normal o bordillo pegado a la pared) para entrar a wallhug.
-        if (!ground.isGrounded && !HasWallSideGround(wallCheck.normal)) return;
+        if (!ground.isGrounded && !HasWallSideGround(wallCheck.point, wallCheck.normal)) return;
 
         // Chequeo de altura: desde el centro XZ del jugador (no del punto de contacto) a
         // wallhugMinWallHeight sobre los pies. El centro de la cápsula nunca está dentro de
@@ -547,26 +547,29 @@ public class PlayerMovement : MonoBehaviour
 
     /// <summary>
     /// Detección de suelo en el lado de la pared (bordillos / superficies estrechas).
-    /// El SphereCast estándar del PhysicsController falla si el centro del jugador queda
-    /// sobre el vacío, o si el contacto con el borde devuelve un ángulo demasiado pronunciado.
-    /// Aquí lanzamos dos raycasts verticales desde bien arriba de los pies — uno casi tocando
-    /// la pared (cubre bordillos muy estrechos) y otro a media distancia (cubre los anchos).
-    /// El origen alto + cast largo tolera caídas pequeñas en Y mientras el jugador transita.
+    /// Usamos el punto de contacto real del CapsuleCast para posicionar los probes justo
+    /// enfrente de la superficie de la pared — garantizando que el origen nunca caiga
+    /// dentro del collider de la pared (lo que causaría que los raycasts no detectaran nada).
     /// </summary>
-    private bool HasWallSideGround(Vector3 wallNorm)
+    private bool HasWallSideGround(Vector3 wallContactPoint, Vector3 wallNorm)
     {
-        CapsuleCollider col = physics.Collider;
         Vector3 feetPos = physics.GetFeetPosition();
-
         const float originHeight = 0.25f;
         float castDist = originHeight + physics.groundCheckDistance + 0.25f;
 
-        Vector3 nearWallOrigin = feetPos - wallNorm * (col.radius * 0.85f) + Vector3.up * originHeight;
+        // Probe principal: 3 cm delante de la superficie de la pared.
+        // wallContactPoint está en la superficie; +wallNorm*0.03 lo saca al aire justo enfrente.
+        Vector3 nearWallXZ = wallContactPoint + wallNorm * 0.03f;
+        Vector3 nearWallOrigin = new Vector3(nearWallXZ.x, feetPos.y + originHeight, nearWallXZ.z);
         if (Physics.Raycast(nearWallOrigin, Vector3.down, castDist,
             physics.collisionMask, QueryTriggerInteraction.Ignore))
             return true;
 
-        Vector3 midOrigin = feetPos - wallNorm * (col.radius * 0.45f) + Vector3.up * originHeight;
+        // Probe de respaldo: desde el centro XZ del jugador desplazado hacia la pared.
+        // Cubre bordillos más anchos donde el probe principal queda sobre el vacío.
+        Vector3 midXZ = new Vector3(transform.position.x, 0f, transform.position.z)
+                      - new Vector3(wallNorm.x, 0f, wallNorm.z).normalized * (physics.Collider.radius * 0.4f);
+        Vector3 midOrigin = new Vector3(midXZ.x, feetPos.y + originHeight, midXZ.z);
         if (Physics.Raycast(midOrigin, Vector3.down, castDist,
             physics.collisionMask, QueryTriggerInteraction.Ignore))
             return true;
