@@ -409,20 +409,8 @@ public class PlayerMovement : MonoBehaviour
         }
         wallNormal = wallCheck.normal;
 
-        // Detección de suelo extendida: en ledges estrechos pegados a la pared, el SphereCast
-        // estándar puede fallar porque el centro de la esfera queda sobre el vacío. Complementamos
-        // con un raycast desde el lado de la pared a nivel de pies.
-        // Se usa col.radius * 0.85f (no el radio completo) para quedar con margen seguro fuera
-        // de la geometría de la pared y evitar que el origen caiga dentro del collider.
-        CapsuleCollider col = physics.Collider;
-        bool isGrounded = ground.isGrounded;
-        if (!isGrounded)
-        {
-            Vector3 feetPos = physics.GetFeetPosition();
-            Vector3 wallSideProbe = feetPos - wallNormal * (col.radius * 0.85f) + Vector3.up * 0.05f;
-            isGrounded = Physics.Raycast(wallSideProbe, Vector3.down,
-                physics.groundCheckDistance + 0.15f, physics.collisionMask, QueryTriggerInteraction.Ignore);
-        }
+        // Detección de bordillos / superficies estrechas pegadas a la pared.
+        bool isGrounded = ground.isGrounded || HasWallSideGround(wallNormal);
 
         // Salir si se cayó del borde (ni saltando ni en suelo)
         if (!isGrounded && !isJumping)
@@ -531,12 +519,15 @@ public class PlayerMovement : MonoBehaviour
 
     private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
     {
-        if (!ground.isGrounded || isDashing) return;
+        if (isDashing) return;
         if (cardinalInput.sqrMagnitude < 0.01f) return;
 
         Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
         CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
         if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
+
+        // Debe haber suelo (normal o bordillo pegado a la pared) para entrar a wallhug.
+        if (!ground.isGrounded && !HasWallSideGround(wallCheck.normal)) return;
 
         // Chequeo de altura: desde el centro XZ del jugador (no del punto de contacto) a
         // wallhugMinWallHeight sobre los pies. El centro de la cápsula nunca está dentro de
@@ -552,6 +543,35 @@ public class PlayerMovement : MonoBehaviour
 
         isWallhugging = true;
         wallNormal = wallCheck.normal;
+    }
+
+    /// <summary>
+    /// Detección de suelo en el lado de la pared (bordillos / superficies estrechas).
+    /// El SphereCast estándar del PhysicsController falla si el centro del jugador queda
+    /// sobre el vacío, o si el contacto con el borde devuelve un ángulo demasiado pronunciado.
+    /// Aquí lanzamos dos raycasts verticales desde bien arriba de los pies — uno casi tocando
+    /// la pared (cubre bordillos muy estrechos) y otro a media distancia (cubre los anchos).
+    /// El origen alto + cast largo tolera caídas pequeñas en Y mientras el jugador transita.
+    /// </summary>
+    private bool HasWallSideGround(Vector3 wallNorm)
+    {
+        CapsuleCollider col = physics.Collider;
+        Vector3 feetPos = physics.GetFeetPosition();
+
+        const float originHeight = 0.25f;
+        float castDist = originHeight + physics.groundCheckDistance + 0.25f;
+
+        Vector3 nearWallOrigin = feetPos - wallNorm * (col.radius * 0.85f) + Vector3.up * originHeight;
+        if (Physics.Raycast(nearWallOrigin, Vector3.down, castDist,
+            physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        Vector3 midOrigin = feetPos - wallNorm * (col.radius * 0.45f) + Vector3.up * originHeight;
+        if (Physics.Raycast(midOrigin, Vector3.down, castDist,
+            physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return true;
+
+        return false;
     }
 
     private void StartWallhugJump()
