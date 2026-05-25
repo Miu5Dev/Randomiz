@@ -520,6 +520,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void TickLedgeGrab(Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
     {
+        CapsuleCollider col = physics.Collider;
+
         // Movimiento lateral a lo largo de la cornisa
         Vector3 ledgeRight = Vector3.Cross(Vector3.up, ledgeWallNormal).normalized;
         float lateralInput = 0f;
@@ -533,10 +535,34 @@ public class PlayerMovement : MonoBehaviour
         velocity.y = 0f;
 
         if (velocity.sqrMagnitude > 0.001f)
-            physics.Move(velocity * Time.fixedDeltaTime);
+        {
+            MoveResult moveResult = physics.Move(velocity * Time.fixedDeltaTime);
+
+            // Corner wrapping: si el movimiento chocó con una pared nueva, intentar continuar por ella
+            if (moveResult.collided)
+            {
+                CollisionInfo? cornerWall = moveResult.GetWallCollision(physics.maxGroundAngle);
+                if (cornerWall.HasValue && Vector3.Dot(cornerWall.Value.normal, ledgeWallNormal) < 0.9f)
+                {
+                    if (TryDetectLedge(-cornerWall.Value.normal, out Vector3 newTop, out Vector3 newNorm))
+                    {
+                        ledgeTopPoint = newTop;
+                        ledgeWallNormal = newNorm;
+                        SnapToHangPosition();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Verificar que la pared sigue ahí; si no, caer normalmente
+        if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+        {
+            isLedgeGrabbing = false;
+            return;
+        }
 
         // Mantener la altura de cuelgue después del movimiento lateral
-        CapsuleCollider col = physics.Collider;
         Vector3 pos = transform.position;
         pos.y = ledgeTopPoint.y - col.center.y - col.height * 0.5f;
         physics.SetPosition(pos);
@@ -555,12 +581,12 @@ public class PlayerMovement : MonoBehaviour
         CapsuleCollider col = physics.Collider;
         climbStartPos = transform.position;
 
-        // Posición final: de pie encima de la cornisa, pasando el borde
+        // Posición final: de pie encima de la cornisa desde donde está AHORA (no del punto original del grab)
         Vector3 endPos;
         endPos.y = ledgeTopPoint.y - col.center.y + col.height * 0.5f + 0.05f;
-        Vector3 inward = -ledgeWallNormal * (col.radius + 0.2f);
-        endPos.x = ledgeTopPoint.x + inward.x;
-        endPos.z = ledgeTopPoint.z + inward.z;
+        Vector3 inward = -ledgeWallNormal * (col.radius * 2f + 0.2f);
+        endPos.x = transform.position.x + inward.x;
+        endPos.z = transform.position.z + inward.z;
         climbEndPos = endPos;
 
         isClimbingLedge = true;
