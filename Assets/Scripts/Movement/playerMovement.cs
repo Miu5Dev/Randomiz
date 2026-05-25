@@ -836,12 +836,21 @@ public class PlayerMovement : MonoBehaviour
 
     private bool IsLedgeEdgePresent()
     {
-        // Raycast horizontal justo bajo el top del ledge, desde la posición XZ actual del jugador.
-        // Detecta el borde incluso en plataformas delgadas donde el CapsuleCast de altura completa
-        // cuelga por debajo de la cara de la plataforma y no la encuentra.
-        Vector3 origin = new Vector3(transform.position.x, ledgeTopPoint.y - 0.05f, transform.position.z);
-        return Physics.Raycast(origin, -ledgeWallNormal, physics.Collider.radius + 0.2f,
-            physics.collisionMask, QueryTriggerInteraction.Ignore);
+        float dist = physics.Collider.radius + 0.2f;
+        Vector3 toWall = -ledgeWallNormal;
+
+        // Debe haber pared justo bajo el top del ledge (borde real).
+        Vector3 below = new Vector3(transform.position.x, ledgeTopPoint.y - 0.05f, transform.position.z);
+        if (!Physics.Raycast(below, toWall, dist, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        // No debe haber pared justo encima del ledge: si la hay, es pared completa (bloque encima),
+        // no un borde colgable. El jugador no debería poder deslizarse a esa zona.
+        Vector3 above = new Vector3(transform.position.x, ledgeTopPoint.y + 0.05f, transform.position.z);
+        if (Physics.Raycast(above, toWall, dist, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        return true;
     }
 
     private void ApplyWallFacing(Vector3 wallNormal)
