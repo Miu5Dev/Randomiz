@@ -36,6 +36,10 @@ public class PlayerMovement : MonoBehaviour
     [Range(0f, 1f)] public float airControlFactor = 0.1f;
     public float airDrag = 2f;
 
+    [Header("Wallhug")]
+    public float wallhugJumpForce = 6f;
+    [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
+
     private PhysicsController physics;
     private Vector3 velocity;
     private float currentSpeed;
@@ -52,6 +56,9 @@ public class PlayerMovement : MonoBehaviour
     private float dashCooldownTimer;
     private Vector3 dashDirection;
     private bool isJumping;
+
+    private bool isWallhugging;
+    private Vector3 wallNormal;
 
     void Awake()
     {
@@ -84,8 +91,14 @@ public class PlayerMovement : MonoBehaviour
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
         if (isJumping && ground.isGrounded && velocity.y <= 0f) isJumping = false;
 
+        // Salto wallhug tiene prioridad (solo arriba, sin velocidad horizontal)
+        if (dashPressed && isWallhugging)
+        {
+            dashPressed = false;
+            StartWallhugJump();
+        }
         // Iniciar dash / salto targeting
-        if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping)
+        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
         {
             dashPressed = false;
             if (targetingSystem != null && targetingSystem.IsTargeting)
@@ -185,6 +198,15 @@ public class PlayerMovement : MonoBehaviour
             cardinalInput = rawInput;
         }
 
+        // Wallhug tick (return early, gestiona su propio Move)
+        if (isWallhugging)
+        {
+            TickWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+            return;
+        }
+        // Intentar entrar a wallhug si el jugador camina hacia una pared
+        if (!isJumping) TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+
         Vector3 moveDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
 
         float inputMagnitude = moveInput.magnitude;
@@ -266,7 +288,99 @@ public class PlayerMovement : MonoBehaviour
         modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
     }
 
+    private void TickWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        // Verificar que la pared sigue ahí
+        CollisionInfo wallCheck = physics.CheckDirection(-wallNormal, 0.15f);
+        if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle))
+        {
+            isWallhugging = false;
+            ApplyGravityAndMove(ground);
+            return;
+        }
+        wallNormal = wallCheck.normal;
+
+        // Salir si se cayó del borde (ni saltando ni en suelo)
+        if (!ground.isGrounded && !isJumping)
+        {
+            isWallhugging = false;
+            ApplyGravityAndMove(ground);
+            return;
+        }
+
+        // Salir si el input apunta en dirección contraria a la pared
+        if (cardinalInput.sqrMagnitude > 0.01f)
+        {
+            Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+            if (Vector3.Dot(inputDir, wallNormal) > wallhugExitThreshold)
+            {
+                isWallhugging = false;
+                ApplyGravityAndMove(ground);
+                return;
+            }
+        }
+
+        // Proyectar movimiento sobre el plano de la pared (solo componente horizontal)
+        Vector3 moveDir = Vector3.zero;
+        if (cardinalInput.sqrMagnitude > 0.01f)
+        {
+            Vector3 rawDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
+            Vector3 projected = Vector3.ProjectOnPlane(rawDir, wallNormal);
+            projected.y = 0f;
+            if (projected.sqrMagnitude > 0.01f)
+                moveDir = projected.normalized;
+        }
+
+        float inputMagnitude = moveInput.magnitude;
+        float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
+        currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
+
+        velocity.x = moveDir.x * currentSpeed;
+        velocity.z = moveDir.z * currentSpeed;
+
+        if (moveDir.sqrMagnitude > 0.01f) HandleRotation(moveDir);
+
+        ApplyGravityAndMove(ground);
+    }
+
+    private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        if (!ground.isGrounded || isDashing) return;
+        if (cardinalInput.sqrMagnitude < 0.01f) return;
+
+        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+        CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
+        if (wallCheck.hit && wallCheck.IsWall(physics.maxGroundAngle))
+        {
+            isWallhugging = true;
+            wallNormal = wallCheck.normal;
+        }
+    }
+
+    private void StartWallhugJump()
+    {
+        velocity.x = 0f;
+        velocity.z = 0f;
+        velocity.y = wallhugJumpForce;
+        isJumping = true;
+        isWallhugging = false;
+        dashCooldownTimer = dashCooldown;
+    }
+
+    private void ApplyGravityAndMove(GroundInfo ground)
+    {
+        if (!ground.isGrounded)
+            velocity.y += gravity * Time.fixedDeltaTime;
+        else if (velocity.y < 0f)
+            velocity.y = groundedGravity;
+
+        MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
+        if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
+    }
+
     public bool IsDashing => isDashing;
+    public bool IsWallhugging => isWallhugging;
+    public Vector3 WallNormal => wallNormal;
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
     public void onItemEquip(OnItemEquipEvent e) => ChangeMoveSpeed(e.item.handWeightMultiplier);
     public void OnItemUnequip(OnItemUnequipEvent e) => ResetMoveSpeed();
