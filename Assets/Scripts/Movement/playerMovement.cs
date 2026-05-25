@@ -584,11 +584,9 @@ public class PlayerMovement : MonoBehaviour
                             ApplyWallFacing(ledgeWallNormal);
                             return;
                         }
-                        // Cornisa encontrada pero demasiado alta/baja → soltar
-                        isLedgeGrabbing = false;
-                        return;
+                        // Cornisa fuera de rango → no transicionar, quedarse colgado en la pared actual
                     }
-                    // No hay cornisa en la nueva pared → solo parar lateralmente, seguir colgado
+                    // Sin cornisa en la nueva pared → quedarse colgado en la pared actual
                 }
             }
         }
