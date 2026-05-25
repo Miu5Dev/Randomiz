@@ -39,12 +39,23 @@ public class PlayerMovement : MonoBehaviour
     [Header("Wallhug")]
     public float wallhugJumpForce = 6f;
     [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
+    [Tooltip("Altura mínima que debe tener la pared para entrar a wallhug. Escalones más bajos los maneja el movimiento normal.")]
+    public float wallhugMinWallHeight = 1.0f;
 
     [Header("Ledge Grab")]
     public float ledgeDetectionDistance = 0.6f;
     public float ledgeTopSearchHeight = 0.5f;
     public float ledgeClimbDuration = 0.25f;
-    public float ledgeCornerHeightTolerance = 0.3f;
+    [Tooltip("Máximo escalón hacia ARRIBA que el jugador puede alcanzar al hacer ledge grab.")]
+    public float ledgeMaxReachUp = 0.3f;
+    [Tooltip("Máximo escalón hacia ABAJO que el jugador puede alcanzar al hacer ledge grab.")]
+    public float ledgeMaxReachDown = 0.5f;
+
+    [Header("Ledge Grab - Falloff (auto-agarrar al caerse)")]
+    [Tooltip("Caída mínima debajo del jugador para activar auto-grab. Si hay piso cercano, es solo un escalón y no se agarra.")]
+    public float falloffMinDropHeight = 1.5f;
+    [Tooltip("Velocidad horizontal mínima para activar el auto-grab al caerse de un borde.")]
+    public float falloffMinSpeed = 1.0f;
 
     private PhysicsController physics;
     private Vector3 velocity;
@@ -104,6 +115,11 @@ public class PlayerMovement : MonoBehaviour
     void FixedUpdate()
     {
         GroundInfo ground = physics.Ground;
+
+        // Bloquear targeting durante ledge grab / climb
+        if (targetingSystem != null)
+            targetingSystem.Locked = isLedgeGrabbing || isClimbingLedge;
+
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
         if (isJumping && ground.isGrounded && velocity.y <= 0f)
         {
@@ -427,11 +443,22 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
         CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
-        if (wallCheck.hit && wallCheck.IsWall(physics.maxGroundAngle))
-        {
-            isWallhugging = true;
-            wallNormal = wallCheck.normal;
-        }
+        if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
+
+        // Verificar que la pared sea alta. Si es un escalón pequeño, no entramos a wallhug;
+        // el movimiento normal debería poderlo manejar.
+        Vector3 feetPos = physics.GetFeetPosition();
+        Vector3 highProbe = new Vector3(
+            wallCheck.point.x + wallCheck.normal.x * 0.05f,
+            feetPos.y + wallhugMinWallHeight,
+            wallCheck.point.z + wallCheck.normal.z * 0.05f
+        );
+        if (!Physics.Raycast(highProbe, -wallCheck.normal, 0.2f,
+            physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        isWallhugging = true;
+        wallNormal = wallCheck.normal;
     }
 
     private void StartWallhugJump()
@@ -475,13 +502,21 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Auto-grab al caer de un bordillo: jugador sin saltar, con velocidad horizontal,
+        // Auto-grab al caer de un bordillo: jugador sin saltar, con velocidad horizontal suficiente,
         // cayendo lentamente (ventana pequeña tras dejar el suelo). Cornisa detrás, a los pies.
-        if (!isJumping && velocity.y < 0.5f && velocity.y > -4f && horizontalVel.sqrMagnitude > 0.01f)
+        if (!isJumping
+            && velocity.y < 0.5f && velocity.y > -4f
+            && horizontalVel.magnitude >= falloffMinSpeed)
         {
             Vector3 backDir = -horizontalVel.normalized;
             if (TryDetectLedgeAtFeet(backDir, out ledgeTop, out wallNorm))
             {
+                // Verificar que haya caída real por debajo. Si hay piso cercano,
+                // es solo un escaloncito y no vale la pena agarrarse.
+                if (Physics.Raycast(transform.position, Vector3.down, falloffMinDropHeight,
+                    physics.collisionMask, QueryTriggerInteraction.Ignore))
+                    return;
+
                 AttachToLedge(ledgeTop, wallNorm);
             }
         }
@@ -523,9 +558,9 @@ public class PlayerMovement : MonoBehaviour
             ledgeTopSearchHeight + 0.5f, physics.collisionMask, QueryTriggerInteraction.Ignore))
             return false;
 
-        // El top debe estar cerca de la altura de los pies (acaba de salirse de ese borde)
+        // El top debe estar cerca de la altura de los pies (rango up/down separado)
         float feetY = feetPos.y;
-        if (ledgeHit.point.y < feetY - 0.3f || ledgeHit.point.y > feetY + 0.5f)
+        if (ledgeHit.point.y < feetY - ledgeMaxReachDown || ledgeHit.point.y > feetY + ledgeMaxReachUp)
             return false;
 
         ledgeTopOut = ledgeHit.point;
@@ -561,9 +596,9 @@ public class PlayerMovement : MonoBehaviour
             ledgeTopSearchHeight + 0.5f, physics.collisionMask, QueryTriggerInteraction.Ignore))
             return false;
 
-        // 4. La cornisa debe estar al alcance de las manos del jugador
+        // 4. La cornisa debe estar al alcance de las manos del jugador (rango up/down separado)
         float headY = headPos.y;
-        if (ledgeHit.point.y < headY - 0.4f || ledgeHit.point.y > headY + 0.4f)
+        if (ledgeHit.point.y < headY - ledgeMaxReachDown || ledgeHit.point.y > headY + ledgeMaxReachUp)
             return false;
 
         ledgeTopOut = ledgeHit.point;
@@ -625,16 +660,20 @@ public class PlayerMovement : MonoBehaviour
                 {
                     Vector3 searchOrigin = new Vector3(
                         cornerWall.Value.point.x - cornerWall.Value.normal.x * 0.05f,
-                        ledgeTopPoint.y + ledgeCornerHeightTolerance + 0.2f,
+                        ledgeTopPoint.y + ledgeMaxReachUp + 0.2f,
                         cornerWall.Value.point.z - cornerWall.Value.normal.z * 0.05f
                     );
-                    float searchDepth = 2f * ledgeCornerHeightTolerance + 0.4f;
+                    float searchDepth = ledgeMaxReachUp + ledgeMaxReachDown + 0.4f;
 
                     if (Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
                         searchDepth, physics.collisionMask, QueryTriggerInteraction.Ignore))
                     {
-                        float heightDiff = Mathf.Abs(ledgeHit.point.y - ledgeTopPoint.y);
-                        if (heightDiff <= ledgeCornerHeightTolerance)
+                        // Diferencia signed: positivo = arriba, negativo = abajo
+                        float heightDiff = ledgeHit.point.y - ledgeTopPoint.y;
+                        bool compatible = heightDiff >= 0f
+                            ? heightDiff <= ledgeMaxReachUp
+                            : -heightDiff <= ledgeMaxReachDown;
+                        if (compatible)
                         {
                             // Cornisa compatible → transición
                             ledgeTopPoint   = ledgeHit.point;
