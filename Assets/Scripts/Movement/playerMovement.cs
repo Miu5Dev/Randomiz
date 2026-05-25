@@ -45,6 +45,8 @@ public class PlayerMovement : MonoBehaviour
     [Header("Auto Step Up")]
     [Tooltip("Altura máxima de escalón que el jugador puede subir automáticamente al caminar. Por encima requiere salto / ledge grab.")]
     public float autoStepMaxHeight = 0.5f;
+    [Tooltip("Duración de la animación de subida de escalón (segundos).")]
+    public float autoStepUpDuration = 0.12f;
 
     [Header("Ledge Grab")]
     public float ledgeDetectionDistance = 0.6f;
@@ -90,6 +92,9 @@ public class PlayerMovement : MonoBehaviour
     private float climbTimer;
     private Vector3 climbStartPos;
     private Vector3 climbEndPos;
+
+    private bool isSteppingUp;
+    private float stepUpTimer;
 
     void Awake()
     {
@@ -146,6 +151,13 @@ public class PlayerMovement : MonoBehaviour
         {
             dashPressed = false;
             TickLedgeClimb();
+            return;
+        }
+
+        // Animación de step-up — bloquea todo input
+        if (isSteppingUp)
+        {
+            TickStepUp();
             return;
         }
 
@@ -393,8 +405,24 @@ public class PlayerMovement : MonoBehaviour
         }
         wallNormal = wallCheck.normal;
 
+        // Detección de suelo extendida: en ledges estrechos pegados a la pared, el SphereCast
+        // estándar puede fallar porque el centro de la esfera queda sobre el vacío. Complementamos
+        // con un raycast desde el lado de la pared (justo en la superficie del muro, a nivel de pies)
+        // para detectar esas superficies estrechas que el movimiento normal no alcanzaría.
+        CapsuleCollider col = physics.Collider;
+        bool isGrounded = ground.isGrounded;
+        if (!isGrounded)
+        {
+            Vector3 feetPos = physics.GetFeetPosition();
+            // La normal apunta hacia el jugador, así que -wallNormal apunta hacia la pared.
+            // Offset = col.radius en esa dirección → queda justo en la superficie del muro.
+            Vector3 wallSideProbe = feetPos - wallNormal * col.radius + Vector3.up * 0.05f;
+            isGrounded = Physics.Raycast(wallSideProbe, Vector3.down,
+                physics.groundCheckDistance + 0.15f, physics.collisionMask, QueryTriggerInteraction.Ignore);
+        }
+
         // Salir si se cayó del borde (ni saltando ni en suelo)
-        if (!ground.isGrounded && !isJumping)
+        if (!isGrounded && !isJumping)
         {
             isWallhugging = false;
             ApplyGravityAndMove(ground);
@@ -439,7 +467,14 @@ public class PlayerMovement : MonoBehaviour
             modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
         }
 
-        ApplyGravityAndMove(ground);
+        // Gravedad usando la detección extendida (no ApplyGravityAndMove para no perder isGrounded)
+        if (!isGrounded)
+            velocity.y += gravity * Time.fixedDeltaTime;
+        else if (velocity.y < 0f)
+            velocity.y = groundedGravity;
+
+        MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
+        if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
     }
 
     private void TryAutoStepUp(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
@@ -488,8 +523,11 @@ public class PlayerMovement : MonoBehaviour
             physics.collisionMask, QueryTriggerInteraction.Ignore))
             return;
 
-        // 6. Snap al tope del escalón
-        physics.SetPosition(standingPos);
+        // 6. Iniciar animación de subida
+        climbStartPos = transform.position;
+        climbEndPos = standingPos;
+        stepUpTimer = 0f;
+        isSteppingUp = true;
     }
 
     private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
@@ -816,6 +854,20 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void TickStepUp()
+    {
+        stepUpTimer += Time.fixedDeltaTime;
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(stepUpTimer / autoStepUpDuration));
+        physics.SetPosition(Vector3.Lerp(climbStartPos, climbEndPos, t));
+
+        if (stepUpTimer >= autoStepUpDuration)
+        {
+            isSteppingUp = false;
+            velocity.y = groundedGravity;
+            physics.ResolveOverlaps();
+        }
+    }
+
     public bool IsDashing => isDashing;
     public bool IsWallhugging => isWallhugging;
     public Vector3 WallNormal => wallNormal;
@@ -823,6 +875,7 @@ public class PlayerMovement : MonoBehaviour
     public Vector3 WallJumpNormal => wallJumpNormal;
     public bool IsLedgeGrabbing => isLedgeGrabbing;
     public bool IsClimbingLedge => isClimbingLedge;
+    public bool IsSteppingUp => isSteppingUp;
     public float DashCooldownNormalized => Mathf.Clamp01(dashCooldownTimer / dashCooldown);
     public void onItemEquip(OnItemEquipEvent e) => ChangeMoveSpeed(e.item.handWeightMultiplier);
     public void OnItemUnequip(OnItemUnequipEvent e) => ResetMoveSpeed();
