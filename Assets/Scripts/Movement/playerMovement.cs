@@ -429,35 +429,31 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Salir si el input apunta en dirección contraria a la pared
-        if (cardinalInput.sqrMagnitude > 0.01f)
+        // Salir solo si el jugador presiona explícitamente hacia atrás (S).
+        // Usar cardinalInput.y evita falsos positivos al girar la cámara (mismo criterio que ledge grab).
+        if (cardinalInput.y < -wallhugExitThreshold)
         {
-            Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
-            if (Vector3.Dot(inputDir, wallNormal) > wallhugExitThreshold)
-            {
-                isWallhugging = false;
-                ApplyGravityAndMove(ground);
-                return;
-            }
+            isWallhugging = false;
+            ApplyGravityAndMove(ground);
+            return;
         }
 
-        // Proyectar movimiento sobre el plano de la pared (solo componente horizontal)
-        Vector3 moveDir = Vector3.zero;
-        if (cardinalInput.sqrMagnitude > 0.01f)
-        {
-            Vector3 rawDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
-            Vector3 projected = Vector3.ProjectOnPlane(rawDir, wallNormal);
-            projected.y = 0f;
-            if (projected.sqrMagnitude > 0.01f)
-                moveDir = projected.normalized;
-        }
+        // Movimiento lateral a lo largo de la pared (mismo sistema que ledge grab)
+        bool hasInput = cardinalInput.sqrMagnitude > 0.01f;
+        Vector3 inputDir3D = hasInput
+            ? (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized
+            : Vector3.zero;
+
+        Vector3 wallRight = Vector3.Cross(Vector3.up, wallNormal).normalized;
+        float lateralInput = hasInput ? Vector3.Dot(inputDir3D, wallRight) : 0f;
 
         float inputMagnitude = moveInput.magnitude;
         float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
 
-        velocity.x = moveDir.x * currentSpeed;
-        velocity.z = moveDir.z * currentSpeed;
+        Vector3 moveVel = wallRight * (lateralInput * currentSpeed);
+        velocity.x = moveVel.x;
+        velocity.z = moveVel.z;
 
         // Mirar hacia la pared
         Vector3 faceWall = new Vector3(-wallNormal.x, 0f, -wallNormal.z);
