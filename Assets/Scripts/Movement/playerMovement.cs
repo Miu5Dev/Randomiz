@@ -44,6 +44,7 @@ public class PlayerMovement : MonoBehaviour
     public float ledgeDetectionDistance = 0.6f;
     public float ledgeTopSearchHeight = 0.5f;
     public float ledgeClimbDuration = 0.25f;
+    public float ledgeCornerHeightTolerance = 0.3f;
 
     private PhysicsController physics;
     private Vector3 velocity;
@@ -546,6 +547,11 @@ public class PlayerMovement : MonoBehaviour
                 {
                     if (TryDetectLedge(-cornerWall.Value.normal, out Vector3 newTop, out Vector3 newNorm))
                     {
+                        if (Mathf.Abs(newTop.y - ledgeTopPoint.y) > ledgeCornerHeightTolerance)
+                        {
+                            isLedgeGrabbing = false;
+                            return;
+                        }
                         ledgeTopPoint = newTop;
                         ledgeWallNormal = newNorm;
                         SnapToHangPosition();
