@@ -39,8 +39,12 @@ public class PlayerMovement : MonoBehaviour
     [Header("Wallhug")]
     public float wallhugJumpForce = 6f;
     [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
-    [Tooltip("Altura mínima que debe tener la pared para entrar a wallhug. Escalones más bajos los maneja el movimiento normal.")]
+    [Tooltip("Altura mínima que debe tener la pared para entrar a wallhug. Escalones más bajos los maneja auto step-up o movimiento normal.")]
     public float wallhugMinWallHeight = 1.0f;
+
+    [Header("Auto Step Up")]
+    [Tooltip("Altura máxima de escalón que el jugador puede subir automáticamente al caminar. Por encima requiere salto / ledge grab.")]
+    public float autoStepMaxHeight = 0.5f;
 
     [Header("Ledge Grab")]
     public float ledgeDetectionDistance = 0.6f;
@@ -267,6 +271,8 @@ public class PlayerMovement : MonoBehaviour
             TickWallhug(ground, forwardAxis, rightAxis, cardinalInput);
             return;
         }
+        // Auto step-up: escalones pequeños se suben automáticamente antes de cualquier wallhug
+        if (!isJumping) TryAutoStepUp(ground, forwardAxis, rightAxis, cardinalInput);
         // Intentar entrar a wallhug si el jugador camina hacia una pared
         if (!isJumping) TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
 
@@ -434,6 +440,56 @@ public class PlayerMovement : MonoBehaviour
         }
 
         ApplyGravityAndMove(ground);
+    }
+
+    private void TryAutoStepUp(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        if (!ground.isGrounded || isDashing) return;
+        if (cardinalInput.sqrMagnitude < 0.01f) return;
+
+        CapsuleCollider col = physics.Collider;
+        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+        Vector3 feetPos = physics.GetFeetPosition();
+
+        // 1. Buscar pared al frente a nivel de pies
+        Vector3 lowProbe = feetPos + Vector3.up * 0.1f;
+        float probeDistance = col.radius + 0.15f;
+        if (!Physics.Raycast(lowProbe, inputDir, out RaycastHit wallHit,
+            probeDistance, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        float wallAngle = Vector3.Angle(wallHit.normal, Vector3.up);
+        if (wallAngle < physics.maxGroundAngle || wallAngle >= 135f) return;
+
+        // 2. Buscar la superficie superior del escalón (cast hacia abajo desde encima)
+        Vector3 highProbe = wallHit.point + Vector3.up * (autoStepMaxHeight + 0.1f) - wallHit.normal * 0.05f;
+        if (!Physics.Raycast(highProbe, Vector3.down, out RaycastHit stepHit,
+            autoStepMaxHeight + 0.2f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        // 3. Altura del escalón dentro del rango (positiva y ≤ autoStepMaxHeight)
+        float stepHeight = stepHit.point.y - feetPos.y;
+        if (stepHeight <= 0.001f || stepHeight > autoStepMaxHeight) return;
+
+        // 4. La superficie superior debe ser caminable
+        float stepTopAngle = Vector3.Angle(stepHit.normal, Vector3.up);
+        if (stepTopAngle > physics.maxGroundAngle) return;
+
+        // 5. Verificar que el jugador quepa de pie encima del escalón
+        Vector3 standingPos = new Vector3(
+            stepHit.point.x - wallHit.normal.x * (col.radius + 0.05f),
+            stepHit.point.y - col.center.y + col.height * 0.5f + 0.02f,
+            stepHit.point.z - wallHit.normal.z * (col.radius + 0.05f)
+        );
+        Vector3 capCenter = standingPos + col.center;
+        Vector3 capBottom = capCenter + Vector3.down * (col.height * 0.5f - col.radius);
+        Vector3 capTop    = capCenter + Vector3.up   * (col.height * 0.5f - col.radius);
+        if (Physics.CheckCapsule(capBottom, capTop, col.radius - 0.02f,
+            physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        // 6. Snap al tope del escalón
+        physics.SetPosition(standingPos);
     }
 
     private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
