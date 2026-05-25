@@ -523,14 +523,29 @@ public class PlayerMovement : MonoBehaviour
     {
         CapsuleCollider col = physics.Collider;
 
+        // Input una sola vez
+        bool hasInput = cardinalInput.sqrMagnitude > 0.01f;
+        Vector3 inputDir3D = hasInput
+            ? (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized
+            : Vector3.zero;
+
+        // Soltar si el jugador presiona alejándose de la pared (S / atrás)
+        if (hasInput && Vector3.Dot(inputDir3D, ledgeWallNormal) > wallhugExitThreshold)
+        {
+            isLedgeGrabbing = false;
+            return;
+        }
+
+        // Verificar que la pared sigue ahí; si no, caer
+        if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+        {
+            isLedgeGrabbing = false;
+            return;
+        }
+
         // Movimiento lateral a lo largo de la cornisa
         Vector3 ledgeRight = Vector3.Cross(Vector3.up, ledgeWallNormal).normalized;
-        float lateralInput = 0f;
-        if (cardinalInput.sqrMagnitude > 0.01f)
-        {
-            Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
-            lateralInput = Vector3.Dot(inputDir, ledgeRight);
-        }
+        float lateralInput = hasInput ? Vector3.Dot(inputDir3D, ledgeRight) : 0f;
 
         velocity = ledgeRight * (lateralInput * moveSpeed);
         velocity.y = 0f;
@@ -539,47 +554,50 @@ public class PlayerMovement : MonoBehaviour
         {
             MoveResult moveResult = physics.Move(velocity * Time.fixedDeltaTime);
 
-            // Corner wrapping: si el movimiento chocó con una pared nueva, intentar continuar por ella
             if (moveResult.collided)
             {
                 CollisionInfo? cornerWall = moveResult.GetWallCollision(physics.maxGroundAngle);
                 if (cornerWall.HasValue && Vector3.Dot(cornerWall.Value.normal, ledgeWallNormal) < 0.9f)
                 {
-                    if (TryDetectLedge(-cornerWall.Value.normal, out Vector3 newTop, out Vector3 newNorm))
+                    // Buscar cornisa desde el punto de contacto real (no desde la cabeza).
+                    // Así funciona tanto para esquinas que suben como para las que bajan.
+                    Vector3 searchOrigin = cornerWall.Value.point
+                        + Vector3.up * ledgeTopSearchHeight
+                        - cornerWall.Value.normal * 0.05f;
+                    float searchDepth = ledgeTopSearchHeight + ledgeCornerHeightTolerance + 0.1f;
+
+                    if (Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
+                        searchDepth, physics.collisionMask, QueryTriggerInteraction.Ignore)
+                        && Mathf.Abs(ledgeHit.point.y - ledgeTopPoint.y) <= ledgeCornerHeightTolerance)
                     {
-                        if (Mathf.Abs(newTop.y - ledgeTopPoint.y) > ledgeCornerHeightTolerance)
-                        {
-                            isLedgeGrabbing = false;
-                            return;
-                        }
-                        ledgeTopPoint = newTop;
-                        ledgeWallNormal = newNorm;
+                        ledgeTopPoint   = ledgeHit.point;
+                        ledgeWallNormal = cornerWall.Value.normal;
                         SnapToHangPosition();
+                        ApplyWallFacing(ledgeWallNormal);
                         return;
                     }
+
+                    // Cornisa incompatible o inexistente → soltar
+                    isLedgeGrabbing = false;
+                    return;
                 }
             }
         }
 
-        // Verificar que la pared sigue ahí; si no, caer normalmente
-        if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
-        {
-            isLedgeGrabbing = false;
-            return;
-        }
-
-        // Mantener la altura de cuelgue después del movimiento lateral
+        // Mantener altura de cuelgue tras movimiento lateral
         Vector3 pos = transform.position;
         pos.y = ledgeTopPoint.y - col.center.y - col.height * 0.5f;
         physics.SetPosition(pos);
 
-        // Mirar hacia la pared
-        Vector3 faceWall = new Vector3(-ledgeWallNormal.x, 0f, -ledgeWallNormal.z);
-        if (faceWall.sqrMagnitude > 0.01f)
-        {
-            Quaternion targetRot = Quaternion.LookRotation(faceWall.normalized, Vector3.up);
-            modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
-        }
+        ApplyWallFacing(ledgeWallNormal);
+    }
+
+    private void ApplyWallFacing(Vector3 wallNormal)
+    {
+        Vector3 faceDir = new Vector3(-wallNormal.x, 0f, -wallNormal.z);
+        if (faceDir.sqrMagnitude < 0.01f) return;
+        Quaternion targetRot = Quaternion.LookRotation(faceDir.normalized, Vector3.up);
+        modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
     }
 
     private void StartLedgeClimb()
