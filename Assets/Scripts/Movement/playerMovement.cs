@@ -487,19 +487,28 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 headPos = physics.GetHeadPosition();
 
-        // Buscar pared a la altura de la cabeza
+        // 1. Buscar pared a la altura de la cabeza
         if (!Physics.Raycast(headPos, wallDirection, out RaycastHit wallHit, ledgeDetectionDistance, physics.collisionMask, QueryTriggerInteraction.Ignore))
             return false;
 
         float angle = Vector3.Angle(wallHit.normal, Vector3.up);
         if (angle < physics.maxGroundAngle || angle >= 135f) return false;
 
-        // Buscar superficie encima del punto de contacto → top de la cornisa
-        Vector3 aboveWall = wallHit.point + Vector3.up * ledgeTopSearchHeight - wallHit.normal * 0.05f;
-        if (!Physics.Raycast(aboveWall, Vector3.down, out RaycastHit ledgeHit, ledgeTopSearchHeight + 0.1f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+        // 2. Rechazar paredes demasiado altas: si la pared sigue existiendo por encima del rango
+        // de cornisa esperado, NO es una cornisa agarrable.
+        Vector3 tallCheckOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) + wallHit.normal * 0.05f;
+        if (Physics.Raycast(tallCheckOrigin, -wallHit.normal, 0.2f, physics.collisionMask, QueryTriggerInteraction.Ignore))
             return false;
 
-        // La cornisa debe estar al alcance de las manos del jugador
+        // 3. Encontrar el top casteando hacia abajo desde sobre el final de la pared.
+        // El origen está en aire (la pared ya terminó arriba), así no hay raycasts desde dentro
+        // de un collider que devuelvan resultados inesperados.
+        Vector3 searchOrigin = wallHit.point + Vector3.up * (ledgeTopSearchHeight + 0.1f) - wallHit.normal * 0.05f;
+        if (!Physics.Raycast(searchOrigin, Vector3.down, out RaycastHit ledgeHit,
+            ledgeTopSearchHeight + 0.5f, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        // 4. La cornisa debe estar al alcance de las manos del jugador
         float headY = headPos.y;
         if (ledgeHit.point.y < headY - 0.4f || ledgeHit.point.y > headY + 0.4f)
             return false;
@@ -553,6 +562,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (velocity.sqrMagnitude > 0.001f)
         {
+            Vector3 prevPos = transform.position;
             MoveResult moveResult = physics.Move(velocity * Time.fixedDeltaTime);
 
             if (moveResult.collided)
@@ -560,10 +570,6 @@ public class PlayerMovement : MonoBehaviour
                 CollisionInfo? cornerWall = moveResult.GetWallCollision(physics.maxGroundAngle);
                 if (cornerWall.HasValue && Vector3.Dot(cornerWall.Value.normal, ledgeWallNormal) < 0.9f)
                 {
-                    // Origen del raycast en altura relativa al ledge actual (no al punto de contacto
-                    // del CapsuleCast, que varía con la velocidad lateral).
-                    // XZ: punto de contacto desplazado ligeramente HACIA la nueva pared para que
-                    // el cast vertical caiga sobre la superficie de la cornisa.
                     Vector3 searchOrigin = new Vector3(
                         cornerWall.Value.point.x - cornerWall.Value.normal.x * 0.05f,
                         ledgeTopPoint.y + ledgeCornerHeightTolerance + 0.2f,
@@ -584,9 +590,20 @@ public class PlayerMovement : MonoBehaviour
                             ApplyWallFacing(ledgeWallNormal);
                             return;
                         }
-                        // Cornisa fuera de rango → no transicionar, quedarse colgado en la pared actual
                     }
-                    // Sin cornisa en la nueva pared → quedarse colgado en la pared actual
+                    // Incompatible o sin cornisa → revertir movimiento y quedarse colgado
+                    physics.SetPosition(prevPos);
+                    velocity = Vector3.zero;
+                }
+            }
+            else
+            {
+                // Sin colisión: si tras moverse la pared ya no está, salimos del extremo del ledge.
+                // Revertir en vez de soltar.
+                if (!physics.CheckDirection(-ledgeWallNormal, col.radius + 0.15f).hit)
+                {
+                    physics.SetPosition(prevPos);
+                    velocity = Vector3.zero;
                 }
             }
         }
