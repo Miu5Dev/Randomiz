@@ -48,7 +48,7 @@ GameObject:
   - component: {fileID: 5177790865363531124}
   - component: {fileID: 5230418838899386553}
   - component: {fileID: 5292977422519912547}
-  - component: {fileID: 6406447003311419423}
+  - component: {fileID: 4894913789030065387}
   m_Layer: 0
   m_Name: '[Player]'
   m_TagString: Untagged
@@ -116,7 +116,7 @@ MonoBehaviour:
   maxOverlapIterations: 3
   collisionMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 63
   groundCheckDistance: 0.1
   maxGroundAngle: 45
   autoSlopeHandling: 1
@@ -167,10 +167,20 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  targetingSystem: {fileID: 0}
+  targetingJumpForce: 8
+  backflipHorizontalForce: 6
+  targetingForwardJumpForce: 4
   gravity: -20
   groundedGravity: -2
   airControlFactor: 0.1
   airDrag: 2
+  wallhugJumpForce: 6
+  wallhugExitThreshold: 0.3
+  ledgeDetectionDistance: 0.6
+  ledgeTopSearchHeight: 0.5
+  ledgeClimbDuration: 0.25
+  ledgeCornerHeightTolerance: 0.3
 --- !u!114 &3017486104719572446
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -210,8 +220,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   invItems:
-  - {fileID: 11400000, guid: c5cace5dc68a2f34a95d5f1b5a3e26fb, type: 2}
-  - {fileID: 11400000, guid: e5c34576838a4b0479c456f504d6898b, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  defaultBottle: {fileID: 11400000, guid: 7e1ad2b9ccecfb747ac4522ab31e180f, type: 2}
 --- !u!114 &5292977422519912547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,9 +247,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   EquipedItem: {fileID: 11400000, guid: c5cace5dc68a2f34a95d5f1b5a3e26fb, type: 2}
-  defaultBottle: {fileID: 11400000, guid: 7e1ad2b9ccecfb747ac4522ab31e180f, type: 2}
   ItemsPivotPoint: {fileID: 8255253196292928471}
---- !u!114 &6406447003311419423
+--- !u!114 &4894913789030065387
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -236,10 +257,26 @@ MonoBehaviour:
   m_GameObject: {fileID: 2897982125319167127}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 89527f027da08734dab9dd6d95bf5758, type: 3}
+  m_Script: {fileID: 11500000, guid: da487d68d4b3422382a63a78b84d6e51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sword: {fileID: 11400000, guid: c5cace5dc68a2f34a95d5f1b5a3e26fb, type: 2}
+  modelTransform: {fileID: 8255253196292928471}
+  cameraTarget: {fileID: 2437229657672539260}
+  searchRadius: 15
+  enemyTag: Enemy
+  searchMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  requireLineOfSight: 1
+  playerRotationSpeed: 12
+  cameraAlignSpeed: 8
+  cameraPitchSpeed: 2
+  minPitch: -30
+  maxPitch: 60
+  cycleOnRepress: 1
+  holdToTarget: 1
+  lookCycleThreshold: 0.5
+  cycleCooldown: 0.4
 --- !u!1 &2973525265902121720
 GameObject:
   m_ObjectHideFlags: 0
@@ -283,6 +320,8 @@ GameObject:
   - component: {fileID: 8867165567743794853}
   - component: {fileID: 1458423957814084940}
   - component: {fileID: 6804025531091216629}
+  - component: {fileID: 3145794410301104027}
+  - component: {fileID: 3977510148982813415}
   m_Layer: 0
   m_Name: '[DATA]'
   m_TagString: Untagged
@@ -325,12 +364,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5230418838899386553}
     methodName: OnPotionConsume
     paramSources:
     - mode: 3
       eventFieldName: 
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -357,12 +398,82 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5230418838899386553}
     methodName: OnItemPickedUp
     paramSources:
     - mode: 3
       eventFieldName: 
+      objectReference: {fileID: 0}
+      fixedValue: 
+      componentMember: 
+    conditions: []
+    logic: 0
+  cancelAfterHandle: 0
+  cancelOnlyIfBindingFired: 1
+--- !u!114 &3145794410301104027
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3397912356207429209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  selectedEventTypeName: OnItemEquipEvent
+  onRaised:
+    m_PersistentCalls:
+      m_Calls: []
+  onReleased:
+    m_PersistentCalls:
+      m_Calls: []
+  callOnBothStates: 0
+  priority: 0
+  smartBindings:
+  - targetObject: {fileID: 2032308462260549170}
+    methodName: onItemEquip
+    paramSources:
+    - mode: 3
+      eventFieldName: 
+      objectReference: {fileID: 0}
+      fixedValue: 
+      componentMember: 
+    conditions: []
+    logic: 0
+  cancelAfterHandle: 0
+  cancelOnlyIfBindingFired: 1
+--- !u!114 &3977510148982813415
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3397912356207429209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  selectedEventTypeName: OnItemUnequipEvent
+  onRaised:
+    m_PersistentCalls:
+      m_Calls: []
+  onReleased:
+    m_PersistentCalls:
+      m_Calls: []
+  callOnBothStates: 0
+  priority: 0
+  smartBindings:
+  - targetObject: {fileID: 2032308462260549170}
+    methodName: OnItemUnequip
+    paramSources:
+    - mode: 3
+      eventFieldName: 
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -401,6 +512,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7405544147928634307}
+  - {fileID: 2788555237638045728}
   m_Father: {fileID: 8255253196292928471}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &130249981697755985
@@ -434,7 +546,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: 46ce67875a3ac064e9834a7fc0269ce9, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -520,7 +632,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: f5fa658702e15494b96e1eb830cd78fe, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -554,6 +666,7 @@ GameObject:
   - component: {fileID: 1286891235594040887}
   - component: {fileID: 8758449703711999248}
   - component: {fileID: 2509210510547734281}
+  - component: {fileID: 3023744552042735519}
   m_Layer: 0
   m_Name: '[CAM]'
   m_TagString: Untagged
@@ -658,6 +771,52 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Damping: 0
+--- !u!114 &3023744552042735519
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4239919055197263235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa197d37c9754520bcfa187b79c2ca68, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetingSystem: {fileID: 4894913789030065387}
+  cameraToZoom: {fileID: 0}
+  cameraRig: {fileID: 0}
+  zoomMode: 0
+  targetingFOV: 45
+  targetingDistanceMultiplier: 0.7
+  zoomSmoothTime: 0.3
+  barHeightPixels: 90
+  letterboxDuration: 0.4
+  letterboxCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  letterboxSortingOrder: 999
 --- !u!1 &4911082669264814465
 GameObject:
   m_ObjectHideFlags: 0
@@ -711,12 +870,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5177790865363531124}
     methodName: OnDamageEvent
     paramSources:
     - mode: 3
       eventFieldName: 
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -743,12 +904,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5177790865363531124}
     methodName: OnHealEvent
     paramSources:
     - mode: 3
       eventFieldName: 
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -813,6 +976,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3546795756198362157}
   - component: {fileID: 824146926404192644}
+  - component: {fileID: 706114515361705133}
   - component: {fileID: 2539656050800056934}
   - component: {fileID: 228254472476218547}
   m_Layer: 0
@@ -849,6 +1013,47 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  selectedEventTypeName: OnInteractDodgeInputEvent
+  onRaised:
+    m_PersistentCalls:
+      m_Calls: []
+  onReleased:
+    m_PersistentCalls:
+      m_Calls: []
+  callOnBothStates: 0
+  priority: 10
+  smartBindings:
+  - targetObject: {fileID: 1603252406262766663}
+    methodName: Interact
+    paramSources: []
+    conditions:
+    - enabled: 1
+      fieldName: pressed
+      op: 0
+      source: 0
+      compareValue: true
+      componentFieldName: 
+    - enabled: 1
+      fieldName: pressed
+      op: 0
+      source: 1
+      compareValue: true
+      componentFieldName: onInteractArea
+    logic: 0
+  cancelAfterHandle: 1
+  cancelOnlyIfBindingFired: 1
+--- !u!114 &706114515361705133
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5405010838071790377}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0b114482fb6b754bb8066f126809b6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
   selectedEventTypeName: OnMoveInputEvent
   onRaised:
     m_PersistentCalls:
@@ -857,12 +1062,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 2032308462260549170}
     methodName: OnMove
     paramSources:
     - mode: 0
       eventFieldName: Direction
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -889,12 +1096,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 2032308462260549170}
     methodName: OnDash
     paramSources:
     - mode: 0
       eventFieldName: pressed
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -921,6 +1130,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5292977422519912547}
     methodName: UseItem
@@ -987,12 +1197,14 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   callOnBothStates: 0
+  priority: 0
   smartBindings:
   - targetObject: {fileID: 5022705967379575738}
     methodName: OnLook
     paramSources:
     - mode: 3
       eventFieldName: 
+      objectReference: {fileID: 0}
       fixedValue: 
       componentMember: 
     conditions: []
@@ -1130,3 +1342,89 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &9082330315500008283
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2788555237638045728}
+  - component: {fileID: 9115647461880857841}
+  - component: {fileID: 7934195087044610055}
+  m_Layer: 0
+  m_Name: glasses (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2788555237638045728
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9082330315500008283}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0.1284, z: -0.3756}
+  m_LocalScale: {x: 0.72248, y: 0.8567558, z: 0.5549849}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5736249801433235170}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &9115647461880857841
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9082330315500008283}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!23 &7934195087044610055
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9082330315500008283}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 46ce67875a3ac064e9834a7fc0269ce9, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
