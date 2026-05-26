@@ -101,6 +101,7 @@ public class PlayerMovement : MonoBehaviour
 
     private bool interactHeld;
     private float ledgeGrabReleaseCooldown;
+    private bool wallhugUpBlocked; // W estaba presionado al entrar; requiere soltar antes de poder saltar
 
     void Awake()
     {
@@ -456,8 +457,13 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Cardinal arriba: intentar saltar y agarrar una cornisa encima de la pared
-        if (cardinalInput.y > wallhugExitThreshold)
+        // Cardinal arriba: intentar saltar y agarrar una cornisa encima de la pared.
+        // Requiere soltar W y volver a presionar si se entró al wallhug con W ya presionado.
+        if (wallhugUpBlocked)
+        {
+            if (cardinalInput.y <= wallhugExitThreshold) wallhugUpBlocked = false;
+        }
+        else if (cardinalInput.y > wallhugExitThreshold)
         {
             TryWallhugJumpToLedge();
             return;
@@ -577,6 +583,7 @@ public class PlayerMovement : MonoBehaviour
 
         isWallhugging = true;
         wallNormal = wallCheck.normal;
+        wallhugUpBlocked = cardinalInput.y > wallhugExitThreshold;
     }
 
     /// <summary>
