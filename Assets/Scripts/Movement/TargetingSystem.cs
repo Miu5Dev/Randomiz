@@ -37,6 +37,11 @@ public class TargetingSystem : MonoBehaviour
 
     public bool IsTargeting { get; private set; }
     public Transform CurrentTarget { get; private set; }
+    /// <summary>
+    /// External lock. While true, targeting input is ignored and any active target is cleared.
+    /// Used by movement states like ledge grab to disable targeting.
+    /// </summary>
+    public bool Locked { get; set; }
     public event Action<bool> OnTargetingChanged;
     public event Action<Transform> OnTargetChanged;
 
@@ -75,6 +80,12 @@ public class TargetingSystem : MonoBehaviour
 
     private void HandleTargetInput(OnTargetInputEvent e)
     {
+        if (Locked)
+        {
+            if (IsTargeting) SetTargeting(false);
+            _consumedThisPress = false;
+            return;
+        }
         if (holdToTarget)
         {
             if (e.pressed)
