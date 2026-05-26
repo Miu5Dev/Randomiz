@@ -102,6 +102,7 @@ public class PlayerMovement : MonoBehaviour
     private bool interactHeld;
     private float ledgeGrabReleaseCooldown;
     private bool wallhugUpBlocked; // W estaba presionado al entrar; requiere soltar antes de poder saltar
+    private bool nearWall;         // pared agarrable enfrente — bloquea el dash aunque no se active wallhug
 
     void Awake()
     {
@@ -175,6 +176,75 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
+        // ── Ejes de movimiento (necesarios antes del check de dash y wallhug) ──────────
+        bool isTargeting = targetingSystem != null && targetingSystem.IsTargeting;
+
+        Vector3 forwardAxis, rightAxis;
+        if (isTargeting)
+        {
+            Vector3 facing;
+            if (targetingSystem.CurrentTarget != null)
+            {
+                facing = targetingSystem.CurrentTarget.position - transform.position;
+                facing.y = 0f;
+                if (facing.sqrMagnitude < 0.0001f) facing = modelTransform.forward;
+            }
+            else
+            {
+                float yawNoTarget = cameraTarget != null ? cameraTarget.eulerAngles.y : modelTransform.eulerAngles.y;
+                facing = Quaternion.Euler(0f, yawNoTarget, 0f) * Vector3.forward;
+                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, Quaternion.LookRotation(facing, Vector3.up), rotationSpeed * Time.fixedDeltaTime);
+            }
+            forwardAxis = facing.normalized;
+            rightAxis = Vector3.Cross(Vector3.up, forwardAxis);
+        }
+        else
+        {
+            float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
+            Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
+            forwardAxis = yawOnly * Vector3.forward;
+            rightAxis = yawOnly * Vector3.right;
+        }
+
+        Vector2 rawInput = moveInput;
+        Vector2 cardinalInput = Vector2.zero;
+
+        if (isTargeting)
+        {
+            bool xActive = Mathf.Abs(rawInput.x) > 0.01f;
+            bool yActive = Mathf.Abs(rawInput.y) > 0.01f;
+
+            if (!xActive && !yActive)
+                cardinalInput = Vector2.zero;
+            else if (xActive && !yActive)
+                cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
+            else if (!xActive && yActive)
+                cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
+            else
+            {
+                float deltaX = Mathf.Abs(rawInput.x - lastTargetingInput.x);
+                float deltaY = Mathf.Abs(rawInput.y - lastTargetingInput.y);
+                if (deltaX > deltaY)
+                    cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
+                else if (deltaY > deltaX)
+                    cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
+                else
+                    cardinalInput = lastTargetingMoveDir;
+            }
+
+            lastTargetingInput = rawInput;
+            lastTargetingMoveDir = cardinalInput;
+        }
+        else
+        {
+            cardinalInput = rawInput;
+        }
+
+        // nearWall: misma detección que TryEnterWallhug pero sin activar el estado.
+        // Bloquea el dash cuando el jugador está pegado a una pared wallhuggable.
+        nearWall = !isWallhugging && !isJumping && !isDashing
+                   && CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput);
+
         // Animación de subida — bloquea todo input
         if (isClimbingLedge)
         {
@@ -205,8 +275,8 @@ public class PlayerMovement : MonoBehaviour
             physics.Move(velocity * Time.fixedDeltaTime);
             return;
         }
-        // Iniciar dash / salto targeting
-        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
+        // Iniciar dash / salto targeting — bloqueado si hay pared wallhuggable enfrente
+        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging && !nearWall)
         {
             dashPressed = false;
             if (targetingSystem != null && targetingSystem.IsTargeting)
@@ -234,78 +304,6 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        bool isTargeting = targetingSystem != null && targetingSystem.IsTargeting;
-
-        // Calcular ejes de movimiento (forward/right)
-        Vector3 forwardAxis, rightAxis;
-        if (isTargeting)
-        {
-            Vector3 facing;
-            if (targetingSystem.CurrentTarget != null)
-            {
-                facing = targetingSystem.CurrentTarget.position - transform.position;
-                facing.y = 0f;
-                if (facing.sqrMagnitude < 0.0001f) facing = modelTransform.forward;
-            }
-            else
-            {
-                float yawNoTarget = cameraTarget != null ? cameraTarget.eulerAngles.y : modelTransform.eulerAngles.y;
-                facing = Quaternion.Euler(0f, yawNoTarget, 0f) * Vector3.forward;
-                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, Quaternion.LookRotation(facing, Vector3.up), rotationSpeed * Time.fixedDeltaTime);
-            }
-            forwardAxis = facing.normalized;
-            rightAxis = Vector3.Cross(Vector3.up, forwardAxis);
-        }
-        else
-        {
-            float yaw = cameraTarget != null ? cameraTarget.eulerAngles.y : 0f;
-            Quaternion yawOnly = Quaternion.Euler(0f, yaw, 0f);
-            forwardAxis = yawOnly * Vector3.forward;
-            rightAxis = yawOnly * Vector3.right;
-        }
-
-        // ✅ Prioridad de la última tecla (movimiento cardinal sin diagonales)
-        Vector2 rawInput = moveInput;
-        Vector2 cardinalInput = Vector2.zero;
-
-        if (isTargeting)
-        {
-            bool xActive = Mathf.Abs(rawInput.x) > 0.01f;
-            bool yActive = Mathf.Abs(rawInput.y) > 0.01f;
-
-            if (!xActive && !yActive)
-            {
-                cardinalInput = Vector2.zero;
-            }
-            else if (xActive && !yActive)
-            {
-                cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
-            }
-            else if (!xActive && yActive)
-            {
-                cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
-            }
-            else // Ambos activos
-            {
-                float deltaX = Mathf.Abs(rawInput.x - lastTargetingInput.x);
-                float deltaY = Mathf.Abs(rawInput.y - lastTargetingInput.y);
-                if (deltaX > deltaY)
-                    cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
-                else if (deltaY > deltaX)
-                    cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
-                else
-                    cardinalInput = lastTargetingMoveDir; // mantiene la anterior
-            }
-
-            lastTargetingInput = rawInput;
-            lastTargetingMoveDir = cardinalInput;
-        }
-        else
-        {
-            // Fuera de targeting, movimiento normal (diagonales permitidas)
-            cardinalInput = rawInput;
-        }
-
         // Wallhug tick (return early, gestiona su propio Move)
         if (isWallhugging)
         {
@@ -315,12 +313,8 @@ public class PlayerMovement : MonoBehaviour
         // Auto step-up: escalones pequeños se suben automáticamente antes de cualquier wallhug
         if (!isJumping) TryAutoStepUp(ground, forwardAxis, rightAxis, cardinalInput);
         // Wallhug: solo entra si el jugador mantiene la tecla de interactuar al lado de una pared.
-        // Si entra al wallhug, cancela el dash para que no se disparen los dos a la vez.
         if (!isJumping && interactHeld && !isWallhugging)
-        {
             TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
-            if (isWallhugging) dashPressed = false;
-        }
 
         // Ledge grab tick
         if (isLedgeGrabbing)
@@ -561,29 +555,32 @@ public class PlayerMovement : MonoBehaviour
         isSteppingUp = true;
     }
 
-    private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    private bool CheckNearWall(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
     {
-        if (isDashing) return;
-        if (cardinalInput.sqrMagnitude < 0.01f) return;
+        if (cardinalInput.sqrMagnitude < 0.01f) return false;
 
         Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
         CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
-        if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return;
+        if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return false;
 
-        // Debe haber suelo (normal o bordillo pegado a la pared) para entrar a wallhug.
-        if (!ground.isGrounded && !HasWallSideGround(wallCheck.point, wallCheck.normal)) return;
+        if (!ground.isGrounded && !HasWallSideGround(wallCheck.point, wallCheck.normal)) return false;
 
-        // Chequeo de altura: desde el centro XZ del jugador (no del punto de contacto) a
-        // wallhugMinWallHeight sobre los pies. El centro de la cápsula nunca está dentro de
-        // un collider (ResolveOverlaps lo garantiza), así que el raycast siempre arranca en aire.
         CapsuleCollider col = physics.Collider;
         Vector3 feetPos = physics.GetFeetPosition();
         Vector3 heightCheckOrigin = new Vector3(transform.position.x,
                                                 feetPos.y + wallhugMinWallHeight,
                                                 transform.position.z);
-        if (!Physics.Raycast(heightCheckOrigin, inputDir, col.radius + 0.25f,
-            physics.collisionMask, QueryTriggerInteraction.Ignore))
-            return;
+        return Physics.Raycast(heightCheckOrigin, inputDir, col.radius + 0.25f,
+            physics.collisionMask, QueryTriggerInteraction.Ignore);
+    }
+
+    private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        if (isDashing) return;
+        if (!CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput)) return;
+
+        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+        CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
 
         isWallhugging = true;
         wallNormal = wallCheck.normal;
