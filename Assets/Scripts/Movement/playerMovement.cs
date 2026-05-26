@@ -41,6 +41,8 @@ public class PlayerMovement : MonoBehaviour
     [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
     [Tooltip("Altura mínima que debe tener la pared para entrar a wallhug. Escalones más bajos los maneja auto step-up o movimiento normal.")]
     public float wallhugMinWallHeight = 1.0f;
+    [Tooltip("Distancia máxima por encima de la cabeza donde se busca una cornisa al pulsar cardinal-arriba en wallhug.")]
+    public float wallhugLedgeJumpMaxReach = 2.0f;
 
     [Header("Auto Step Up")]
     [Tooltip("Altura máxima de escalón que el jugador puede subir automáticamente al caminar. Por encima requiere salto / ledge grab.")]
@@ -623,8 +625,28 @@ public class PlayerMovement : MonoBehaviour
 
     private void TryWallhugJumpToLedge()
     {
-        // Verificar que hay una cornisa agarrable encima de la pared actual
-        if (!TryDetectLedge(-wallNormal, out _, out _)) return;
+        // TryDetectLedge falla desde posición de pie: la pared sigue por encima de la cabeza
+        // y ledgeMaxReachUp es demasiado pequeño. Usamos un scan propio:
+        // bajamos desde (cabeza + maxReach) a lo largo de la cara de la pared hasta
+        // encontrar una superficie plana — si existe, hay cornisa agarrable.
+        CapsuleCollider col = physics.Collider;
+        Vector3 toWall = -wallNormal;
+        Vector3 headPos = physics.GetHeadPosition();
+
+        // XZ justo delante de la cara de la pared (radio + margen pequeño)
+        Vector3 scanXZ = new Vector3(transform.position.x, 0f, transform.position.z)
+                       + new Vector3(toWall.x, 0f, toWall.z).normalized * (col.radius + 0.05f);
+        Vector3 scanOrigin = new Vector3(scanXZ.x, headPos.y + wallhugLedgeJumpMaxReach, scanXZ.z);
+
+        if (!Physics.Raycast(scanOrigin, Vector3.down, wallhugLedgeJumpMaxReach,
+            out RaycastHit hit, physics.collisionMask, QueryTriggerInteraction.Ignore))
+            return;
+
+        // Debe ser una superficie pisable, no una pared lateral
+        if (Vector3.Angle(hit.normal, Vector3.up) > physics.maxGroundAngle) return;
+
+        // Debe estar por encima de la cabeza actual (si está al nivel del piso, es suelo normal)
+        if (hit.point.y <= headPos.y - 0.1f) return;
 
         isWallhugging = false;
         interactHeld = false;
