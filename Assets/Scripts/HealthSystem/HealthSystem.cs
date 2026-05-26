@@ -22,36 +22,40 @@ public class HealthSystem : MonoBehaviour
     
     public void Awake()
     {
-        
         if (maxHearts <= 0) maxHearts = 3;
-        
         UpdateMaxHealth();
-        
         currentHealth = maxHealth;
+        PublishHealthChanged();
     }
 
     public void Damage(float amount)
     {
-        currentHealth -= amount;
-        if (currentHealth <= 0)
-        {
-            OnDie();
-        }
+        currentHealth = Mathf.Max(0f, currentHealth - amount);
+        PublishHealthChanged();
+        if (currentHealth <= 0) OnDie();
     }
-    
+
     public void Heal(float amount)
     {
-        currentHealth += amount;
-        if (currentHealth > maxHealth)
-        {
-            currentHealth = maxHealth;
-        }
+        currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+        PublishHealthChanged();
     }
 
     public void ChangeMaxHearts(int amount)
     {
         maxHearts = amount;
         UpdateMaxHealth();
+        currentHealth = Mathf.Min(currentHealth, maxHealth);
+        PublishHealthChanged();
+    }
+
+    private void PublishHealthChanged()
+    {
+        EventBus.Raise(new OnHealthChangedEvent
+        {
+            currentHealth = currentHealth,
+            maxHearts = maxHearts
+        });
     }   
     
     private void UpdateMaxHealth()

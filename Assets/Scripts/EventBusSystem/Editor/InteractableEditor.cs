@@ -354,13 +354,13 @@ public class InteractableEditor : Editor
         for (int ci = 0; ci < condsProp.arraySize; ci++)
         {
             var cp      = condsProp.GetArrayElementAtIndex(ci);
-            var enableP = cp.FindPropertyRelative("enabled");
-            var leftP   = cp.FindPropertyRelative("componentFieldName");
-            var opP     = cp.FindPropertyRelative("op");
-            var rightP  = cp.FindPropertyRelative("compareValue");
-            var srcP    = cp.FindPropertyRelative("source");
-            // Force ComponentVsLiteral — no event payload available
-            if (srcP != null) srcP.enumValueIndex = (int)ConditionSource.ComponentVsLiteral;
+            var enableP      = cp.FindPropertyRelative("enabled");
+            var leftP        = cp.FindPropertyRelative("componentFieldName");
+            var opP          = cp.FindPropertyRelative("op");
+            var rightP       = cp.FindPropertyRelative("compareValue");
+            var srcP         = cp.FindPropertyRelative("source");
+            var compareObjP      = cp.FindPropertyRelative("compareObject");
+            var compareObjFieldP = cp.FindPropertyRelative("compareObjectField");
 
             EditorGUILayout.BeginVertical(GUI.skin.box);
             using (new EditorGUILayout.HorizontalScope())
@@ -375,61 +375,153 @@ public class InteractableEditor : Editor
                 if (GUILayout.Button("X", GUILayout.Width(20))) condToDelete = ci;
             }
 
-            // Member picker — all supported fields on the component
-            var allMems = tObj.GetType()
-                .GetFields(BindingFlags.Public | BindingFlags.Instance)
-                .Cast<MemberInfo>()
-                .Concat(tObj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanRead))
-                .Where(m => { var mt = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType; return TypeHelper.IsSupported(mt); })
-                .ToArray();
+            // Source picker: ComponentVsLiteral or ExternalObjectVsLiteral
+            var curSrc = (srcP != null) ? (ConditionSource)srcP.enumValueIndex : ConditionSource.ComponentVsLiteral;
+            if (curSrc != ConditionSource.ComponentVsLiteral && curSrc != ConditionSource.ExternalObjectVsLiteral)
+                curSrc = ConditionSource.ComponentVsLiteral;
+            if (srcP != null) srcP.enumValueIndex = (int)curSrc;
 
-            if (allMems.Length > 0)
+            string[] condSrcLabels = { "Component field", "External Object field" };
+            int condSrcIdx = curSrc == ConditionSource.ExternalObjectVsLiteral ? 1 : 0;
+            using (new EditorGUILayout.HorizontalScope())
             {
-                string[] mN = allMems.Select(m => m.Name).ToArray();
-                string[] mL = allMems.Select(m => { var mt = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType; return $"{m.Name} ({mt.Name})"; }).ToArray();
-                int mCur    = Mathf.Max(0, Array.IndexOf(mN, leftP?.stringValue ?? ""));
-
-                using (new EditorGUILayout.HorizontalScope())
+                EditorGUILayout.LabelField("Source", GUILayout.Width(50));
+                int newCondSrcIdx = EditorGUILayout.Popup(condSrcIdx, condSrcLabels);
+                if (newCondSrcIdx != condSrcIdx)
                 {
-                    EditorGUILayout.LabelField("Field", GUILayout.Width(36));
-                    int mNew = EditorGUILayout.Popup(mCur, mL);
-                    if (mNew != mCur && leftP != null) { leftP.stringValue = mN[mNew]; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                    curSrc = newCondSrcIdx == 1 ? ConditionSource.ExternalObjectVsLiteral : ConditionSource.ComponentVsLiteral;
+                    if (srcP != null) srcP.enumValueIndex = (int)curSrc;
+                    serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target);
                 }
-
-                int   resolvedIdx  = Mathf.Max(0, Array.IndexOf(mN, leftP?.stringValue ?? ""));
-                var   selMem       = allMems[resolvedIdx];
-                Type  selType      = selMem is FieldInfo f5 ? f5.FieldType : ((PropertyInfo)selMem).PropertyType;
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField("Op", GUILayout.Width(24));
-                    if (opP != null)
-                    {
-                        var newOp = (ConditionOperator)EditorGUILayout.EnumPopup((ConditionOperator)opP.enumValueIndex);
-                        if ((int)newOp != opP.enumValueIndex) { opP.enumValueIndex = (int)newOp; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
-                    }
-                }
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    EditorGUILayout.LabelField("Value", GUILayout.Width(38));
-                    if (rightP != null)
-                    {
-                        string newVal = EventBusEditorUtils.DrawTypedField("", rightP.stringValue, selType);
-                        if (newVal != rightP.stringValue) { rightP.stringValue = newVal; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
-                    }
-                }
-
-                // Preview
-                GUI.color = new Color(1f, 0.9f, 0.5f);
-                EditorGUILayout.LabelField(
-                    $" if ({leftP?.stringValue} {EventBusEditorUtils.OpSymbol((ConditionOperator)(opP?.enumValueIndex ?? 0))} {rightP?.stringValue})",
-                    EditorStyles.miniLabel);
-                GUI.color = Color.white;
             }
-            else
+
+            if (curSrc == ConditionSource.ComponentVsLiteral)
             {
-                EditorGUILayout.LabelField("No supported members on component.", EditorStyles.miniLabel);
+                // Member picker — all supported fields on the binding's component
+                var allMems = tObj.GetType()
+                    .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                    .Cast<MemberInfo>()
+                    .Concat(tObj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.CanRead))
+                    .Where(m => { var mt = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType; return TypeHelper.IsSupported(mt); })
+                    .ToArray();
+
+                if (allMems.Length > 0)
+                {
+                    string[] mN = allMems.Select(m => m.Name).ToArray();
+                    string[] mL = allMems.Select(m => { var mt = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType; return $"{m.Name} ({mt.Name})"; }).ToArray();
+                    int mCur    = Mathf.Max(0, Array.IndexOf(mN, leftP?.stringValue ?? ""));
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField("Field", GUILayout.Width(36));
+                        int mNew = EditorGUILayout.Popup(mCur, mL);
+                        if (mNew != mCur && leftP != null) { leftP.stringValue = mN[mNew]; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                    }
+
+                    int   resolvedIdx = Mathf.Max(0, Array.IndexOf(mN, leftP?.stringValue ?? ""));
+                    var   selMem      = allMems[resolvedIdx];
+                    Type  selType     = selMem is FieldInfo f5 ? f5.FieldType : ((PropertyInfo)selMem).PropertyType;
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField("Op", GUILayout.Width(24));
+                        if (opP != null)
+                        {
+                            var newOp = (ConditionOperator)EditorGUILayout.EnumPopup((ConditionOperator)opP.enumValueIndex);
+                            if ((int)newOp != opP.enumValueIndex) { opP.enumValueIndex = (int)newOp; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                        }
+                    }
+
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField("Value", GUILayout.Width(38));
+                        if (rightP != null)
+                        {
+                            string newVal = EventBusEditorUtils.DrawTypedField("", rightP.stringValue, selType);
+                            if (newVal != rightP.stringValue) { rightP.stringValue = newVal; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                        }
+                    }
+
+                    GUI.color = new Color(1f, 0.9f, 0.5f);
+                    EditorGUILayout.LabelField(
+                        $" if ({leftP?.stringValue} {EventBusEditorUtils.OpSymbol((ConditionOperator)(opP?.enumValueIndex ?? 0))} {rightP?.stringValue})",
+                        EditorStyles.miniLabel);
+                    GUI.color = Color.white;
+                }
+                else
+                {
+                    EditorGUILayout.LabelField("No supported members on component.", EditorStyles.miniLabel);
+                }
+            }
+            else // ExternalObjectVsLiteral
+            {
+                bool extChanged = EventBusEditorUtils.DrawConditionObjectPicker(compareObjP);
+                if (extChanged) { if (compareObjFieldP != null) compareObjFieldP.stringValue = ""; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+
+                var extObj = compareObjP?.objectReferenceValue;
+                if (extObj == null)
+                {
+                    EditorGUILayout.LabelField("Assign an external object above.", EditorStyles.miniLabel);
+                }
+                else
+                {
+                    var extMems = EventBusEditorUtils.GetComponentMembers(extObj, null)
+                        .Concat(EventBusEditorUtils.GetGameObjectMembers()).ToArray();
+
+                    if (extMems.Length > 0)
+                    {
+                        string[] eN = extMems.Select(m => m.Name).ToArray();
+                        string[] eL = extMems.Select(m =>
+                        {
+                            var mt   = m is FieldInfo fe ? fe.FieldType : ((PropertyInfo)m).PropertyType;
+                            string o = m.DeclaringType == typeof(GameObject) ? "GO" : extObj.GetType().Name;
+                            return $"{o}.{m.Name} ({mt.Name})";
+                        }).ToArray();
+                        int eCur = Mathf.Max(0, Array.IndexOf(eN, compareObjFieldP?.stringValue ?? ""));
+
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            EditorGUILayout.LabelField("Field", GUILayout.Width(36));
+                            int eNew = EditorGUILayout.Popup(eCur, eL);
+                            if (eNew != eCur && compareObjFieldP != null) { compareObjFieldP.stringValue = eN[eNew]; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                        }
+
+                        int   eResolvedIdx = Mathf.Max(0, Array.IndexOf(eN, compareObjFieldP?.stringValue ?? ""));
+                        var   eSelMem      = extMems[eResolvedIdx];
+                        Type  eSelType     = eSelMem is FieldInfo esf ? esf.FieldType : ((PropertyInfo)eSelMem).PropertyType;
+
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            EditorGUILayout.LabelField("Op", GUILayout.Width(24));
+                            if (opP != null)
+                            {
+                                var newOp = (ConditionOperator)EditorGUILayout.EnumPopup((ConditionOperator)opP.enumValueIndex);
+                                if ((int)newOp != opP.enumValueIndex) { opP.enumValueIndex = (int)newOp; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                            }
+                        }
+
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            EditorGUILayout.LabelField("Value", GUILayout.Width(38));
+                            if (rightP != null)
+                            {
+                                string newVal = EventBusEditorUtils.DrawTypedField("", rightP.stringValue, eSelType);
+                                if (newVal != rightP.stringValue) { rightP.stringValue = newVal; serializedObject.ApplyModifiedProperties(); EditorUtility.SetDirty(target); }
+                            }
+                        }
+
+                        string eOwn = eSelMem.DeclaringType == typeof(GameObject) ? "GO" : extObj.GetType().Name;
+                        GUI.color = new Color(1f, 0.9f, 0.5f);
+                        EditorGUILayout.LabelField(
+                            $" if ({eOwn}.{compareObjFieldP?.stringValue} {EventBusEditorUtils.OpSymbol((ConditionOperator)(opP?.enumValueIndex ?? 0))} {rightP?.stringValue})",
+                            EditorStyles.miniLabel);
+                        GUI.color = Color.white;
+                    }
+                    else
+                    {
+                        EditorGUILayout.LabelField("No supported members on external object.", EditorStyles.miniLabel);
+                    }
+                }
             }
 
             EditorGUILayout.EndVertical();

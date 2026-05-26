@@ -14,20 +14,24 @@ public enum ConditionOperator
 
 public enum ConditionSource
 {
-    EventField,         // event field vs literal value
-    ComponentField,     // event field vs component field
-    ComponentVsLiteral  // component field vs literal (no event field)
+    EventField,                  // event field vs literal value
+    ComponentField,              // event field vs component field
+    ComponentVsLiteral,          // component field vs literal (no event field)
+    ExternalObjectVsLiteral,     // external object field vs literal (no event field)
+    EventFieldVsExternalObject   // event field vs external object field
 }
 
 [Serializable]
 public class BindingCondition
 {
-    public bool            enabled           = false;
-    public string          fieldName         = "";
-    public ConditionOperator op              = ConditionOperator.Equals;
-    public ConditionSource source            = ConditionSource.EventField;
-    public string          compareValue      = "";
-    public string          componentFieldName = "";
+    public bool             enabled            = false;
+    public string           fieldName          = "";
+    public ConditionOperator op                = ConditionOperator.Equals;
+    public ConditionSource  source             = ConditionSource.EventField;
+    public string           compareValue       = "";
+    public string           componentFieldName = "";
+    public UnityEngine.Object compareObject     = null;
+    public string             compareObjectField = "";
 
     // ── Compile ───────────────────────────────────────────────────────────
     public Func<object, bool> Compile(Type eventType, UnityEngine.Object targetObject = null)
@@ -36,6 +40,10 @@ public class BindingCondition
 
         if (source == ConditionSource.ComponentVsLiteral)
             return CompileComponentVsLiteral(targetObject);
+        if (source == ConditionSource.ExternalObjectVsLiteral)
+            return CompileExternalObjectVsLiteral();
+        if (source == ConditionSource.EventFieldVsExternalObject)
+            return CompileEventFieldVsExternalObject(eventType);
 
         if (string.IsNullOrEmpty(fieldName)) return null;
         var leftMember = GetMember(eventType, fieldName);
@@ -96,6 +104,40 @@ public class BindingCondition
         {
             object lval = capLeft  is FieldInfo lf ? lf.GetValue(evtObj)    : ((PropertyInfo)capLeft).GetValue(evtObj);
             object rval = capRight is FieldInfo rf ? rf.GetValue(capTarget)  : ((PropertyInfo)capRight).GetValue(capTarget);
+            return Evaluate(lval, rval, capOp, capType);
+        };
+    }
+
+    private Func<object, bool> CompileExternalObjectVsLiteral()
+    {
+        if (compareObject == null || string.IsNullOrEmpty(compareObjectField)) return null;
+        var mem = ResolveComponentOrGoMember(compareObject, compareObjectField, out var resolvedTarget);
+        if (mem == null) return null;
+        var memType = GetMemberType(mem);
+        object parsed;
+        try   { parsed = TypeHelper.Parse(compareValue, memType); }
+        catch { return null; }
+        var capMem = mem; var capTarget = resolvedTarget; var capOp = op; var capLit = parsed; var capType = memType;
+        return _ =>
+        {
+            object val = capMem is FieldInfo fi ? fi.GetValue(capTarget) : ((PropertyInfo)capMem).GetValue(capTarget);
+            return Evaluate(val, capLit, capOp, capType);
+        };
+    }
+
+    private Func<object, bool> CompileEventFieldVsExternalObject(Type eventType)
+    {
+        if (compareObject == null || string.IsNullOrEmpty(compareObjectField) || string.IsNullOrEmpty(fieldName)) return null;
+        var leftMember = GetMember(eventType, fieldName);
+        if (leftMember == null) return null;
+        var leftType = GetMemberType(leftMember);
+        var rightMem = ResolveComponentOrGoMember(compareObject, compareObjectField, out var resolvedTarget);
+        if (rightMem == null) return null;
+        var capLeft = leftMember; var capRight = rightMem; var capTarget = resolvedTarget; var capOp = op; var capType = leftType;
+        return evtObj =>
+        {
+            object lval = capLeft  is FieldInfo lfi ? lfi.GetValue(evtObj)   : ((PropertyInfo)capLeft).GetValue(evtObj);
+            object rval = capRight is FieldInfo rfi ? rfi.GetValue(capTarget) : ((PropertyInfo)capRight).GetValue(capTarget);
             return Evaluate(lval, rval, capOp, capType);
         };
     }

@@ -279,6 +279,72 @@ public static class EventBusEditorUtils
         return changed;
     }
 
+    // ── Condition external-object picker (GameObject + Component rows) ────────
+    /// Draws a two-row picker (GameObject + Component dropdown) for an external object reference
+    /// used by ExternalObjectVsLiteral / EventFieldVsExternalObject conditions.
+    /// Returns true if the selected object changed (caller should clear the field name).
+    public static bool DrawConditionObjectPicker(SerializedProperty objRefProp)
+    {
+        var current   = objRefProp.objectReferenceValue;
+        var currentGO = current is Component c0 ? c0.gameObject : current as GameObject;
+        bool changed  = false;
+
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.LabelField("Object", GUILayout.Width(80));
+        EditorGUI.BeginChangeCheck();
+        var dropped = EditorGUILayout.ObjectField(currentGO, typeof(UnityEngine.Object), true);
+        if (EditorGUI.EndChangeCheck())
+        {
+            var newGO       = dropped as GameObject ?? (dropped as Component)?.gameObject;
+            var droppedComp = dropped as Component;
+            if (newGO == null)
+                objRefProp.objectReferenceValue = null;
+            else if (droppedComp != null)
+                objRefProp.objectReferenceValue = droppedComp;
+            else
+            {
+                var comps = newGO.GetComponents<Component>();
+                objRefProp.objectReferenceValue =
+                    comps.FirstOrDefault(c => !(c is Transform)) ?? (UnityEngine.Object)newGO;
+            }
+            changed = true;
+        }
+        EditorGUILayout.EndHorizontal();
+
+        current   = objRefProp.objectReferenceValue;
+        currentGO = current is Component c1 ? c1.gameObject : current as GameObject;
+        if (currentGO != null)
+        {
+            var allComps = currentGO.GetComponents<Component>();
+            bool goSel   = objRefProp.objectReferenceValue is GameObject;
+            var  seen    = new Dictionary<string, int>();
+            var  labels  = new[] { "── GameObject ──" }.Concat(allComps.Select(c =>
+            {
+                string n = c.GetType().Name;
+                if (!seen.ContainsKey(n)) { seen[n] = 0; return n; }
+                seen[n]++; return $"{n} [{seen[n]}]";
+            })).ToArray();
+            int curIdx = goSel ? 0
+                : (objRefProp.objectReferenceValue is Component curC
+                    ? Mathf.Max(1, Array.IndexOf(allComps, curC) + 1) : 1);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Component", GUILayout.Width(80));
+            EditorGUI.BeginChangeCheck();
+            int newIdx = EditorGUILayout.Popup(curIdx, labels);
+            if (EditorGUI.EndChangeCheck())
+            {
+                objRefProp.objectReferenceValue = newIdx == 0
+                    ? (UnityEngine.Object)currentGO
+                    : allComps[newIdx - 1];
+                changed = true;
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        return changed;
+    }
+
     // ── Object drag-and-drop field ────────────────────────────────────────────
     /// Draws an ObjectField for any UnityEngine.Object subtype using the SerializedProperty directly.
     /// Call this instead of DrawTypedField when IsObjectType(pType) is true.

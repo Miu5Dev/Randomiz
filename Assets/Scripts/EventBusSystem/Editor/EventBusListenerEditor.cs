@@ -605,12 +605,14 @@ public class EventBusListenerEditor : Editor
         var condProp      = condsProp.GetArrayElementAtIndex(ci);
         if (condProp == null) return false;
 
-        var condEnabled   = condProp.FindPropertyRelative("enabled");
-        var condField     = condProp.FindPropertyRelative("fieldName");
-        var condOp        = condProp.FindPropertyRelative("op");
-        var condSource    = condProp.FindPropertyRelative("source");
-        var condValue     = condProp.FindPropertyRelative("compareValue");
-        var condCompField = condProp.FindPropertyRelative("componentFieldName");
+        var condEnabled      = condProp.FindPropertyRelative("enabled");
+        var condField        = condProp.FindPropertyRelative("fieldName");
+        var condOp           = condProp.FindPropertyRelative("op");
+        var condSource       = condProp.FindPropertyRelative("source");
+        var condValue        = condProp.FindPropertyRelative("compareValue");
+        var condCompField    = condProp.FindPropertyRelative("componentFieldName");
+        var condCompObj      = condProp.FindPropertyRelative("compareObject");
+        var condCompObjField = condProp.FindPropertyRelative("compareObjectField");
         if (condEnabled == null) return false;
 
         EditorGUILayout.BeginVertical(GUI.skin.box);
@@ -635,7 +637,8 @@ public class EventBusListenerEditor : Editor
             int condFieldIdx = Mathf.Max(0, Array.IndexOf(condFieldNames, condField.stringValue));
             var targetObj2   = bp.FindPropertyRelative("targetObject").objectReferenceValue;
 
-            if (condSourceVal != ConditionSource.ComponentVsLiteral)
+            if (condSourceVal != ConditionSource.ComponentVsLiteral &&
+                condSourceVal != ConditionSource.ExternalObjectVsLiteral)
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
@@ -675,6 +678,14 @@ public class EventBusListenerEditor : Editor
 
                 case ConditionSource.ComponentVsLiteral:
                     DrawConditionComponentVsLiteral(condCompField, condOp, condValue, targetObj2);
+                    break;
+
+                case ConditionSource.ExternalObjectVsLiteral:
+                    DrawConditionExternalObjectVsLiteral(condCompObj, condCompObjField, condOp, condValue);
+                    break;
+
+                case ConditionSource.EventFieldVsExternalObject:
+                    DrawConditionEventFieldVsExternalObject(condCompObj, condCompObjField, condOp, condField.stringValue, selectedCondField);
                     break;
             }
 
@@ -753,6 +764,114 @@ public class EventBusListenerEditor : Editor
         GUI.color = new Color(1f, 0.9f, 0.5f);
         EditorGUILayout.LabelField(
             $" if ({own2}.{condCompField.stringValue} {EventBusEditorUtils.OpSymbol((ConditionOperator)condOp.enumValueIndex)} {condValue.stringValue})",
+            EditorStyles.miniLabel);
+        GUI.color = Color.white;
+    }
+
+    private void DrawConditionExternalObjectVsLiteral(
+        SerializedProperty condCompObjProp,
+        SerializedProperty condCompObjFieldProp,
+        SerializedProperty condOpProp,
+        SerializedProperty condValueProp)
+    {
+        bool objChanged = EventBusEditorUtils.DrawConditionObjectPicker(condCompObjProp);
+        if (objChanged) condCompObjFieldProp.stringValue = "";
+
+        var tObj = condCompObjProp.objectReferenceValue;
+        if (tObj == null)
+        {
+            EditorGUILayout.HelpBox("Assign an external object above.", MessageType.Warning);
+            return;
+        }
+
+        var allMems = EventBusEditorUtils.GetComponentMembers(tObj, null)
+            .Concat(EventBusEditorUtils.GetGameObjectMembers()).ToArray();
+        if (allMems.Length == 0) { EditorGUILayout.HelpBox("No supported members on object.", MessageType.Info); return; }
+
+        string[] mN = allMems.Select(m => m.Name).ToArray();
+        string[] mL = allMems.Select(m =>
+        {
+            var mt   = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType;
+            string o = m.DeclaringType == typeof(GameObject) ? "GO" : tObj.GetType().Name;
+            return $"{o}.{m.Name} ({mt.Name})";
+        }).ToArray();
+        int mCur = Mathf.Max(0, Array.IndexOf(mN, condCompObjFieldProp.stringValue));
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            EditorGUILayout.LabelField("Field", GUILayout.Width(80));
+            int mNew = EditorGUILayout.Popup(mCur, mL);
+            if (mNew != mCur) condCompObjFieldProp.stringValue = mN[mNew];
+        }
+        if (string.IsNullOrEmpty(condCompObjFieldProp.stringValue) && mN.Length > 0)
+            condCompObjFieldProp.stringValue = mN[0];
+
+        int resolvedIdx = Mathf.Max(0, Array.IndexOf(mN, condCompObjFieldProp.stringValue));
+        var  selMem     = allMems[resolvedIdx];
+        Type selType    = selMem is FieldInfo sf ? sf.FieldType : ((PropertyInfo)selMem).PropertyType;
+        bool isNum      = EventBusEditorUtils.IsNumeric(selType);
+        if (!isNum && (ConditionOperator)condOpProp.enumValueIndex > ConditionOperator.NotEquals)
+            condOpProp.enumValueIndex = 0;
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            EditorGUILayout.LabelField("Op", GUILayout.Width(40));
+            EditorGUILayout.PropertyField(condOpProp, GUIContent.none, GUILayout.Width(isNum ? 100 : 80));
+        }
+        condValueProp.stringValue = EventBusEditorUtils.DrawTypedField("Value", condValueProp.stringValue, selType);
+
+        string own = selMem.DeclaringType == typeof(GameObject) ? "GO" : tObj.GetType().Name;
+        GUI.color = new Color(1f, 0.9f, 0.5f);
+        EditorGUILayout.LabelField(
+            $" if ({own}.{condCompObjFieldProp.stringValue} {EventBusEditorUtils.OpSymbol((ConditionOperator)condOpProp.enumValueIndex)} {condValueProp.stringValue})",
+            EditorStyles.miniLabel);
+        GUI.color = Color.white;
+    }
+
+    private void DrawConditionEventFieldVsExternalObject(
+        SerializedProperty condCompObjProp,
+        SerializedProperty condCompObjFieldProp,
+        SerializedProperty condOpProp,
+        string condFieldName,
+        FieldInfo selectedCondField)
+    {
+        bool objChanged = EventBusEditorUtils.DrawConditionObjectPicker(condCompObjProp);
+        if (objChanged) condCompObjFieldProp.stringValue = "";
+
+        var tObj = condCompObjProp.objectReferenceValue;
+        if (tObj == null)
+        {
+            EditorGUILayout.HelpBox("Assign an external object above.", MessageType.Warning);
+            return;
+        }
+
+        var compatMems = EventBusEditorUtils.GetComponentMembers(tObj, selectedCondField?.FieldType)
+            .Concat(EventBusEditorUtils.GetGameObjectMembers().Where(m =>
+            {
+                var mt = m is FieldInfo f ? f.FieldType : ((PropertyInfo)m).PropertyType;
+                return selectedCondField == null || EventBusEditorUtils.IsCompatible(mt, selectedCondField.FieldType);
+            })).ToArray();
+
+        if (compatMems.Length == 0)
+        {
+            EditorGUILayout.HelpBox($"No compatible members of type {selectedCondField?.FieldType?.Name ?? "?"}.", MessageType.Info);
+            return;
+        }
+
+        string[] cN = compatMems.Select(m => m.Name).ToArray();
+        string[] cL = compatMems.Select(m =>
+        {
+            var mt   = m is FieldInfo f2 ? f2.FieldType : ((PropertyInfo)m).PropertyType;
+            string o = m.DeclaringType == typeof(GameObject) ? "GO" : tObj.GetType().Name;
+            return $"{o}.{m.Name} ({mt.Name})";
+        }).ToArray();
+        int curC = Mathf.Max(0, Array.IndexOf(cN, condCompObjFieldProp.stringValue));
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            EditorGUILayout.LabelField("Object field", GUILayout.Width(80));
+            condCompObjFieldProp.stringValue = cN[EditorGUILayout.Popup(curC, cL)];
+        }
+        GUI.color = new Color(1f, 0.9f, 0.5f);
+        EditorGUILayout.LabelField(
+            $" if ({condFieldName} {EventBusEditorUtils.OpSymbol((ConditionOperator)condOpProp.enumValueIndex)} {tObj.GetType().Name}.{condCompObjFieldProp.stringValue})",
             EditorStyles.miniLabel);
         GUI.color = Color.white;
     }

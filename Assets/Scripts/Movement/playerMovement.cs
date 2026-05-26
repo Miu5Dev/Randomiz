@@ -245,7 +245,7 @@ public class PlayerMovement : MonoBehaviour
         // nearWall: misma detección que TryEnterWallhug pero sin activar el estado.
         // Bloquea el dash cuando el jugador está pegado a una pared wallhuggable.
         nearWall = !isWallhugging && !isJumping && !isDashing
-                   && CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput);
+                   && CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput, out _);
 
         // Animación de subida — bloquea todo input
         if (isClimbingLedge)
@@ -557,12 +557,43 @@ public class PlayerMovement : MonoBehaviour
         isSteppingUp = true;
     }
 
-    private bool CheckNearWall(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    private bool CheckNearWall(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput, out Vector3 wallDir)
     {
-        if (cardinalInput.sqrMagnitude < 0.01f) return false;
+        wallDir = Vector3.zero;
 
-        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
-        CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
+        if (cardinalInput.sqrMagnitude > 0.01f)
+        {
+            Vector3 diagDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
+            if (CheckNearWallInDirection(ground, diagDir)) { wallDir = diagDir; return true; }
+
+            if (Mathf.Abs(cardinalInput.y) > 0.01f)
+            {
+                Vector3 fwdDir = forwardAxis * Mathf.Sign(cardinalInput.y);
+                if (CheckNearWallInDirection(ground, fwdDir)) { wallDir = fwdDir; return true; }
+            }
+
+            if (Mathf.Abs(cardinalInput.x) > 0.01f)
+            {
+                Vector3 rightDir = rightAxis * Mathf.Sign(cardinalInput.x);
+                if (CheckNearWallInDirection(ground, rightDir)) { wallDir = rightDir; return true; }
+            }
+        }
+        else
+        {
+            // Sin input direccional — escanea los 4 cardinales relativos a la cámara
+            Vector3[] dirs = { forwardAxis, -forwardAxis, rightAxis, -rightAxis };
+            foreach (Vector3 dir in dirs)
+            {
+                if (CheckNearWallInDirection(ground, dir)) { wallDir = dir; return true; }
+            }
+        }
+
+        return false;
+    }
+
+    private bool CheckNearWallInDirection(GroundInfo ground, Vector3 dir)
+    {
+        CollisionInfo wallCheck = physics.CheckDirection(dir, 0.1f);
         if (!wallCheck.hit || !wallCheck.IsWall(physics.maxGroundAngle)) return false;
 
         if (!ground.isGrounded && !HasWallSideGround(wallCheck.point, wallCheck.normal)) return false;
@@ -572,17 +603,16 @@ public class PlayerMovement : MonoBehaviour
         Vector3 heightCheckOrigin = new Vector3(transform.position.x,
                                                 feetPos.y + wallhugMinWallHeight,
                                                 transform.position.z);
-        return Physics.Raycast(heightCheckOrigin, inputDir, col.radius + 0.25f,
+        return Physics.Raycast(heightCheckOrigin, dir, col.radius + 0.25f,
             physics.collisionMask, QueryTriggerInteraction.Ignore);
     }
 
     private void TryEnterWallhug(GroundInfo ground, Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
     {
         if (isDashing) return;
-        if (!CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput)) return;
+        if (!CheckNearWall(ground, forwardAxis, rightAxis, cardinalInput, out Vector3 wallDir)) return;
 
-        Vector3 inputDir = (forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x).normalized;
-        CollisionInfo wallCheck = physics.CheckDirection(inputDir, 0.1f);
+        CollisionInfo wallCheck = physics.CheckDirection(wallDir, 0.1f);
 
         isWallhugging = true;
         wallNormal = wallCheck.normal;

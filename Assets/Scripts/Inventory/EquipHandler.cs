@@ -48,7 +48,7 @@ public class EquipHandler : MonoBehaviour
             item = EquipedItem
         });
         
-        EquipedItem = null;
+        EquipedItem = InventoryHandler.Instance.GetItem(0);
     }
 
     public void UseItem()

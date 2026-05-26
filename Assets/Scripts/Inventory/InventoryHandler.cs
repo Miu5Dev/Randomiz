@@ -9,6 +9,8 @@ public class InventoryHandler : MonoBehaviour
     [SerializeField] private SOItem[] invItems = new SOItem[13];
     [SerializeField] public SOItem defaultBottle; // Arrastrar la misma del EquipHandler
 
+    [SerializeField] public int Coins = 0;
+
     public SOItem[] InvItems => invItems;
 
     private void Awake()
@@ -105,6 +107,12 @@ public class InventoryHandler : MonoBehaviour
                     return null;
                 }
             }
+        }
+
+        if (item is SOMoney money)
+        {
+            Coins += money.MoneyAmmount;
+            return money;
         }
 
         // Items normales (no armas, no pociones)
