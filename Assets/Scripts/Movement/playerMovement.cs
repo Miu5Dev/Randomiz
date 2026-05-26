@@ -97,6 +97,9 @@ public class PlayerMovement : MonoBehaviour
     private bool isSteppingUp;
     private float stepUpTimer;
 
+    private bool interactHeld;
+    private float ledgeGrabReleaseCooldown;
+
     void Awake()
     {
         physics = GetComponent<PhysicsController>();
@@ -119,6 +122,24 @@ public class PlayerMovement : MonoBehaviour
         Cursor.visible = false;
     }
 
+    private void OnEnable()
+    {
+        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteractKey);
+    }
+
+    private void OnDisable()
+    {
+        EventBus.Unsubscribe<OnInteractDodgeInputEvent>(OnInteractKey);
+        if (isWallhugging) isWallhugging = false;
+    }
+
+    private void OnInteractKey(OnInteractDodgeInputEvent e)
+    {
+        interactHeld = e.pressed;
+        if (!e.pressed && isWallhugging)
+            isWallhugging = false;
+    }
+
     public void OnMove(Vector2 direction) => moveInput = direction;
     public void OnDash(bool pressed) => dashPressed = pressed;
 
@@ -134,6 +155,7 @@ public class PlayerMovement : MonoBehaviour
         physics.autoSlopeHandling = !isWallhugging;
 
         if (dashCooldownTimer > 0f) dashCooldownTimer -= Time.fixedDeltaTime;
+        if (ledgeGrabReleaseCooldown > 0f) ledgeGrabReleaseCooldown -= Time.fixedDeltaTime;
         if (isJumping && ground.isGrounded && velocity.y <= 0f)
         {
             isJumping = false;
@@ -289,8 +311,9 @@ public class PlayerMovement : MonoBehaviour
         }
         // Auto step-up: escalones pequeños se suben automáticamente antes de cualquier wallhug
         if (!isJumping) TryAutoStepUp(ground, forwardAxis, rightAxis, cardinalInput);
-        // Intentar entrar a wallhug si el jugador camina hacia una pared
-        if (!isJumping) TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+        // Wallhug: solo entra si el jugador mantiene la tecla de interactuar al lado de una pared
+        if (!isJumping && interactHeld && !isWallhugging)
+            TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
 
         // Ledge grab tick
         if (isLedgeGrabbing)
@@ -298,8 +321,8 @@ public class PlayerMovement : MonoBehaviour
             TickLedgeGrab(forwardAxis, rightAxis, cardinalInput);
             return;
         }
-        // Detección de cornisa mientras está en el aire
-        if (!ground.isGrounded && !isDashing && velocity.y > -8f)
+        // Detección de cornisa mientras está en el aire (bloqueado brevemente tras soltar a propósito)
+        if (!ground.isGrounded && !isDashing && velocity.y > -8f && ledgeGrabReleaseCooldown <= 0f)
             TryGrabLedge();
 
         // Si TryGrabLedge enganchó este frame, no ejecutar movimiento normal
@@ -423,12 +446,18 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Salir solo si el jugador presiona explícitamente hacia atrás (S).
-        // Usar cardinalInput.y evita falsos positivos al girar la cámara (mismo criterio que ledge grab).
-        if (cardinalInput.y < -wallhugExitThreshold)
+        // Salir al soltar la tecla de interactuar
+        if (!interactHeld)
         {
             isWallhugging = false;
             ApplyGravityAndMove(ground);
+            return;
+        }
+
+        // Cardinal arriba: intentar saltar y agarrar una cornisa encima de la pared
+        if (cardinalInput.y > wallhugExitThreshold)
+        {
+            TryWallhugJumpToLedge();
             return;
         }
 
@@ -590,6 +619,19 @@ public class PlayerMovement : MonoBehaviour
         wallJumpNormal = wallNormal;
         isWallhugging = false;
         dashCooldownTimer = dashCooldown;
+    }
+
+    private void TryWallhugJumpToLedge()
+    {
+        // Verificar que hay una cornisa agarrable encima de la pared actual
+        if (!TryDetectLedge(-wallNormal, out _, out _)) return;
+
+        isWallhugging = false;
+        interactHeld = false;
+        velocity.x = 0f;
+        velocity.z = 0f;
+        velocity.y = wallhugJumpForce;
+        isJumping = true;
     }
 
     private void ApplyGravityAndMove(GroundInfo ground)
@@ -756,6 +798,7 @@ public class PlayerMovement : MonoBehaviour
         else if (cardinalInput.y < -wallhugExitThreshold)
         {
             isLedgeGrabbing = false;
+            ledgeGrabReleaseCooldown = 0.5f;
             return;
         }
 
