@@ -206,7 +206,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         // Iniciar dash / salto targeting
-        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging && !interactHeld)
+        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
         {
             dashPressed = false;
             if (targetingSystem != null && targetingSystem.IsTargeting)
@@ -314,9 +314,13 @@ public class PlayerMovement : MonoBehaviour
         }
         // Auto step-up: escalones pequeños se suben automáticamente antes de cualquier wallhug
         if (!isJumping) TryAutoStepUp(ground, forwardAxis, rightAxis, cardinalInput);
-        // Wallhug: solo entra si el jugador mantiene la tecla de interactuar al lado de una pared
+        // Wallhug: solo entra si el jugador mantiene la tecla de interactuar al lado de una pared.
+        // Si entra al wallhug, cancela el dash para que no se disparen los dos a la vez.
         if (!isJumping && interactHeld && !isWallhugging)
+        {
             TryEnterWallhug(ground, forwardAxis, rightAxis, cardinalInput);
+            if (isWallhugging) dashPressed = false;
+        }
 
         // Ledge grab tick
         if (isLedgeGrabbing)
@@ -661,6 +665,8 @@ public class PlayerMovement : MonoBehaviour
         velocity.z = 0f;
         velocity.y = wallhugJumpForce;
         isJumping = true;
+        isWallJumping = true;   // zeroa velocidad horizontal en cada frame hasta que AttachToLedge lo limpia
+        wallJumpNormal = wallNormal;
     }
 
     private void ApplyGravityAndMove(GroundInfo ground)
