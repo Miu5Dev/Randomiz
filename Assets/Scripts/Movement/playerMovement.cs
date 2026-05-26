@@ -638,8 +638,8 @@ public class PlayerMovement : MonoBehaviour
                        + new Vector3(toWall.x, 0f, toWall.z).normalized * (col.radius + 0.05f);
         Vector3 scanOrigin = new Vector3(scanXZ.x, headPos.y + wallhugLedgeJumpMaxReach, scanXZ.z);
 
-        if (!Physics.Raycast(scanOrigin, Vector3.down, wallhugLedgeJumpMaxReach,
-            out RaycastHit hit, physics.collisionMask, QueryTriggerInteraction.Ignore))
+        if (!Physics.Raycast(scanOrigin, Vector3.down, out RaycastHit hit,
+            wallhugLedgeJumpMaxReach, physics.collisionMask, QueryTriggerInteraction.Ignore))
             return;
 
         // Debe ser una superficie pisable, no una pared lateral
