@@ -203,7 +203,7 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
         // Iniciar dash / salto targeting
-        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging)
+        else if (dashPressed && !isDashing && dashCooldownTimer <= 0f && ground.isGrounded && !isJumping && !isWallhugging && !interactHeld)
         {
             dashPressed = false;
             if (targetingSystem != null && targetingSystem.IsTargeting)
