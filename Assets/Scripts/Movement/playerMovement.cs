@@ -102,7 +102,7 @@ public class PlayerMovement : MonoBehaviour
     private bool interactHeld;
     private float ledgeGrabReleaseCooldown;
     private bool wallhugUpBlocked; // W estaba presionado al entrar; requiere soltar antes de poder saltar
-    private bool nearWall;         // pared agarrable enfrente — bloquea el dash aunque no se active wallhug
+    public bool nearWall;          // pared agarrable enfrente — bloquea el dash aunque no se active wallhug
 
     void Awake()
     {
