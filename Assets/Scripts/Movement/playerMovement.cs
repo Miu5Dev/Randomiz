@@ -39,6 +39,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Wallhug")]
     public float wallhugJumpForce = 6f;
     [Range(0f, 1f)] public float wallhugExitThreshold = 0.3f;
+    [Range(0f, 1f)] public float wallhugSpeedMultiplier = 1f;
     [Tooltip("Altura mínima que debe tener la pared para entrar a wallhug. Escalones más bajos los maneja auto step-up o movimiento normal.")]
     public float wallhugMinWallHeight = 1.0f;
     [Tooltip("Distancia máxima por encima de la cabeza donde se busca una cornisa al pulsar cardinal-arriba en wallhug.")]
@@ -51,6 +52,7 @@ public class PlayerMovement : MonoBehaviour
     public float autoStepUpDuration = 0.12f;
 
     [Header("Ledge Grab")]
+    [Range(0f, 1f)] public float ledgeGrabSpeedMultiplier = 1f;
     public float ledgeDetectionDistance = 0.6f;
     public float ledgeTopSearchHeight = 0.5f;
     public float ledgeClimbDuration = 0.25f;
@@ -480,7 +482,7 @@ public class PlayerMovement : MonoBehaviour
         float targetSpeed = (inputMagnitude >= runThreshold) ? runSpeed : moveSpeed;
         currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, runAcceleration * Time.fixedDeltaTime);
 
-        Vector3 moveVel = wallRight * (lateralInput * currentSpeed);
+        Vector3 moveVel = wallRight * (lateralInput * currentSpeed * wallhugSpeedMultiplier);
         velocity.x = moveVel.x;
         velocity.z = moveVel.z;
 
@@ -847,7 +849,7 @@ public class PlayerMovement : MonoBehaviour
         Vector3 ledgeRight = Vector3.Cross(Vector3.up, ledgeWallNormal).normalized;
         float lateralInput = hasInput ? Vector3.Dot(inputDir3D, ledgeRight) : 0f;
 
-        velocity = ledgeRight * (lateralInput * moveSpeed);
+        velocity = ledgeRight * (lateralInput * moveSpeed * ledgeGrabSpeedMultiplier);
         velocity.y = 0f;
 
         if (velocity.sqrMagnitude > 0.001f)
