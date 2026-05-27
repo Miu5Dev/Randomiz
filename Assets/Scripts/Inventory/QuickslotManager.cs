@@ -1,12 +1,12 @@
 using UnityEngine;
 
 /// <summary>
-/// Estado de los 2 quickslots (item1 / item2) y manejo de su input.
-/// - Si la rueda está cerrada: pulsar item1/2 equipa el item asignado.
-///   Pulsarla con el item ya equipado → desequipa (vuelve a la espada).
-/// - Si la rueda está abierta: la rueda intercepta el input (cancela el evento)
-///   y emite OnQuickslotAssignedEvent que actualiza el estado aquí.
-/// - Pulsar interactuar con un item equipado (que no sea la espada ni null) → desequipa.
+/// Holds the 2 quickslot assignments (item1 / item2) and handles their input.
+/// - Wheel closed: pressing item1/2 equips the assigned item.
+///   Pressing it with that same item already equipped → unequips (back to sword).
+/// - Wheel open: the wheel intercepts the input (cancels the event) and calls
+///   AssignToSlot directly to update state here.
+/// - Pressing interact with an equipped item that's not the sword (and not null) → unequip.
 /// </summary>
 public class QuickslotManager : MonoBehaviour
 {
@@ -33,8 +33,8 @@ public class QuickslotManager : MonoBehaviour
         EventBus.Subscribe<OnItemTwoInputEvent>(OnItemTwo);
         EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteract);
         EventBus.Subscribe<OnInventoryWheelStateEvent>(OnWheelState);
-        // Prioridad negativa para correr DESPUÉS de InventoryHandler.OnPotionConsume,
-        // que actualiza el array de inventario en respuesta al mismo evento.
+        // Negative priority so this runs AFTER InventoryHandler.OnPotionConsume,
+        // which updates the inventory array in response to the same event.
         EventBus.Subscribe<OnPotionConsumeEvent>(OnPotionConsume, -10);
     }
 
@@ -49,14 +49,15 @@ public class QuickslotManager : MonoBehaviour
 
     private void OnPotionConsume(OnPotionConsumeEvent e)
     {
-        // En este punto el InventoryHandler ya cambió UNA instancia de la poción consumida
-        // por la botella vacía. Calculamos cuántas pociones (iguales) quedan en inventario
-        // y cuántos quickslots la referencian: vaciamos solo (quickslots - restantes) slots.
+        // At this point InventoryHandler has already swapped ONE instance of the
+        // consumed potion for the empty bottle. Count remaining (matching) potions
+        // in inventory and how many quickslots still reference it: replace only
+        // (quickslots - remaining) of them.
         int remainingInInventory = CountInInventory(e.consumedPotionItem);
         int inQuickslots = (Slot1 == e.consumedPotionItem ? 1 : 0)
                          + (Slot2 == e.consumedPotionItem ? 1 : 0);
         int toReplace = inQuickslots - remainingInInventory;
-        if (toReplace <= 0) return; // hay suficientes pociones, los quickslots siguen válidos
+        if (toReplace <= 0) return; // enough potions left — quickslots remain valid
 
         if (toReplace > 0 && Slot1 == e.consumedPotionItem)
         {
@@ -86,12 +87,13 @@ public class QuickslotManager : MonoBehaviour
     private void OnWheelState(OnInventoryWheelStateEvent e) => wheelOpen = e.open;
 
     /// <summary>
-    /// Asigna un item a un quickslot (1 o 2). Si el item ya está en el OTRO slot
-    /// Y el inventario sólo tiene una instancia de ese item, se hace swap
-    /// (el item del slot destino pasa al slot origen para evitar duplicados imposibles).
-    /// Si el inventario tiene ≥2 instancias (típico de pociones), se permite duplicar.
-    /// Llamado directamente desde InventoryWheelUI (no por evento, para evitar recursión).
-    /// Emite OnQuickslotAssignedEvent por cada slot que cambia.
+    /// Assigns an item to a quickslot (1 or 2). If the item is already in the OTHER
+    /// slot AND the inventory has only one instance of it, a swap is performed
+    /// (the destination slot's item moves to the source slot, avoiding impossible
+    /// duplicates). If the inventory has ≥2 instances (typical for potions),
+    /// duplication is allowed.
+    /// Called directly from InventoryWheelUI (not via event, to avoid recursion).
+    /// Emits OnQuickslotAssignedEvent for every slot that changes.
     /// </summary>
     public void AssignToSlot(int slotIndex, SOItem item)
     {
@@ -101,9 +103,9 @@ public class QuickslotManager : MonoBehaviour
 
         if (slotIndex == 1)
         {
-            if (item == Slot1) return; // no hay cambio
+            if (item == Slot1) return; // no change
 
-            // Swap sólo si NO podemos duplicar y el item ya está en el otro slot
+            // Swap only when we CAN'T duplicate AND the item already lives in the other slot.
             if (!canDuplicate && item != null && item == Slot2)
             {
                 SOItem prevSlot1 = Slot1;
@@ -131,8 +133,8 @@ public class QuickslotManager : MonoBehaviour
     }
 
     /// <summary>
-    /// True si el inventario contiene al menos 2 referencias del mismo SOItem
-    /// (ej. dos pociones iguales). Para null o items sin duplicado, false.
+    /// True if the inventory holds at least 2 references to the same SOItem
+    /// (e.g. two identical potions). False for null or non-duplicated items.
     /// </summary>
     private bool HasMultipleInventoryInstances(SOItem item)
     {
@@ -158,8 +160,8 @@ public class QuickslotManager : MonoBehaviour
     {
         if (wheelOpen || !e.pressed) return;
         HandleQuickslotPress(Slot1);
-        // Cancelamos para que ningún EventBusListener configurado por inspector
-        // re-equipe encima y deshaga la unequip.
+        // Cancel so no inspector-bound EventBusListener can re-equip on top of us
+        // and undo the unequip we just performed.
         EventBus.Cancel<OnItemOneInputEvent>();
     }
 

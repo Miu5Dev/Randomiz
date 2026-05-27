@@ -8,20 +8,25 @@ public static class EventBus
     private struct HandlerEntry
     {
         public Delegate handler;
-        public int      priority; // Mayor número = se ejecuta ANTES
+        public int      priority; // Higher number = runs FIRST
     }
 
     private static readonly Dictionary<Type, List<HandlerEntry>> _handlers  = new();
     private static readonly HashSet<Type>                        _cancelled = new();
 
-    // Stack de profundidad para aislar cancelaciones por Raise anidado
+    // Per-type depth counter to isolate cancellation across nested Raise calls.
     private static readonly Dictionary<Type, int> _raiseDepth = new();
+
+    // Pool of reusable handler-list buffers — avoids allocating a snapshot array per
+    // Raise. Each Raise borrows a buffer, copies the current handlers into it,
+    // iterates, then returns the buffer. Supports nested raises (each takes its own).
+    private static readonly Stack<List<HandlerEntry>> _bufferPool = new();
 
     // =========================================================
     // SUBSCRIBE / UNSUBSCRIBE
     // =========================================================
 
-    /// <param name="priority">Mayor = más prioritario. Default 0. Puede ser negativo.</param>
+    /// <param name="priority">Higher = higher priority. Default 0. Can be negative.</param>
     public static void Subscribe<T>(Action<T> handler, int priority = 0) where T : class
     {
         if (handler == null) return;
@@ -30,10 +35,10 @@ public static class EventBus
             _handlers[type] = new List<HandlerEntry>();
 
         var list = _handlers[type];
-        if (list.Exists(e => e.handler == (Delegate)handler)) return; // ya registrado
+        if (list.Exists(e => e.handler == (Delegate)handler)) return; // already subscribed
 
         list.Add(new HandlerEntry { handler = handler, priority = priority });
-        // Orden descendente: mayor prioridad primero
+        // Descending order: highest priority first.
         list.Sort((a, b) => b.priority.CompareTo(a.priority));
     }
 
@@ -52,7 +57,7 @@ public static class EventBus
         if (eventData == null) return false;
         var type = typeof(T);
 
-        // Pre-cancelado antes de llamar Raise()
+        // Pre-cancellation set before Raise() was called.
         if (_cancelled.Contains(type))
         {
             _cancelled.Remove(type);
@@ -62,27 +67,42 @@ public static class EventBus
         if (!_handlers.TryGetValue(type, out var list) || list.Count == 0)
             return true;
 
-        // Profundidad para Raises anidados del mismo tipo
+        // Depth for nested Raises of the same type.
         _raiseDepth.TryGetValue(type, out int depth);
         _raiseDepth[type] = depth + 1;
 
+        // Borrow a buffer from the pool, snapshot the current handlers into it.
+        // This isolates iteration from subscribe/unsubscribe during the raise AND
+        // avoids the per-call array allocation that list.ToArray() used to cause.
+        var buffer = _bufferPool.Count > 0 ? _bufferPool.Pop() : new List<HandlerEntry>(8);
+        buffer.Clear();
+        for (int i = 0; i < list.Count; i++) buffer.Add(list[i]);
+
         bool wasCancelled = false;
-        foreach (var entry in list.ToArray())
+        try
         {
-            if (_cancelled.Contains(type))
+            for (int i = 0; i < buffer.Count; i++)
             {
-                wasCancelled = true;
-                break;
-            }
-            try { ((Action<T>)entry.handler)?.Invoke(eventData); }
-            catch (Exception e)
-            {
-                Debug.LogError($"[EventBus] Handler error on {type.Name}: {e.Message}\n{e.StackTrace}");
+                if (_cancelled.Contains(type))
+                {
+                    wasCancelled = true;
+                    break;
+                }
+                try { ((Action<T>)buffer[i].handler)?.Invoke(eventData); }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[EventBus] Handler error on {type.Name}: {e.Message}\n{e.StackTrace}");
+                }
             }
         }
+        finally
+        {
+            buffer.Clear();
+            _bufferPool.Push(buffer);
+        }
 
-        // Solo limpia la cancelación si es el Raise más externo (no anidado)
-        _raiseDepth[type] = depth; // restaura profundidad anterior
+        // Only clear cancellation on the outermost (non-nested) Raise.
+        _raiseDepth[type] = depth;
         if (depth == 0)
             _cancelled.Remove(type);
 

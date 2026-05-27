@@ -1,4 +1,4 @@
-// SwordGizmosDebug.cs  — adjuntalo al GameObject del jugador
+// SwordGizmosDebug.cs — attach to the player GameObject to visualize the sword hitbox.
 using UnityEngine;
 
 public class SwordGizmosDebug : MonoBehaviour

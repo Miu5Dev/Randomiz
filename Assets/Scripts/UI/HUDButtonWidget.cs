@@ -3,31 +3,51 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Botón visual del HUD (norte/sur/este/oeste). Fondo + icono + texto opcional.
-/// El fondo lo gestiona el setup de la prefab; este script controla icono y label.
+/// HUD cross button (north/south/east/west). Background + icon + optional label.
+/// Background is set on the prefab; this script controls the icon and label only.
+///
+/// Performance: SetIcon / SetLabel short-circuit when the new value matches the
+/// last applied one. Avoids redundant Image / TMP rebuilds when the HUD refreshes
+/// on every event (which RefreshAllButtons does for safety).
 /// </summary>
 public class HUDButtonWidget : MonoBehaviour
 {
     [SerializeField] private Image iconImage;
     [SerializeField] private TMP_Text labelText;
 
+    private Sprite _lastSprite;
+    private bool   _hasLastSprite;
+    private bool   _lastIconEnabled = true;
+    private string _lastLabel;
+
     public void SetIcon(Sprite sprite)
     {
         if (iconImage == null) return;
 
-        if (sprite != null)
+        bool shouldEnable = sprite != null;
+        if (_hasLastSprite && sprite == _lastSprite && shouldEnable == _lastIconEnabled) return;
+
+        if (shouldEnable)
         {
             iconImage.sprite = sprite;
-            iconImage.enabled = true;
+            if (!iconImage.enabled) iconImage.enabled = true;
         }
-        else
+        else if (iconImage.enabled)
         {
             iconImage.enabled = false;
         }
+
+        _lastSprite       = sprite;
+        _hasLastSprite    = true;
+        _lastIconEnabled  = shouldEnable;
     }
 
     public void SetLabel(string label)
     {
-        if (labelText != null) labelText.text = label ?? string.Empty;
+        if (labelText == null) return;
+        string next = label ?? string.Empty;
+        if (next == _lastLabel) return;
+        labelText.text = next;
+        _lastLabel = next;
     }
 }

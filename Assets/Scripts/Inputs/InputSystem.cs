@@ -1,55 +1,66 @@
-using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Routes raw Unity InputSystem callbacks into our EventBus events.
+///
+/// Performance: per-frame events (look / move) reuse cached event instances
+/// instead of allocating each frame. EventBus.Raise dispatches synchronously
+/// and doesn't retain the reference, so mutation between raises is safe as
+/// long as no handler triggers a nested Raise of the same event type.
+/// </summary>
 public class InputSystem : MonoBehaviour
 {
     private MyInputs inputs;
     private LookInputSource currentLookSource = LookInputSource.Mouse;
 
+    // ── Cached event instances (avoid GC churn on per-frame inputs) ──────
+    private readonly OnLookInputEvent          _lookEvt     = new();
+    private readonly OnMoveInputEvent          _moveEvt     = new();
+    private readonly OnAttackInputEvent        _attackEvt   = new();
+    private readonly OnItemOneInputEvent       _item1Evt    = new();
+    private readonly OnItemTwoInputEvent       _item2Evt    = new();
+    private readonly OnInteractDodgeInputEvent _interactEvt = new();
+    private readonly OnTargetInputEvent        _targetEvt   = new();
+    private readonly OnInventoryInputEvent     _invEvt      = new();
+    private readonly OnPauseInputEvent         _pauseEvt    = new();
+
     private void Awake()
     {
         inputs = new MyInputs();
 
-        // Movement
         inputs.Player.MOVE.performed += OnMovePerformed;
         inputs.Player.MOVE.canceled  += OnMoveCanceled;
 
-        // Look
         inputs.Player.LOOK.performed += OnLookPerformed;
         inputs.Player.LOOK.canceled  += OnLookCanceled;
 
-        // Button inputs
-        inputs.Player.ATTACK.performed += OnAttackInput;
-        inputs.Player.ATTACK.canceled  += OnAttackInput;
-        
-        inputs.Player.ITEM1.performed += OnItemOneInput;
-        inputs.Player.ITEM1.canceled  += OnItemOneInput;
-        
-        inputs.Player.ITEM2.performed += OnItemTwoInput;
-        inputs.Player.ITEM2.canceled  += OnItemTwoInput;
-        
-        inputs.Player.INTERACT.performed += OnInteractDodgeInput;
-        inputs.Player.INTERACT.canceled  += OnInteractDodgeInput;
-        
-        inputs.Player.TARGET.performed += OnTargetInput;
-        inputs.Player.TARGET.canceled  += OnTargetInput;
-        
-        inputs.Player.INVENTORY.performed += OnInventoryInput;
-        inputs.Player.INVENTORY.canceled  += OnInventoryInput;
-        
-        inputs.Player.PAUSE.performed += OnPauseInput;
-        inputs.Player.PAUSE.canceled  += OnPauseInput;
+        inputs.Player.ATTACK.performed     += OnAttackInput;
+        inputs.Player.ATTACK.canceled      += OnAttackInput;
 
-        Debug.Log("[InputSystem] Initialized");
+        inputs.Player.ITEM1.performed      += OnItemOneInput;
+        inputs.Player.ITEM1.canceled       += OnItemOneInput;
+
+        inputs.Player.ITEM2.performed      += OnItemTwoInput;
+        inputs.Player.ITEM2.canceled       += OnItemTwoInput;
+
+        inputs.Player.INTERACT.performed   += OnInteractDodgeInput;
+        inputs.Player.INTERACT.canceled    += OnInteractDodgeInput;
+
+        inputs.Player.TARGET.performed     += OnTargetInput;
+        inputs.Player.TARGET.canceled      += OnTargetInput;
+
+        inputs.Player.INVENTORY.performed  += OnInventoryInput;
+        inputs.Player.INVENTORY.canceled   += OnInventoryInput;
+
+        inputs.Player.PAUSE.performed      += OnPauseInput;
+        inputs.Player.PAUSE.canceled       += OnPauseInput;
     }
 
-    void OnEnable()  => inputs.Player.Enable();
-    void OnDisable() => inputs.Player.Disable();
+    private void OnEnable()  => inputs.Player.Enable();
+    private void OnDisable() => inputs.Player.Disable();
 
-    // ========================================================================
-    // LOOK INPUT
-    // ========================================================================
+    // ── Look ────────────────────────────────────────────────────────────
 
     private void OnLookPerformed(InputAction.CallbackContext context)
     {
@@ -57,82 +68,77 @@ public class InputSystem : MonoBehaviour
             ? LookInputSource.Gamepad
             : LookInputSource.Mouse;
 
-        EventBus.Raise(new OnLookInputEvent()
-        {
-            pressed = true,
-            Delta   = context.ReadValue<Vector2>(),
-            Source  = currentLookSource
-        });
+        _lookEvt.pressed = true;
+        _lookEvt.Delta   = context.ReadValue<Vector2>();
+        _lookEvt.Source  = currentLookSource;
+        EventBus.Raise(_lookEvt);
     }
 
     private void OnLookCanceled(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnLookInputEvent()
-        {
-            pressed = false,
-            Delta   = Vector2.zero,
-            Source  = currentLookSource
-        });
+        _lookEvt.pressed = false;
+        _lookEvt.Delta   = Vector2.zero;
+        _lookEvt.Source  = currentLookSource;
+        EventBus.Raise(_lookEvt);
     }
 
-    // ========================================================================
-    // MOVEMENT INPUT
-    // ========================================================================
+    // ── Move ────────────────────────────────────────────────────────────
 
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnMoveInputEvent()
-        {
-            pressed   = true,
-            Direction = context.ReadValue<Vector2>()
-        });
+        _moveEvt.pressed   = true;
+        _moveEvt.Direction = context.ReadValue<Vector2>();
+        EventBus.Raise(_moveEvt);
     }
 
     private void OnMoveCanceled(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnMoveInputEvent()
-        {
-            pressed   = false,
-            Direction = Vector2.zero
-        });
+        _moveEvt.pressed   = false;
+        _moveEvt.Direction = Vector2.zero;
+        EventBus.Raise(_moveEvt);
     }
 
-    // ========================================================================
-    // BUTTON INPUTS
-    // ========================================================================
+    // ── Button inputs ───────────────────────────────────────────────────
 
     private void OnAttackInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnAttackInputEvent()      { pressed = context.performed });
+        _attackEvt.pressed = context.performed;
+        EventBus.Raise(_attackEvt);
     }
 
     private void OnItemOneInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnItemOneInputEvent()     { pressed = context.performed });
+        _item1Evt.pressed = context.performed;
+        EventBus.Raise(_item1Evt);
     }
 
     private void OnItemTwoInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnItemTwoInputEvent()     { pressed = context.performed });
+        _item2Evt.pressed = context.performed;
+        EventBus.Raise(_item2Evt);
     }
 
     private void OnInteractDodgeInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnInteractDodgeInputEvent() { pressed = context.performed });
+        _interactEvt.pressed = context.performed;
+        EventBus.Raise(_interactEvt);
     }
 
     private void OnTargetInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnTargetInputEvent()      { pressed = context.performed });
+        _targetEvt.pressed = context.performed;
+        EventBus.Raise(_targetEvt);
     }
 
     private void OnInventoryInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnInventoryInputEvent()   { pressed = context.performed });
+        _invEvt.pressed = context.performed;
+        EventBus.Raise(_invEvt);
     }
 
     private void OnPauseInput(InputAction.CallbackContext context)
     {
-        EventBus.Raise(new OnPauseInputEvent()       { pressed = context.performed });
+        _pauseEvt.pressed = context.performed;
+        EventBus.Raise(_pauseEvt);
     }
 }

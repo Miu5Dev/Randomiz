@@ -18,8 +18,8 @@ public enum ParamSourceMode
     WholeEvent,
     Toggle,
     ObjectReference,
-    CallerObject,   // el GameObject que llamó Use() directamente
-    CallerRoot      // el transform.root.gameObject del caller
+    CallerObject,   // the GameObject that called Use() directly
+    CallerRoot      // the caller's transform.root.gameObject
 }
 
 [Serializable]

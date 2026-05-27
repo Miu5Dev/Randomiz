@@ -308,11 +308,11 @@ public class PhysicsController : MonoBehaviour
         // --- AUTO SLOPE HANDLING ---
         if (autoSlopeHandling && groundInfo.isGrounded)
         {
-            // Si motion.y es positivo, es un salto → no manipular
+            // If motion.y is positive it's a jump → don't touch it.
             if (motion.y > 0.001f)
             {
-                // Salto: dejamos motion intacto, desactivamos snap este frame
-                // No hacemos nada, motion pasa tal cual
+                // Jump: leave motion intact, disable snap this frame.
+                // No-op — motion passes through unchanged.
             }
             else
             {
@@ -399,7 +399,7 @@ public class PhysicsController : MonoBehaviour
 
         ResolveOverlaps(result.collisions);
 
-        // --- GROUND SNAP: solo si NO estamos saltando ---
+        // --- GROUND SNAP: only when NOT jumping ---
         if (autoSlopeHandling && groundInfo.isGrounded && motion.y <= 0.001f)
         {
             SnapToGround(groundSnapDistance);

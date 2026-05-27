@@ -502,7 +502,7 @@ public class EventBusListenerEditor : Editor
     {
         if (pType != typeof(bool))
         {
-            EditorGUILayout.HelpBox("Toggle solo funciona con parámetros bool.", MessageType.Warning);
+            EditorGUILayout.HelpBox("Toggle only works with bool parameters.", MessageType.Warning);
             return;
         }
         var tObj = bp.FindPropertyRelative("targetObject").objectReferenceValue;

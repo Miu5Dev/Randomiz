@@ -8,10 +8,9 @@ public class SOSword : SOWeapon
     public float     hitboxReach = 1f;
     public LayerMask targetLayers;
 
-    [Header("Hitbox Origin (opcional)")]
-    [Tooltip("Transform desde donde se proyecta la hitbox. " +
-             "Si es null, usa el transform del usuario.")]
-    public string hitboxOriginName = "";   // nombre del child transform, ej: "WeaponPivot"
+    [Header("Hitbox Origin (optional)")]
+    [Tooltip("Child transform name to project the hitbox from. If empty, uses the user's root transform.")]
+    public string hitboxOriginName = "";   // child transform name, e.g. "WeaponPivot"
 
     [Header("Animation")]
     public string attackTrigger = "Attack";
@@ -19,6 +18,8 @@ public class SOSword : SOWeapon
     private bool     _hasHitThisSwing = false;
     private bool     _swingOpen       = false;
     private Animator _cachedAnimator  = null;
+    private Transform _cachedOrigin   = null;
+    private int       _cachedAttackHash = 0; // Animator parameter hash (faster than the string variant)
 
     public override void Use(GameObject user)
     {
@@ -30,10 +31,15 @@ public class SOSword : SOWeapon
 
         _hasHitThisSwing = false;
         _swingOpen       = true;
-        _cachedAnimator  = user.GetComponent<Animator>();
+        // Cache once per ScriptableObject lifetime — avoids GetComponent per swing.
+        if (_cachedAnimator == null) _cachedAnimator = user.GetComponent<Animator>();
 
         if (_cachedAnimator != null && !string.IsNullOrEmpty(attackTrigger))
-            _cachedAnimator.SetTrigger(attackTrigger);
+        {
+            // Hash once — SetTrigger(int) is faster than the string overload.
+            if (_cachedAttackHash == 0) _cachedAttackHash = Animator.StringToHash(attackTrigger);
+            _cachedAnimator.SetTrigger(_cachedAttackHash);
+        }
         else
         {
             TryHit(user);
@@ -46,13 +52,18 @@ public class SOSword : SOWeapon
 
     private Transform GetOrigin(GameObject user)
     {
+        // Cache the lookup — Transform.Find is a string-keyed scan over children.
+        // Assumes a single user per SO instance (typical for the player's sword).
+        if (_cachedOrigin != null) return _cachedOrigin;
+
         if (!string.IsNullOrEmpty(hitboxOriginName))
         {
             Transform t = user.transform.Find(hitboxOriginName);
-            if (t != null) return t;
-            Debug.LogWarning($"[SOSword] No se encontró '{hitboxOriginName}' en {user.name}. Usando raíz.");
+            if (t != null) { _cachedOrigin = t; return t; }
+            Debug.LogWarning($"[SOSword] '{hitboxOriginName}' not found under {user.name}. Falling back to root.");
         }
-        return user.transform;
+        _cachedOrigin = user.transform;
+        return _cachedOrigin;
     }
 
     private void TryHit(GameObject user)

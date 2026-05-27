@@ -1,6 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// HUD heart row. Spawns / destroys heart widgets to match maxHearts and updates
+/// each one's fill from the player's current health. Each heart has 4 quarters.
+/// Fully event-driven via OnHealthChangedEvent.
+/// </summary>
 public class HeartsDisplay : MonoBehaviour
 {
     [SerializeField] private HeartWidget heartPrefab;
@@ -14,7 +19,7 @@ public class HeartsDisplay : MonoBehaviour
 
     private void OnHealthChanged(OnHealthChangedEvent e)
     {
-        // Ajusta el número de corazones al máximo actual
+        // Match the heart count to the current max.
         while (_hearts.Count < e.maxHearts)
             _hearts.Add(Instantiate(heartPrefab, container));
 
@@ -24,7 +29,7 @@ public class HeartsDisplay : MonoBehaviour
             _hearts.RemoveAt(_hearts.Count - 1);
         }
 
-        // Actualiza el fill de cada corazón
+        // Update each heart's fill amount (0..1, quartered).
         for (int i = 0; i < _hearts.Count; i++)
         {
             float hpForHeart = e.currentHealth - i * QuartersPerHeart;

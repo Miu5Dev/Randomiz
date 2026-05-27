@@ -1279,13 +1279,13 @@ MonoBehaviour:
   southButton: {fileID: 37863285}
   playerMovement: {fileID: 0}
   interactor: {fileID: 0}
-  labelAttack: Atacar
-  labelUse: Usar
-  labelEquip: Equipar
-  labelStore: Guardar
+  labelAttack: Attack
+  labelUse: Use
+  labelEquip: Equip
+  labelStore: Store
   labelDash: Dash
-  labelWallhug: Pegarse
-  labelInteract: Interactuar
+  labelWallhug: Hug
+  labelInteract: Interact
   labelClimb: Climb
 --- !u!1 &620889280
 GameObject:
@@ -1850,6 +1850,22 @@ PrefabInstance:
     - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Name
       value: HUDButton (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 5070614738296800414, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Color.a
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5070614738296800414, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Color.b
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5070614738296800414, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Color.g
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5070614738296800414, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Color.r
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5734704515460720608, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Pivot.x
@@ -4093,6 +4109,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: '[Player]'
       objectReference: {fileID: 0}
+    - target: {fileID: 5230418838899386553, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: 'invItems.Array.data[1]'
+      value: 
+      objectReference: {fileID: 11400000, guid: e5c34576838a4b0479c456f504d6898b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:

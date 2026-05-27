@@ -2,6 +2,17 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.IO;
 
+/// <summary>
+/// ScriptableObject holding the per-run randomizer state (seed + per-chest item
+/// assignment + opened flag). Persists to disk as JSON in
+/// <see cref="Application.persistentDataPath"/>.
+///
+/// Performance: <see cref="SetItem"/> is the hot path during seed generation
+/// (called once per chest). It does NOT auto-save — callers must explicitly call
+/// <see cref="Save"/> once at the end of the batch (RandomizerSystem already does
+/// this). <see cref="SetOpened"/> still auto-saves because chest pickups are
+/// infrequent user actions that should be persisted immediately.
+/// </summary>
 [CreateAssetMenu(fileName = "RandomizerState", menuName = "Randomizer/State")]
 public class RandomizerState : ScriptableObject
 {
@@ -10,7 +21,7 @@ public class RandomizerState : ScriptableObject
     {
         public string locationId;
         public string itemName;
-        public bool opened;
+        public bool   opened;
     }
 
     [System.Serializable]
@@ -35,8 +46,12 @@ public class RandomizerState : ScriptableObject
     public void Save()
     {
         var data = new SaveData { seed = currentSeed, chests = chests };
+        // prettyPrint only in editor to keep runtime writes smaller/faster.
+#if UNITY_EDITOR
         File.WriteAllText(SavePath, JsonUtility.ToJson(data, prettyPrint: true));
-        Debug.Log($"[RandomizerState] Guardado → {SavePath}");
+#else
+        File.WriteAllText(SavePath, JsonUtility.ToJson(data, prettyPrint: false));
+#endif
     }
 
     public bool Load()
@@ -48,12 +63,12 @@ public class RandomizerState : ScriptableObject
             currentSeed = data.seed;
             chests      = data.chests;
             BuildCache();
-            Debug.Log($"[RandomizerState] Cargado. Seed: {currentSeed} | Cofres: {chests.Count}");
+            Debug.Log($"[RandomizerState] Loaded. Seed: {currentSeed} | Chests: {chests.Count}");
             return true;
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[RandomizerState] Error al cargar: {e.Message}");
+            Debug.LogError($"[RandomizerState] Load error: {e.Message}");
             return false;
         }
     }
@@ -61,39 +76,41 @@ public class RandomizerState : ScriptableObject
     public void DeleteSave()
     {
         if (File.Exists(SavePath)) File.Delete(SavePath);
-        Debug.Log("[RandomizerState] Save eliminado.");
     }
 
     public bool HasSave() => File.Exists(SavePath);
 
     // ─────────────────────────────────────────────
-    // API DE ESTADO
+    // STATE API
     // ─────────────────────────────────────────────
 
     public void BuildCache()
     {
-        _cache = new();
+        _cache = new Dictionary<string, ChestState>(chests.Count);
         foreach (var c in chests)
             _cache[c.locationId] = c;
     }
 
     public ChestState GetChest(string locationId)
     {
+        if (string.IsNullOrEmpty(locationId)) return null;
         if (_cache == null) BuildCache();
         _cache.TryGetValue(locationId, out var s);
         return s;
     }
 
+    /// <summary>
+    /// Assigns an item to a chest. Does NOT auto-save — caller is expected to
+    /// batch and call <see cref="Save"/> once after a generation pass.
+    /// </summary>
     public void SetItem(string locationId, SOItem item)
     {
         if (_cache == null) BuildCache();
         if (_cache.TryGetValue(locationId, out var s))
-        {
             s.itemName = item != null ? item.itemName : null;
-            Save();
-        }
     }
 
+    /// <summary>Marks a chest as opened and saves immediately (user-facing event).</summary>
     public void SetOpened(string locationId)
     {
         if (_cache == null) BuildCache();

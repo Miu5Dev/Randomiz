@@ -20,11 +20,11 @@ public class TargetingSystem : MonoBehaviour
     [SerializeField] private float cameraAlignSpeed = 6f;
 
     [Header("Camera Pitch (Vertical)")]
-    [Tooltip("Velocidad de inclinación de la cámara (grados/segundo) al usar el stick derecho verticalmente.")]
+    [Tooltip("Camera pitch speed (degrees/second) when using the right stick vertically.")]
     [SerializeField] private float cameraPitchSpeed = 45f;
-    [Tooltip("Ángulo mínimo de inclinación hacia abajo (negativo).")]
+    [Tooltip("Minimum downward pitch (negative).")]
     [SerializeField] private float minPitch = -30f;
-    [Tooltip("Ángulo máximo de inclinación hacia arriba.")]
+    [Tooltip("Maximum upward pitch.")]
     [SerializeField] private float maxPitch = 60f;
 
     [Header("Cycle")]
@@ -60,7 +60,7 @@ public class TargetingSystem : MonoBehaviour
         if (modelTransform == null) modelTransform = transform;
         if (cameraTarget == null) Debug.LogWarning("[TargetingSystem] CameraTarget not assigned.");
 
-        // Inicializar pitch a la rotación actual del cameraTarget en X
+        // Initialize pitch from the cameraTarget's current X rotation.
         if (cameraTarget != null)
             _currentPitch = cameraTarget.eulerAngles.x;
     }
@@ -129,7 +129,7 @@ public class TargetingSystem : MonoBehaviour
     {
         if (!IsTargeting) return;
 
-        // Cancelar el evento para que nadie más mueva la cámara horizontalmente
+        // Cancel the event so no other handler moves the camera horizontally.
         EventBus.Cancel<OnLookInputEvent>();
 
         if (e == null) return;
@@ -142,7 +142,7 @@ public class TargetingSystem : MonoBehaviour
             _currentPitch = Mathf.Clamp(_currentPitch, minPitch, maxPitch);
         }
 
-        // Lógica de ciclo horizontal con el stick derecho (usando e.Delta.x)
+        // Horizontal cycle logic with the right stick (uses e.Delta.x).
         if (e.pressed && Time.time - _lastCycleTime >= cycleCooldown)
         {
             float x = e.Delta.x;
@@ -167,7 +167,7 @@ public class TargetingSystem : MonoBehaviour
             {
                 float cameraYaw = cameraTarget.eulerAngles.y;
                 modelTransform.rotation = Quaternion.Euler(0f, cameraYaw, 0f);
-                // Mantener el pitch actual (no lo reseteamos)
+                // Keep the current pitch (don't reset it).
             }
         }
         OnTargetingChanged?.Invoke(active);
@@ -237,7 +237,8 @@ public class TargetingSystem : MonoBehaviour
             Transform candidate = c.transform;
             if (excluding != null && candidate == excluding) continue;
             if (requireLineOfSight && Physics.Linecast(origin + Vector3.up * 1f, candidate.position + Vector3.up * 1f, out _, searchMask, QueryTriggerInteraction.Ignore)) continue;
-            float dist = Vector3.Distance(origin, candidate.position);
+            // sqrMagnitude avoids the sqrt of Vector3.Distance; ordering is preserved.
+            float dist = (candidate.position - origin).sqrMagnitude;
             if (dist < bestScore)
             {
                 bestScore = dist;
@@ -252,9 +253,15 @@ public class TargetingSystem : MonoBehaviour
     {
         if (!IsTargeting) return;
 
-        // Validar target
-        if (CurrentTarget != null && (!CurrentTarget.gameObject.activeInHierarchy || Vector3.Distance(transform.position, CurrentTarget.position) > searchRadius * 1.25f))
-            SetTarget(null);
+        // Validate target — compare against squared radius to avoid sqrt every frame.
+        if (CurrentTarget != null)
+        {
+            float maxRangeSqr = searchRadius * 1.25f;
+            maxRangeSqr *= maxRangeSqr;
+            if (!CurrentTarget.gameObject.activeInHierarchy ||
+                (CurrentTarget.position - transform.position).sqrMagnitude > maxRangeSqr)
+                SetTarget(null);
+        }
 
         if (CurrentTarget == null) return;
 
@@ -266,7 +273,7 @@ public class TargetingSystem : MonoBehaviour
             _desiredPlayerRotation = desired;
             _hasDesiredRotation = true;
 
-            // Rotación del modelo del jugador
+            // Player model rotation.
             if (_snapRotationRemaining > 0f)
             {
                 modelTransform.rotation = desired;
@@ -290,16 +297,16 @@ public class TargetingSystem : MonoBehaviour
 
         if (cameraTarget != null)
         {
-            // Yaw: orientación automática hacia el objetivo (suave)
+            // Yaw: smooth auto-orientation toward the target.
             float currentYaw = cameraTarget.eulerAngles.y;
             float desiredYaw = _desiredPlayerRotation.eulerAngles.y;
             float newYaw = Mathf.SmoothDampAngle(currentYaw, desiredYaw, ref _currentCameraYawVelocity, 1f / cameraAlignSpeed);
 
-            // Pitch: controlado por el jugador (con límites)
-            // Aseguramos que el pitch se aplique en el rango -180 a 180 (normalizado)
+            // Pitch: player-controlled (clamped).
+            // Ensure pitch is applied in the [-180, 180] range (normalized).
             float newPitch = _currentPitch;
 
-            // Aplicar la rotación final: (pitch, yaw, 0)
+            // Apply the final rotation: (pitch, yaw, 0).
             cameraTarget.eulerAngles = new Vector3(newPitch, newYaw, 0f);
         }
     }

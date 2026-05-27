@@ -1,32 +1,37 @@
 using UnityEngine;
 
+/// <summary>
+/// Base ScriptableObject for any in-game item. Subclasses (SOWeapon, SOPotion,
+/// SOMoney, SOSimpleItem…) implement Use(GameObject user) with type-specific
+/// behavior. Filler items are used as a fallback in chests when no higher
+/// tier is available.
+/// </summary>
 public abstract class SOItem : ScriptableObject
 {
     [Header("General Info")]
     public string itemName = "Unnamed Item";
     public string itemDescription = "";
     public Sprite itemSprite;
-    
+
     [Header("Filler Settings")]
-    [Tooltip("Este item se usa como fallback cuando no hay tier mayor disponible")]
+    [Tooltip("This item is used as a fallback when no higher tier is available.")]
     public bool isFiller = false;
-    
+
     [Header("Prefab")]
     public GameObject prefab;
-    
+
     [Header("Pivot Point")]
     public Transform PivotPoint;
 
     [Header("Weight")]
     [Min(0f)]
     public float handWeightMultiplier = 1f;
-    
-    // Método virtual que los hijos pueden override
+
+    /// <summary>Default description string — subclasses may override.</summary>
     public virtual string GetDescription()
     {
-        return $"{itemName} (peso: {handWeightMultiplier}kg)";
+        return $"{itemName} (weight: {handWeightMultiplier}kg)";
     }
-    
+
     public abstract void Use(GameObject user);
-    
 }

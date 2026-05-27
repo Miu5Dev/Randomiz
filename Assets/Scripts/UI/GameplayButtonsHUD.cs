@@ -1,26 +1,27 @@
 using UnityEngine;
 
 /// <summary>
-/// Cruz de 4 botones en el HUD (arriba a la derecha):
-///   Norte = item1   Este = item2   Oeste = item equipado (atacar)   Sur = acción/dash
+/// 4-button cross HUD (top-right corner):
+///   North = item1   East = item2   West = equipped item (attack)   South = action/dash
 ///
-/// Iconos: dirigidos por eventos (Equip/Unequip/QuickslotAssigned/PotionConsume).
+/// Icons: event-driven (Equip/Unequip/QuickslotAssigned/PotionConsume).
 /// Labels:
-///   - Oeste: "Atacar" (SOWeapon) / "Usar" (SOPotion) / vacío.
-///   - Norte/Este: "Equipar" si hay item y no está equipado, "Guardar" si lo está, vacío si null.
-///   - Sur (polled): "Interactuar" si hay interactuable cerca, "Pegarse" si nearWall y no wallhugging, si no "Dash".
+///   - West: "Attack" (SOWeapon) / "Use" (SOPotion) / empty.
+///   - North/East: "Equip" when there's an item and it isn't equipped, "Store" when it is, empty if null.
+///   - South: "Interact" when an interactable is nearby, "Wall hug" when nearWall, otherwise "Dash".
+///     During wallhug → empty. During ledge grab → "Climb".
 /// </summary>
 public class GameplayButtonsHUD : MonoBehaviour
 {
     [Header("Buttons")]
     [SerializeField] private HUDButtonWidget northButton; // item1
     [SerializeField] private HUDButtonWidget eastButton;  // item2
-    [SerializeField] private HUDButtonWidget westButton;  // atacar (equipped)
-    [SerializeField] private HUDButtonWidget southButton; // acción
+    [SerializeField] private HUDButtonWidget westButton;  // attack (equipped)
+    [SerializeField] private HUDButtonWidget southButton; // action
 
-    [Header("Player refs (opcional, si null se buscan automáticamente)")]
-    [SerializeField] private PlayerMovement playerMovement;
-    [SerializeField] private Interactor interactor;
+    // Note: PlayerMovement / Interactor references are no longer cached here.
+    // State arrives via OnPlayerLocomotionStateEvent / OnInteractableProximityChangedEvent,
+    // so the HUD has no per-frame dependency on those components.
 
     [Header("Labels")]
     [SerializeField] private string labelAttack    = "Attack";
@@ -34,12 +35,20 @@ public class GameplayButtonsHUD : MonoBehaviour
 
     private string lastSouthLabel = "";
 
+    // ─── Cached locomotion / proximity state (event-driven, no polling) ─────
+    private bool _isWallhugging;
+    private bool _isLedgeGrabbing;
+    private bool _nearWall;
+    private bool _interactableNearby;
+
     private void OnEnable()
     {
         EventBus.Subscribe<OnItemEquipEvent>(OnItemEquip);
         EventBus.Subscribe<OnItemUnequipEvent>(OnItemUnequip);
         EventBus.Subscribe<OnQuickslotAssignedEvent>(OnQuickslotAssigned);
         EventBus.Subscribe<OnPotionConsumeEvent>(OnPotionConsume);
+        EventBus.Subscribe<OnPlayerLocomotionStateEvent>(OnPlayerLocomotionState);
+        EventBus.Subscribe<OnInteractableProximityChangedEvent>(OnInteractableProximity);
     }
 
     private void OnDisable()
@@ -48,39 +57,57 @@ public class GameplayButtonsHUD : MonoBehaviour
         EventBus.Unsubscribe<OnItemUnequipEvent>(OnItemUnequip);
         EventBus.Unsubscribe<OnQuickslotAssignedEvent>(OnQuickslotAssigned);
         EventBus.Unsubscribe<OnPotionConsumeEvent>(OnPotionConsume);
+        EventBus.Unsubscribe<OnPlayerLocomotionStateEvent>(OnPlayerLocomotionState);
+        EventBus.Unsubscribe<OnInteractableProximityChangedEvent>(OnInteractableProximity);
     }
 
     private void Start()
     {
-        if (playerMovement == null) playerMovement = FindObjectOfType<PlayerMovement>();
-        if (interactor == null)     interactor     = FindObjectOfType<Interactor>();
+        // Pull initial state from the singletons (set up in their Awake — zero cost).
+        // Subsequent updates arrive via events; no per-frame polling needed.
+        if (PlayerMovement.Instance != null)
+        {
+            _isWallhugging   = PlayerMovement.Instance.isWallhugging;
+            _isLedgeGrabbing = PlayerMovement.Instance.isLedgeGrabbing;
+            _nearWall        = PlayerMovement.Instance.nearWall;
+        }
+        if (Interactor.Instance != null)
+            _interactableNearby = Interactor.Instance.onInteractArea;
 
         RefreshAll();
     }
 
-    private void Update()
-    {
-        // South label es contextual — se evalúa cada frame (es solo lectura de bools).
-        UpdateSouth();
-    }
-
     // ─── Event handlers ─────────────────────────────────────────────────────
-    // Cualquier evento que pueda cambiar el estado (equipado / contenido de quickslots /
-    // poción consumida) dispara un RefreshAllButtons. Así si dos slots comparten
-    // referencia con el item equipado, ambos reciben el label correcto en el mismo
-    // refresh — y nunca se queda un botón con label/icono stale por un evento parcial.
+    // Any event that may change state (equipped / quickslot contents / consumed potion)
+    // fires a full RefreshAllButtons. This way, if two slots share a reference with
+    // the equipped item, both receive the correct label in the same refresh — and no
+    // button is left with a stale label/icon from a partial update.
 
     private void OnItemEquip(OnItemEquipEvent e)         => RefreshAllButtons();
     private void OnItemUnequip(OnItemUnequipEvent e)     => RefreshAllButtons();
     private void OnPotionConsume(OnPotionConsumeEvent e) => RefreshAllButtons();
     private void OnQuickslotAssigned(OnQuickslotAssignedEvent e) => RefreshAllButtons();
 
+    private void OnPlayerLocomotionState(OnPlayerLocomotionStateEvent e)
+    {
+        _isWallhugging   = e.isWallhugging;
+        _isLedgeGrabbing = e.isLedgeGrabbing;
+        _nearWall        = e.nearWall;
+        UpdateSouth();
+    }
+
+    private void OnInteractableProximity(OnInteractableProximityChangedEvent e)
+    {
+        _interactableNearby = e.nearby;
+        UpdateSouth();
+    }
+
     // ─── Refresh helpers ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Lee el estado autoritativo (EquipHandler.EquipedItem + QuickslotManager.Slot1/Slot2)
-    /// y actualiza los 3 botones (icono + label). Idempotente; barato (sólo set sprites/text).
-    /// Garantiza que slots con referencia compartida muestren el mismo label.
+    /// Reads the authoritative state (EquipHandler.EquipedItem + QuickslotManager.Slot1/Slot2)
+    /// and updates the 3 buttons (icon + label). Idempotent; cheap (only sprite/text sets).
+    /// Guarantees that slots sharing a reference end up with the same label.
     /// </summary>
     private void RefreshAllButtons()
     {
@@ -149,19 +176,19 @@ public class GameplayButtonsHUD : MonoBehaviour
         return (equipped == slotItem) ? labelStore : labelEquip;
     }
 
+    /// <summary>
+    /// Pure function over cached state — no component access, no polling.
+    /// State is kept up to date by OnPlayerLocomotionState / OnInteractableProximity.
+    /// </summary>
     private string GetSouthLabel()
     {
-        if (playerMovement != null)
-        {
-            // En wallhug no se muestra nada (el botón sigue siendo el mismo input
-            // pero el contexto no aplica).
-            if (playerMovement.isWallhugging) return string.Empty;
-            // En ledge grab → Climb (subir)
-            if (playerMovement.isLedgeGrabbing) return labelClimb;
-        }
-
-        if (interactor != null && interactor.onInteractArea) return labelInteract;
-        if (playerMovement != null && playerMovement.nearWall) return labelWallhug;
+        // Wallhug consumes the south slot: nothing meaningful to surface there.
+        if (_isWallhugging)      return string.Empty;
+        // Ledge grab → Climb up.
+        if (_isLedgeGrabbing)    return labelClimb;
+        // Otherwise the button represents whichever action applies.
+        if (_interactableNearby) return labelInteract;
+        if (_nearWall)           return labelWallhug;
         return labelDash;
     }
 }

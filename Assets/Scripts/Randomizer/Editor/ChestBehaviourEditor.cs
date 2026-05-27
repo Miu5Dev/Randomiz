@@ -1,4 +1,4 @@
-// Coloca este archivo en Assets/Editor/
+// Place this file under any Editor/ folder so it isn't included in player builds.
 using UnityEngine;
 using UnityEditor;
 
@@ -14,9 +14,9 @@ public class ChestBehaviourEditor : Editor
         EditorGUILayout.LabelField("📦  Chest", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("locationId"));
 
-        // Aviso si locationId está vacío
+        // Warn if locationId is empty.
         if (string.IsNullOrEmpty(chest.locationId))
-            EditorGUILayout.HelpBox("⚠ locationId vacío — el cofre no se registrará en el state.", MessageType.Warning);
+            EditorGUILayout.HelpBox("⚠ locationId is empty — this chest won't be registered in the state.", MessageType.Warning);
 
         EditorGUILayout.Space(4);
 
@@ -24,17 +24,17 @@ public class ChestBehaviourEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("pool"));
         EditorGUILayout.Space(4);
 
-        // ── Required items con drop area
-        EditorGUILayout.LabelField("🔑  Items Requeridos para Acceder", EditorStyles.boldLabel);
+        // ── Required items + drop area
+        EditorGUILayout.LabelField("🔑  Items required to access", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("requiredItems"), includeChildren: true);
         DrawDropArea(chest);
         EditorGUILayout.Space(6);
 
-        // ── Estado actual (solo en Play Mode)
+        // ── Live state (only in Play mode)
         var poolRef = serializedObject.FindProperty("pool").objectReferenceValue as SOItemPool;
         if (Application.isPlaying && poolRef != null)
         {
-            EditorGUILayout.LabelField("🎲  Estado en Runtime", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("🎲  Runtime state", EditorStyles.boldLabel);
             if (poolRef.state != null)
             {
                 var s = poolRef.state.GetChest(chest.locationId);
@@ -47,9 +47,9 @@ public class ChestBehaviourEditor : Editor
                             ? new Color(0.5f, 1f, 0.5f)
                             : new Color(1f, 0.85f, 0.4f);
 
-                    string stateLabel = s.opened               ? "✓ Abierto"
-                        : string.IsNullOrEmpty(s.itemName) ? "⏳ Sin asignar"
-                        : $"🎁 {s.itemName}";
+                    string stateLabel = s.opened                   ? "✓ Opened"
+                                       : string.IsNullOrEmpty(s.itemName) ? "⏳ Unassigned"
+                                                                          : $"🎁 {s.itemName}";
 
                     var item = poolRef.FindItem(s.itemName);
                     if (item is SOWeapon w) stateLabel += $" [Tier {w.tier}]";
@@ -58,7 +58,7 @@ public class ChestBehaviourEditor : Editor
                     GUI.backgroundColor = prevBg;
                 }
                 else
-                    EditorGUILayout.HelpBox("No registrado en el state.", MessageType.Warning);
+                    EditorGUILayout.HelpBox("Not registered in the state.", MessageType.Warning);
             }
         }
 
@@ -68,7 +68,7 @@ public class ChestBehaviourEditor : Editor
     private void DrawDropArea(ChestBehaviour chest)
     {
         var rect = GUILayoutUtility.GetRect(0, 28, GUILayout.ExpandWidth(true));
-        GUI.Box(rect, "⬇  Arrastra SOItems aquí para añadir como requeridos", EditorStyles.helpBox);
+        GUI.Box(rect, "⬇  Drag SOItems here to add them as required", EditorStyles.helpBox);
 
         var e = Event.current;
         if ((e.type != EventType.DragUpdated && e.type != EventType.DragPerform)

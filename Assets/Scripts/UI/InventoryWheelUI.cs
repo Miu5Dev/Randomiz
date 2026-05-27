@@ -3,10 +3,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// Rueda radial de inventario (toggle con OnInventoryInputEvent).
-/// Excluye slot 0 (espada). Lee posición del mouse o del stick para resaltar slot.
-/// Al pulsar item1/item2 mientras está abierta, asigna el item resaltado al quickslot
-/// correspondiente y cancela el evento para que QuickslotManager no equipe nada.
+/// Radial inventory wheel (toggled by OnInventoryInputEvent).
+/// Excludes slot 0 (sword). Reads mouse or stick position to highlight a slot.
+/// Pressing item1/item2 while open assigns the highlighted item to that quickslot
+/// and cancels the event so QuickslotManager doesn't also equip it.
 /// </summary>
 public class InventoryWheelUI : MonoBehaviour
 {
@@ -16,19 +16,20 @@ public class InventoryWheelUI : MonoBehaviour
     [SerializeField] private RectTransform slotsContainer;
 
     [Header("Layout")]
-    [Tooltip("Distancia del centro a cada slot, en unidades del Canvas.")]
+    [Tooltip("Distance from the center to each slot, in Canvas units.")]
     [SerializeField] private float radius = 180f;
 
     [Header("Input")]
-    [Tooltip("Magnitud mínima del stick/cursor virtual para considerar selección válida.")]
+    [Tooltip("Minimum stick/virtual-cursor magnitude required to count as a selection.")]
     [Range(0f, 1f)] [SerializeField] private float deadZone = 0.25f;
-    [Tooltip("Sensibilidad del cursor virtual del mouse (delta px → unidades de selección).")]
+    [Tooltip("Mouse virtual-cursor sensitivity (delta px → selection units).")]
     [SerializeField] private float mouseSensitivity = 0.01f;
 
     private readonly List<InventoryWheelSlot> slots = new();
+    private int activeSlotCount;       // visible slots this open (pool may hold more)
     private bool isOpen;
     private int highlightedIndex = -1;
-    private Vector2 virtualCursor; // acumulador del delta del mouse mientras la rueda está abierta
+    private Vector2 virtualCursor;     // accumulated mouse delta while the wheel is open
 
     private void Awake()
     {
@@ -38,7 +39,7 @@ public class InventoryWheelUI : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<OnInventoryInputEvent>(OnInventoryInput);
-        // Prioridad alta para interceptar antes que QuickslotManager / movement / camera
+        // High priority — runs before QuickslotManager / movement / camera so we can intercept.
         EventBus.Subscribe<OnItemOneInputEvent>(OnItemOne, 10);
         EventBus.Subscribe<OnItemTwoInputEvent>(OnItemTwo, 10);
         EventBus.Subscribe<OnMoveInputEvent>(OnMoveInput, 10);
@@ -70,9 +71,9 @@ public class InventoryWheelUI : MonoBehaviour
     {
         if (open)
         {
-            // Forzamos a cero el movimiento y la cámara ANTES de marcar isOpen=true,
-            // así estos eventos sintéticos no son cancelados por nuestro propio handler
-            // y llegan a PlayerMovement/CameraController, que se detienen.
+            // Force movement and camera to zero BEFORE setting isOpen=true so these
+            // synthetic events aren't cancelled by our own handler and reach
+            // PlayerMovement/CameraController to halt them.
             EventBus.Raise(new OnMoveInputEvent { Direction = Vector2.zero, pressed = false });
             EventBus.Raise(new OnLookInputEvent { Delta = Vector2.zero, pressed = false, Source = LookInputSource.Mouse });
 
@@ -88,33 +89,54 @@ public class InventoryWheelUI : MonoBehaviour
         EventBus.Raise(new OnInventoryWheelStateEvent { open = open });
     }
 
+    // Cached RectTransforms for each slot — avoid GetComponent on every open.
+    private readonly List<RectTransform> slotRects = new();
+
+    /// <summary>
+    /// Populates / refreshes the wheel slots. Pools widgets between opens —
+    /// only instantiates when we need MORE slots than the pool currently has,
+    /// otherwise just re-positions and re-binds items. Excess slots are
+    /// deactivated rather than destroyed.
+    /// </summary>
     private void BuildSlots()
     {
-        foreach (var s in slots) if (s != null) Destroy(s.gameObject);
-        slots.Clear();
-
         if (InventoryHandler.Instance == null || slotPrefab == null || slotsContainer == null) return;
 
         SOItem[] items = InventoryHandler.Instance.InvItems;
-        int totalSlots = items.Length - 1; // excluye slot 0 (espada)
+        int totalSlots = items.Length - 1; // exclude slot 0 (sword)
         if (totalSlots <= 0) return;
 
+        // Grow the pool if needed.
+        while (slots.Count < totalSlots)
+        {
+            var newSlot = Instantiate(slotPrefab, slotsContainer);
+            slots.Add(newSlot);
+            slotRects.Add(newSlot.GetComponent<RectTransform>());
+        }
+
+        float angleStep = 360f / totalSlots;
+        const float startAngleDeg = 90f;
+
+        // Configure the slots we need.
         for (int i = 0; i < totalSlots; i++)
         {
             int invIndex = i + 1;
-            InventoryWheelSlot slot = Instantiate(slotPrefab, slotsContainer);
+            var slot = slots[i];
+            if (!slot.gameObject.activeSelf) slot.gameObject.SetActive(true);
+
             slot.SetItem(items[invIndex]);
 
-            float angleDeg = 90f - (i * 360f / totalSlots); // arranca arriba, sentido horario
-            float angleRad = angleDeg * Mathf.Deg2Rad;
-            Vector2 pos = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * radius;
-
-            var rt = slot.GetComponent<RectTransform>();
-            if (rt != null) rt.anchoredPosition = pos;
-
-            slots.Add(slot);
+            float angleRad = (startAngleDeg - i * angleStep) * Mathf.Deg2Rad;
+            var rt = slotRects[i];
+            if (rt != null)
+                rt.anchoredPosition = new Vector2(Mathf.Cos(angleRad), Mathf.Sin(angleRad)) * radius;
         }
 
+        // Deactivate any excess pool entries (e.g. inventory shrank).
+        for (int i = totalSlots; i < slots.Count; i++)
+            if (slots[i].gameObject.activeSelf) slots[i].gameObject.SetActive(false);
+
+        activeSlotCount = totalSlots;
         highlightedIndex = -1;
     }
 
@@ -126,36 +148,25 @@ public class InventoryWheelUI : MonoBehaviour
 
     private void UpdateHighlight()
     {
+        // Cheap squared-magnitude check avoids the sqrt in .magnitude.
         Vector2 dir = GetSelectorDirection();
-        if (dir.magnitude < deadZone)
+        if (dir.sqrMagnitude < deadZone * deadZone)
         {
             SetHighlight(-1);
             return;
         }
 
-        float inputAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        if (inputAngle < 0f) inputAngle += 360f;
+        int n = activeSlotCount;
+        if (n <= 0) return;
 
-        int n = slots.Count;
-        if (n == 0) return;
-
+        // Closed-form pick: convert input angle to slot index directly.
+        // Slot i sits at angle (90° - i * step). Inverting:
+        //   i = round((90° - inputAngle) / step), modulo n.
+        float inputAngleDeg = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         float step = 360f / n;
-        const float startAngle = 90f;
-
-        int bestIdx = 0;
-        float bestDiff = float.MaxValue;
-        for (int i = 0; i < n; i++)
-        {
-            float slotAngle = (startAngle - i * step + 360f) % 360f;
-            float diff = Mathf.Abs(Mathf.DeltaAngle(slotAngle, inputAngle));
-            if (diff < bestDiff)
-            {
-                bestDiff = diff;
-                bestIdx = i;
-            }
-        }
-
-        SetHighlight(bestIdx);
+        int idx = Mathf.RoundToInt((90f - inputAngleDeg) / step);
+        idx = ((idx % n) + n) % n;    // normalize to [0, n)
+        SetHighlight(idx);
     }
 
     private void SetHighlight(int idx)
@@ -174,15 +185,15 @@ public class InventoryWheelUI : MonoBehaviour
 
     private Vector2 GetSelectorDirection()
     {
-        // 1) Gamepad: stick izquierdo (vector directo, no acumula)
+        // 1) Gamepad: left stick (direct vector, no accumulation)
         if (Gamepad.current != null)
         {
             Vector2 stick = Gamepad.current.leftStick.ReadValue();
-            if (stick.magnitude >= deadZone) return stick;
+            if (stick.sqrMagnitude >= deadZone * deadZone) return stick;
         }
 
-        // 2) Mouse: acumulamos el delta en un cursor virtual.
-        //    Funciona aunque el cursor real esté bloqueado/invisible (FPS-like).
+        // 2) Mouse: accumulate the delta into a virtual cursor.
+        //    Works even when the real cursor is locked/invisible (FPS-like setup).
         if (Mouse.current != null)
         {
             Vector2 delta = Mouse.current.delta.ReadValue();
@@ -208,8 +219,8 @@ public class InventoryWheelUI : MonoBehaviour
         EventBus.Cancel<OnItemTwoInputEvent>();
     }
 
-    // Mientras la rueda está abierta, bloqueamos movimiento, cámara, ataque e interactuar
-    // cancelando los eventos antes de que lleguen a movement/camera/quickslot.
+    // While the wheel is open, block movement, camera, attack and interact
+    // by cancelling the events before they reach movement/camera/quickslot handlers.
     private void OnMoveInput(OnMoveInputEvent e)
     {
         if (!isOpen) return;
@@ -246,8 +257,8 @@ public class InventoryWheelUI : MonoBehaviour
         if (highlightedIndex >= 0 && highlightedIndex < slots.Count)
             item = slots[highlightedIndex].Item;
 
-        // Llamada directa (no por evento) para que la lógica de swap del QuickslotManager
-        // pueda emitir múltiples OnQuickslotAssignedEvent sin recursión.
+        // Direct call (not via event) so QuickslotManager's swap logic can emit
+        // multiple OnQuickslotAssignedEvent without recursion.
         if (QuickslotManager.Instance != null)
             QuickslotManager.Instance.AssignToSlot(slotIndex, item);
     }

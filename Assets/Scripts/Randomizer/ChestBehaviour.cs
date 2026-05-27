@@ -1,83 +1,107 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/// <summary>
+/// A chest in the world. Its content is determined at runtime by the randomizer
+/// (via the shared <see cref="RandomizerState"/> on the pool ScriptableObject)
+/// — not by inspector wiring on each chest.
+///
+/// Lifecycle:
+///   • Awake → ensure locationId is assigned (falls back to GameObject name).
+///   • Start → read state from the pool (TestSceneBootstrap.Awake has run by now,
+///             so the state is populated).
+/// </summary>
 public class ChestBehaviour : MonoBehaviour
 {
-    [Header("ID único — debe ser el mismo en todas las runs")]
+    [Header("Unique location ID — must match across runs")]
     public string locationId;
 
-    [Header("SOItems necesarios para acceder a este cofre")]
+    [Header("SOItems required to access this chest")]
     public List<SOItem> requiredItems = new();
 
-    [Header("Pool — necesario para resolver items desde el state")]
+    [Header("Pool — needed to resolve items from the saved state")]
     [SerializeField] private SOItemPool pool;
 
-    private RandomizerState State => pool.state;
+    private RandomizerState State => pool != null ? pool.state : null;
     public bool IsOpened => pool?.state?.GetChest(locationId)?.opened ?? false;
 
     private void Awake()
     {
+        // Auto-fill locationId from the GameObject name if left blank.
         if (string.IsNullOrEmpty(locationId))
         {
             locationId = gameObject.name;
-            Debug.Log($"[Chest:{locationId}] Auto-asignado desde GameObject name");
+            Debug.Log($"[Chest:{locationId}] locationId auto-assigned from GameObject name.");
+        }
+    }
+
+    private void Start()
+    {
+        // By Start, TestSceneBootstrap.Awake has loaded/generated state.
+        if (pool == null)
+        {
+            Debug.LogError($"[Chest:{locationId}] No SOItemPool assigned.");
+            return;
         }
 
-        if (string.IsNullOrEmpty(locationId))
+        if (State == null)
         {
-            Debug.LogError($"[Chest] {gameObject.name} no tiene locationId asignado.");
+            Debug.LogError($"[Chest:{locationId}] Pool has no RandomizerState assigned.");
             return;
         }
 
         var s = State.GetChest(locationId);
         if (s == null)
         {
-            Debug.LogWarning($"[Chest:{locationId}] No encontrado en el State. ¿Generaste la seed?");
+            Debug.LogWarning($"[Chest:{locationId}] Not found in state — was the seed generated?");
             return;
         }
 
-        if (s.opened)
-            SetVisualOpened();
+        if (s.opened) SetVisualOpened();
     }
 
+    /// <summary>Called by an Interactable trigger / Use(): resolves item and adds to inventory.</summary>
     public void Open(GameObject opener)
     {
+        if (State == null) return;
         var s = State.GetChest(locationId);
         if (s == null || s.opened) return;
 
         var item = pool.FindItem(s.itemName);
         if (item == null)
         {
-            Debug.LogError($"[Chest:{locationId}] Item '{s.itemName}' no encontrado en el pool.");
+            Debug.LogError($"[Chest:{locationId}] Item '{s.itemName}' not found in pool.");
             return;
         }
 
         var resolved = ResolveItem(item);
         if (resolved == null)
         {
-            Debug.LogWarning($"[Chest:{locationId}] Bloqueado — consigue primero el tier anterior.");
+            Debug.LogWarning($"[Chest:{locationId}] Locked — get the previous tier first.");
             return;
         }
 
-        // Intentar añadir el ítem resuelto
-        SOItem addedItem = InventoryHandler.Instance?.AddItem(resolved);
-
-        // Si falla, probar todos los fillers (mezclados)
-        if (addedItem == null && pool.fillerItems.Count > 0)
+        if (InventoryHandler.Instance == null)
         {
-            List<SOItem> shuffled = new List<SOItem>(pool.fillerItems);
-            for (int i = 0; i < shuffled.Count; i++)
-            {
-                int rand = Random.Range(i, shuffled.Count);
-                (shuffled[i], shuffled[rand]) = (shuffled[rand], shuffled[i]);
-            }
+            Debug.LogError($"[Chest:{locationId}] No InventoryHandler in scene — chest cannot open.");
+            return;
+        }
+
+        // Try adding the resolved item first.
+        SOItem addedItem = InventoryHandler.Instance.AddItem(resolved);
+
+        // If that failed (inventory full / type constraint), try any filler.
+        if (addedItem == null && pool.fillerItems != null && pool.fillerItems.Count > 0)
+        {
+            var shuffled = new List<SOItem>(pool.fillerItems);
+            ShuffleInPlace(shuffled);
 
             foreach (var filler in shuffled)
             {
-                addedItem = InventoryHandler.Instance?.AddItem(filler);
+                addedItem = InventoryHandler.Instance.AddItem(filler);
                 if (addedItem != null)
                 {
-                    Debug.Log($"[Chest:{locationId}] ⚠️ {resolved.itemName} no se pudo agregar. Se dio filler: {filler.itemName}");
+                    Debug.Log($"[Chest:{locationId}] ⚠ {resolved.itemName} didn't fit; gave filler {filler.itemName}.");
                     break;
                 }
             }
@@ -85,7 +109,7 @@ public class ChestBehaviour : MonoBehaviour
 
         if (addedItem == null)
         {
-            Debug.LogError($"[Chest:{locationId}] ✗ CRÍTICO: No se pudo añadir ningún ítem (ni siquiera filler). Cofre permanece cerrado.");
+            Debug.LogWarning($"[Chest:{locationId}] Inventory rejected every item (full or constrained). Chest stays closed.");
             return;
         }
 
@@ -93,48 +117,43 @@ public class ChestBehaviour : MonoBehaviour
         State.SetOpened(locationId);
         SetVisualOpened();
 
-        Debug.Log($"[Chest:{locationId}] {opener.name} obtuvo: {addedItem.itemName}" +
+        Debug.Log($"[Chest:{locationId}] {opener.name} got: {addedItem.itemName}" +
                   (addedItem is SOWeapon w ? $" [Tier {w.tier}]" : ""));
     }
 
+    /// <summary>
+    /// Adjusts the intended item before delivery — handles tier mismatch and sequence breaks.
+    /// </summary>
     private SOItem ResolveItem(SOItem intended)
     {
         if (intended is not SOWeapon intendedWeapon)
             return intended;
 
-        int playerMaxTier = InventoryHandler.Instance?.GetHighestWeaponTier() ?? 0;
-        int intendedTier = intendedWeapon.tier;
+        int playerMaxTier = InventoryHandler.Instance != null ? InventoryHandler.Instance.GetHighestWeaponTier() : 0;
+        int intendedTier  = intendedWeapon.tier;
 
-        Debug.Log($"[Chest:{locationId}] Player maxTier={playerMaxTier}, cofre tiene T{intendedTier}");
-
-        // Mismo tier o menor → filler
+        // Same tier or lower → no upgrade, give filler.
         if (intendedTier <= playerMaxTier)
-        {
-            Debug.Log($"[Chest:{locationId}] Jugador ya tiene T{playerMaxTier}. Dando filler.");
             return GetRandomFiller();
-        }
 
-        // Progresión normal
+        // Normal progression.
         if (intendedTier == playerMaxTier + 1)
             return intended;
 
-        // Sequence break → intentar swap
+        // Sequence break — try to swap with another chest holding the right tier.
         int neededTier = playerMaxTier + 1;
-        Debug.LogWarning($"[Chest:{locationId}] Sequence break — buscando T{neededTier}...");
         var swapped = TrySwapForNextTier(neededTier);
-        if (swapped != null)
-            return swapped;
+        if (swapped != null) return swapped;
 
-        // No hay swap → filler
-        Debug.LogWarning($"[Chest:{locationId}] No hay T{neededTier} disponible. Dando filler.");
+        // No swap available → filler.
         return GetRandomFiller();
     }
 
     private SOItem GetRandomFiller()
     {
-        if (pool.fillerItems.Count == 0)
+        if (pool.fillerItems == null || pool.fillerItems.Count == 0)
         {
-            Debug.LogError($"[Chest:{locationId}] ✗ No hay filler items configurados.");
+            Debug.LogError($"[Chest:{locationId}] No filler items configured in pool.");
             return null;
         }
         return pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
@@ -152,9 +171,8 @@ public class ChestBehaviour : MonoBehaviour
             var otherItem = pool.FindItem(other.itemName);
             if (otherItem is SOWeapon w && w.tier == neededTier)
             {
-                string temp = myState.itemName;
-                myState.itemName = other.itemName;
-                other.itemName = temp;
+                // Swap item names between this chest and the other.
+                (myState.itemName, other.itemName) = (other.itemName, myState.itemName);
                 State.Save();
                 return (SOWeapon)pool.FindItem(myState.itemName);
             }
@@ -162,9 +180,18 @@ public class ChestBehaviour : MonoBehaviour
         return null;
     }
 
+    private static void ShuffleInPlace<T>(IList<T> list)
+    {
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+    }
+
     private void SetVisualOpened()
     {
-        // Implementar animación/sprite
+        // Hook for animation / sprite swap.
     }
 
 #if UNITY_EDITOR
@@ -176,19 +203,17 @@ public class ChestBehaviour : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        var s = pool?.state?.GetChest(locationId);
+        var s = pool != null && pool.state != null ? pool.state.GetChest(locationId) : null;
         string label;
-        if (s == null)
-            label = "[ sin state ]";
-        else if (s.opened)
-            label = "✓ abierto";
+        if (s == null)            label = "[ no state ]";
+        else if (s.opened)        label = "✓ opened";
         else if (!string.IsNullOrEmpty(s.itemName))
         {
             var item = pool.FindItem(s.itemName);
             label = s.itemName + (item is SOWeapon w ? $" [T{w.tier}]" : "");
         }
-        else
-            label = "[ vacío ]";
+        else                      label = "[ empty ]";
+
         UnityEditor.Handles.Label(transform.position + Vector3.up * 1.5f, label);
     }
 #endif

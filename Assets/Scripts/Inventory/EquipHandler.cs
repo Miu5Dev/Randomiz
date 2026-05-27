@@ -1,14 +1,26 @@
 using UnityEngine;
 
+/// <summary>
+/// Tracks the currently-equipped item and routes attack/use input to it.
+/// Self-subscribes to:
+///   • OnAttackInputEvent       → calls <see cref="UseItem"/> on press.
+///   • OnItemPickedUpEvent      → auto-syncs to a freshly-picked sword when appropriate.
+///   • OnSetAttackEnabledEvent  → toggles whether attack input is honored.
+///
+/// Equip/Unequip emit OnItemEquipEvent / OnItemUnequipEvent so HUD, animations
+/// and quickslots stay in sync without inspector wiring.
+/// </summary>
 public class EquipHandler : MonoBehaviour
 {
     public static EquipHandler Instance { get; private set; }
 
     public SOItem EquipedItem;
-    
+
     [Space(10)]
     [Header("CONFIGS")]
     public Transform ItemsPivotPoint;
+
+    private bool attackEnabled = true;
 
     private void Awake()
     {
@@ -23,54 +35,69 @@ public class EquipHandler : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<OnItemPickedUpEvent>(OnItemPickedUp);
+        EventBus.Subscribe<OnAttackInputEvent>(OnAttackInput);
+        EventBus.Subscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnItemPickedUpEvent>(OnItemPickedUp);
+        EventBus.Unsubscribe<OnAttackInputEvent>(OnAttackInput);
+        EventBus.Unsubscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
 
     private void Start()
     {
-        // Opcional: comprobar que InventoryHandler existe
         if (InventoryHandler.Instance == null)
-            Debug.LogError("InventoryHandler no encontrado. Asegúrate de que hay un InventoryHandler en la escena.");
+            Debug.LogError("[EquipHandler] InventoryHandler not found in scene.");
 
-        if(EquipedItem != null)EquipItem(EquipedItem);
+        if (EquipedItem != null) EquipItem(EquipedItem);
     }
 
+    // ─── Event handlers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// When a sword is picked up that performed a tier replacement on slot 0,
+    /// EquipedItem may still reference the old sword. Auto-sync if appropriate.
+    /// </summary>
     private void OnItemPickedUp(OnItemPickedUpEvent e)
     {
-        // Si recogimos una espada (tier replacement reemplazó la del slot 0) y EquipedItem
-        // sigue apuntando a la espada antigua, sincronizamos a la nueva.
         if (e.item is SOSword && InventoryHandler.Instance != null)
         {
             SOItem slot0 = InventoryHandler.Instance.GetItem(0);
             if (slot0 != null && slot0 != EquipedItem)
             {
-                // Si el jugador estaba en la espada (o no tenía nada) → auto-equipa la nueva.
-                // Si tenía otra cosa equipada (poción, etc.) → no interrumpimos su selección.
+                // Only auto-swap if the player was on a sword (or empty-handed).
+                // If they were holding e.g. a potion, don't interrupt them.
                 if (EquipedItem == null || EquipedItem is SOSword)
                     EquipItem(slot0);
             }
         }
     }
-    
+
+    private void OnAttackInput(OnAttackInputEvent e)
+    {
+        if (!attackEnabled || !e.pressed) return;
+        UseItem();
+    }
+
+    private void OnSetAttackEnabled(OnSetAttackEnabledEvent e) => attackEnabled = e.enabled;
+
+    // ─── Public API ────────────────────────────────────────────────────────
+
     public void EquipItem(SOItem item)
     {
         if (item == null) return;
 
         SOItem prev = EquipedItem;
-        // Set FIRST, raise AFTER — así cualquier handler que lea EquipedItem ve el estado nuevo.
+        // Set FIRST, raise AFTER — handlers reading EquipedItem see the new state.
         EquipedItem = item;
         item.PivotPoint = ItemsPivotPoint;
 
         if (prev != null && prev != item)
-        {
-            EventBus.Raise(new OnItemUnequipEvent() { item = prev });
-        }
+            EventBus.Raise(new OnItemUnequipEvent { item = prev });
 
-        EventBus.Raise(new OnItemEquipEvent() { item = item });
+        EventBus.Raise(new OnItemEquipEvent { item = item });
     }
 
     public void UnEquipItem()
@@ -80,55 +107,49 @@ public class EquipHandler : MonoBehaviour
 
         if (prev == sword)
         {
-            // No hay cambio real de estado, pero re-emitimos OnItemEquipEvent para que
-            // cualquier listener (HUD, animaciones, etc.) pueda resincronizarse — protege
-            // contra desincronizaciones causadas por pickups que reemplazan el slot 0
-            // o cualquier otra modificación lateral.
+            // No actual state change, but re-emit OnItemEquipEvent so listeners (HUD,
+            // animations, etc.) can resync — protects against earlier desync from a
+            // pickup that swapped slot 0 silently.
             if (sword != null)
-                EventBus.Raise(new OnItemEquipEvent() { item = sword });
+                EventBus.Raise(new OnItemEquipEvent { item = sword });
             return;
         }
 
-        // Set FIRST, raise AFTER.
         EquipedItem = sword;
         if (sword != null) sword.PivotPoint = ItemsPivotPoint;
 
         if (prev != null)
-        {
-            EventBus.Raise(new OnItemUnequipEvent() { item = prev });
-        }
+            EventBus.Raise(new OnItemUnequipEvent { item = prev });
 
         if (sword != null)
-        {
-            EventBus.Raise(new OnItemEquipEvent() { item = sword });
-        }
+            EventBus.Raise(new OnItemEquipEvent { item = sword });
     }
 
     public void UseItem()
     {
         if (EquipedItem is SOPotion)
         {
-            SOItem emptyBottle = InventoryHandler.Instance?.defaultBottle;
+            SOItem emptyBottle = InventoryHandler.Instance != null ? InventoryHandler.Instance.defaultBottle : null;
             if (emptyBottle == null)
             {
-                Debug.LogError("EquipHandler: InventoryHandler.defaultBottle no asignado.");
+                Debug.LogError("[EquipHandler] InventoryHandler.defaultBottle is not assigned.");
                 return;
             }
 
-            // No consumir si es la botella vacía
+            // Don't consume the empty bottle.
             if (EquipedItem == emptyBottle) return;
 
             SOItem consumed = EquipedItem;
-            consumed.Use(this.gameObject);
+            consumed.Use(gameObject);
             EventBus.Raise(new OnPotionConsumeEvent(consumed, emptyBottle));
 
-            // Pasar por EquipItem para que se emitan los eventos Unequip/Equip
-            // y se sincronicen HUD, quickslots, etc.
+            // Route through EquipItem so the proper Unequip/Equip events fire
+            // (HUD, quickslots, etc. stay in sync).
             EquipItem(emptyBottle);
         }
         else if (EquipedItem is SOWeapon)
         {
-            EquipedItem.Use(this.gameObject);
+            EquipedItem.Use(gameObject);
         }
     }
 }

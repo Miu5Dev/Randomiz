@@ -2,47 +2,44 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Attach this to a GameObject in your test scene.
-/// Calls GenerateSeedFromScene() on Start so you can test
-/// without writing any extra code.
+/// Bootstraps the randomizer for a test scene. Discovers all ChestBehaviour
+/// instances in the scene and either loads a saved seed or generates a new one.
+///
+/// Runs in Awake (DefaultExecutionOrder -100) so that ChestBehaviour.Start can
+/// safely read the populated state — Unity orders all Awakes before any Start.
 /// </summary>
+[DefaultExecutionOrder(-100)]
 public class TestSceneBootstrap : MonoBehaviour
 {
     [SerializeField] private RandomizerSystem randomizerSystem;
 
     [Header("Test Controls")]
-    [Tooltip("Si true, borra el save y genera seed nueva aunque haya save previo")]
+    [Tooltip("If true, delete the save and generate a fresh seed (even if a save exists).")]
     [SerializeField] private bool forceNewSeed = false;
 
-    private void Start()
+    private void Awake()
     {
+        if (randomizerSystem == null)
+        {
+            Debug.LogError("[TestSceneBootstrap] RandomizerSystem reference not set.");
+            return;
+        }
+
+        // Single scene scan — reused for ids + requirements.
+        var chests = FindObjectsByType<ChestBehaviour>(FindObjectsSortMode.None);
+        int n = chests.Length;
+
+        var ids  = new List<string>(n);
+        var reqs = new List<List<SOItem>>(n);
+        for (int i = 0; i < n; i++)
+        {
+            ids.Add(chests[i].locationId);
+            reqs.Add(chests[i].requiredItems);
+        }
+
         if (forceNewSeed)
-        {
-            randomizerSystem.NewGame(GetIds(), GetRequirements());
-        }
+            randomizerSystem.NewGame(ids, reqs);
         else
-        {
-            // Intenta cargar save; si no hay, genera desde la escena
-            var pool = randomizerSystem.GetComponent<RandomizerSystem>();
-            // GenerateSeedFromScene detecta todos los ChestBehaviour en la escena
-            randomizerSystem.GenerateSeedFromScene();
-        }
-    }
-
-    // Helpers para construir las listas desde los cofres de la escena
-    private List<string> GetIds()
-    {
-        var chests = FindObjectsByType<ChestBehaviour>(FindObjectsSortMode.None);
-        var ids = new List<string>();
-        foreach (var c in chests) ids.Add(c.locationId);
-        return ids;
-    }
-
-    private List<List<SOItem>> GetRequirements()
-    {
-        var chests = FindObjectsByType<ChestBehaviour>(FindObjectsSortMode.None);
-        var reqs = new List<List<SOItem>>();
-        foreach (var c in chests) reqs.Add(c.requiredItems);
-        return reqs;
+            randomizerSystem.LoadOrGenerate(ids, reqs); // Honors existing save if present.
     }
 }

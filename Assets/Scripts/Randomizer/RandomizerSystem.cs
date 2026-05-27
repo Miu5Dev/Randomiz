@@ -2,24 +2,34 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 
+/// <summary>
+/// Drives chest-content randomization for the run. Walks the chest graph respecting
+/// reachability (each chest can declare required items) and tier progression to
+/// produce a beatable seed.
+///
+/// Entry points:
+///   • LoadOrGenerate — preferred at scene start; restores a save or generates new.
+///   • NewGame        — wipes save and generates a fresh seed.
+///   • GenerateSeedFromScene — discovers all ChestBehaviour in the scene and generates.
+/// </summary>
 public class RandomizerSystem : MonoBehaviour
 {
     [SerializeField] private SOItemPool pool;
-    [Tooltip("-1 = seed aleatoria cada run")]
+    [Tooltip("-1 = random seed each run")]
     [SerializeField] private int seed = -1;
 
     private RandomizerState State => pool.state;
 
-    // Cache de requirements durante la generación
+    // Cache of "what items each location requires", filled during generation/load.
     private Dictionary<string, List<SOItem>> _locationRequirements = new();
 
     // ─────────────────────────────────────────────
-    // ENTRADA PÚBLICA
+    // PUBLIC ENTRY POINTS
     // ─────────────────────────────────────────────
 
     /// <summary>
-    /// Llama al inicio del juego. Si hay save previo lo restaura;
-    /// si no, genera una seed nueva.
+    /// Restores the saved seed if one exists, otherwise generates a new seed
+    /// for the supplied location ids and their accessibility requirements.
     /// </summary>
     public void LoadOrGenerate(List<string> locationIds, List<List<SOItem>> requirements)
     {
@@ -27,16 +37,14 @@ public class RandomizerSystem : MonoBehaviour
 
         if (State.HasSave() && State.Load())
         {
-            Debug.Log("[Randomizer] Run anterior restaurada ✓");
+            Debug.Log("[Randomizer] Previous run restored ✓");
             return;
         }
 
         GenerateSeed(locationIds, requirements);
     }
 
-    /// <summary>
-    /// Borra el save actual y genera una run completamente nueva.
-    /// </summary>
+    /// <summary>Wipe the existing save and generate a brand-new seed.</summary>
     public void NewGame(List<string> locationIds, List<List<SOItem>> requirements)
     {
         State.Clear();
@@ -44,31 +52,40 @@ public class RandomizerSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Versión rápida para escenas de prueba: auto-descubre todos los
-    /// ChestBehaviour cargados en ese momento.
+    /// Convenience for test scenes: auto-discover all ChestBehaviour and generate.
+    /// Always produces a fresh seed; use LoadOrGenerate to honor saves.
     /// </summary>
     public void GenerateSeedFromScene()
     {
-        var chests = FindObjectsByType<ChestBehaviour>(FindObjectsSortMode.None).ToList();
-        GenerateSeed(
-            chests.Select(c => c.locationId).ToList(),
-            chests.Select(c => c.requiredItems).ToList()
-        );
+        // FindObjectsSortMode.None skips the sort step (fastest variant).
+        // Build the lists directly from the array — no LINQ allocations.
+        var chests = FindObjectsByType<ChestBehaviour>(FindObjectsSortMode.None);
+        int n = chests.Length;
+
+        var ids  = new List<string>(n);
+        var reqs = new List<List<SOItem>>(n);
+        for (int i = 0; i < n; i++)
+        {
+            ids.Add(chests[i].locationId);
+            reqs.Add(chests[i].requiredItems);
+        }
+
+        GenerateSeed(ids, reqs);
     }
 
     // ─────────────────────────────────────────────
-    // GENERACIÓN
+    // GENERATION
     // ─────────────────────────────────────────────
 
     public void GenerateSeed(List<string> locationIds, List<List<SOItem>> requirements)
     {
         if (locationIds == null || locationIds.Count == 0)
         {
-            Debug.LogError("[Randomizer] Lista de locationIds vacía.");
+            Debug.LogError("[Randomizer] Empty locationIds list.");
             return;
         }
 
-        // Validar duplicados
+        // Validate uniqueness of location ids.
         var duplicates = locationIds
             .GroupBy(id => id)
             .Where(g => g.Count() > 1)
@@ -78,23 +95,24 @@ public class RandomizerSystem : MonoBehaviour
         if (duplicates.Count > 0)
         {
             Debug.LogError(
-                $"[Randomizer] ✗ Duplicados detectados: {string.Join(", ", duplicates)}\n" +
-                $"⚠️ Solución: Cambia el nombre de los GameObjects para que sean únicos.");
+                $"[Randomizer] ✗ Duplicate location ids: {string.Join(", ", duplicates)}\n" +
+                $"Solution: rename the GameObjects so each chest has a unique id.");
             return;
         }
 
         int usedSeed = seed == -1 ? Random.Range(0, int.MaxValue) : seed;
         Random.InitState(usedSeed);
         State.SetSeed(usedSeed);
-        Debug.Log($"[Randomizer] Generando seed {usedSeed} con {locationIds.Count} cofres...");
+        Debug.Log($"[Randomizer] Generating seed {usedSeed} with {locationIds.Count} chests...");
 
-        // Registra todos los cofres en el state
+        // Register all chests in the state.
         State.Clear();
         foreach (var id in locationIds)
             State.Register(id);
 
         CacheRequirements(locationIds, requirements);
 
+        // Split items into progression (placed with reachability rules) and others.
         var progression = pool.items
             .Where(e => e.isProgression)
             .OrderBy(e => GetTier(e.item))
@@ -112,136 +130,134 @@ public class RandomizerSystem : MonoBehaviour
         State.Save();
 
         if (ValidateSeed())
-            Debug.Log("[Randomizer] ✓ Seed válida y guardada.");
+            Debug.Log("[Randomizer] ✓ Seed valid and saved.");
         else
-            Debug.LogError("[Randomizer] ✗ Seed inválida — revisa requiredItems y la pool.");
+            Debug.LogError("[Randomizer] ✗ Invalid seed — check requiredItems and the pool.");
     }
 
     // ─────────────────────────────────────────────
     // ASSUMED FILL
     // ─────────────────────────────────────────────
 
-private void AssumedFill(List<SOItem> itemsToPlace)
-{
-    // Agrupa items por tier para colocarlos en orden correcto
-    var itemsByTier = new Dictionary<int, List<SOItem>>();
-    foreach (var item in itemsToPlace)
+    /// <summary>
+    /// Place progression items tier-by-tier, ensuring each placement is reachable
+    /// given the items the player has already collected at that tier. Leftover empty
+    /// chests are filled with random filler items so no chest is ever empty.
+    /// </summary>
+    private void AssumedFill(List<SOItem> itemsToPlace)
     {
-        int tier = GetTier(item);
-        if (!itemsByTier.ContainsKey(tier))
-            itemsByTier[tier] = new List<SOItem>();
-        itemsByTier[tier].Add(item);
-    }
-
-    // Ordena tiers ascendente (0 → 1 → 2 → ...)
-    var sortedTiers = itemsByTier.Keys.OrderBy(t => t).ToList();
-    var placed = new HashSet<string>();  // items ya colocados
-
-    foreach (var tier in sortedTiers)
-    {
-        var tierItems = itemsByTier[tier];
-        
-        // Baraja items del mismo tier para aleatoriedad
-        Shuffle(tierItems);
-
-        foreach (var item in tierItems)
+        // Group items by tier so we can place low tiers first (they may unlock chests).
+        var itemsByTier = new Dictionary<int, List<SOItem>>();
+        foreach (var item in itemsToPlace)
         {
-            var assumed = placed.ToHashSet();
-            int currentMaxTier = GetReachableTierSoFar(assumed);
-            int itemTier = GetTier(item);
-            
+            int tier = GetTier(item);
+            if (!itemsByTier.ContainsKey(tier))
+                itemsByTier[tier] = new List<SOItem>();
+            itemsByTier[tier].Add(item);
+        }
 
-            // Buscar cofres accesibles y válidos
-            var reachable = State.chests
-                .Where(c =>
-                    string.IsNullOrEmpty(c.itemName) &&
-                    IsAccessible(c.locationId, assumed) &&
-                    IsTierProgressionValid(itemTier, currentMaxTier))
-                .ToList();
+        var sortedTiers = itemsByTier.Keys.OrderBy(t => t).ToList();
+        var placed = new HashSet<string>(); // items already placed (by itemName)
 
-            if (reachable.Count == 0)
+        foreach (var tier in sortedTiers)
+        {
+            var tierItems = itemsByTier[tier];
+            Shuffle(tierItems);
+
+            foreach (var item in tierItems)
             {
-                // Intento de recuperación: fuerza accesibilidad si es Tier 0 o 1
-                if (itemTier <= 1)
+                var assumed = placed.ToHashSet();
+                int currentMaxTier = GetReachableTierSoFar(assumed);
+                int itemTier = GetTier(item);
+
+                // Pick reachable chests that respect tier progression.
+                var reachable = State.chests
+                    .Where(c =>
+                        string.IsNullOrEmpty(c.itemName) &&
+                        IsAccessible(c.locationId, assumed) &&
+                        IsTierProgressionValid(itemTier, currentMaxTier))
+                    .ToList();
+
+                if (reachable.Count == 0)
                 {
-                    var anyEmpty = State.chests
-                        .Where(c => string.IsNullOrEmpty(c.itemName))
-                        .FirstOrDefault();
-                    
-                    if (anyEmpty != null)
+                    // Recovery: for low tiers, force-place in any empty chest.
+                    if (itemTier <= 1)
                     {
-                        Debug.LogWarning($"[Randomizer] ⚠ No hay cofres accesibles para '{item.itemName}' " +
-                                        $"(T{itemTier}), forzando colocación en {anyEmpty.locationId}");
-                        State.SetItem(anyEmpty.locationId, item);
-                        placed.Add(item.itemName);
-                        continue;
+                        var anyEmpty = State.chests.FirstOrDefault(c => string.IsNullOrEmpty(c.itemName));
+                        if (anyEmpty != null)
+                        {
+                            Debug.LogWarning($"[Randomizer] ⚠ No reachable chest for '{item.itemName}' " +
+                                             $"(T{itemTier}); force-placing at {anyEmpty.locationId}.");
+                            State.SetItem(anyEmpty.locationId, item);
+                            placed.Add(item.itemName);
+                            continue;
+                        }
                     }
+
+                    Debug.LogError(
+                        $"[Randomizer] ✗ No location for '{item.itemName}' " +
+                        $"(tier {itemTier}, maxReachable={currentMaxTier}). " +
+                        $"Placed so far: {placed.Count}/{itemsToPlace.Count}");
+                    continue; // try next item
                 }
 
-                Debug.LogError(
-                    $"[Randomizer] ✗ Sin ubicación para '{item.itemName}' " +
-                    $"(tier {itemTier}, maxTierActual={currentMaxTier}). " +
-                    $"¿Suficientes cofres accesibles para ese tier? " +
-                    $"Items colocados: {placed.Count}, Todavía por colocar: {itemsToPlace.Count - placed.Count}");
-                
-                // NO retornar temprano — continuar para intentar colocar los demás items
-                continue;
+                State.SetItem(reachable[Random.Range(0, reachable.Count)].locationId, item);
+                placed.Add(item.itemName);
             }
-
-            State.SetItem(reachable[Random.Range(0, reachable.Count)].locationId, item);
-            placed.Add(item.itemName);
         }
-        
-        
+
+        // Report unplaced progression items.
+        var unplaced = itemsToPlace.Where(i => !placed.Contains(i.itemName)).ToList();
+        if (unplaced.Count > 0)
+        {
+            Debug.LogWarning($"[Randomizer] ⚠ {unplaced.Count} unplaced items: " +
+                             $"{string.Join(", ", unplaced.Select(i => i.itemName))}");
+        }
+
+        // Fill remaining empty chests with filler (so no chest is ever empty).
+        var emptyChests = State.chests.Where(c => string.IsNullOrEmpty(c.itemName)).ToList();
+        if (emptyChests.Count == 0) return;
+
+        if (pool.fillerItems == null || pool.fillerItems.Count == 0)
+        {
+            Debug.LogError(
+                $"[Randomizer] ✗ CRITICAL: {emptyChests.Count} empty chests and pool has no filler items.\n" +
+                $"Solution: open the SOItemPool asset and add at least 1 item to 'fillerItems'.");
+            return;
+        }
+
+        Debug.Log($"[Randomizer] ℹ {emptyChests.Count} empty chests — filling with random filler.");
+        foreach (var chest in emptyChests)
+        {
+            var filler = pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
+            State.SetItem(chest.locationId, filler);
+        }
     }
 
-        // Verificación final: ¿quedaron items sin colocar?
-            var unplaced = itemsToPlace.Where(i => !placed.Contains(i.itemName)).ToList();
-            if (unplaced.Count > 0)
-            {
-                Debug.LogWarning($"[Randomizer] ⚠ {unplaced.Count} items no se pudieron colocar: " +
-                                 $"{string.Join(", ", unplaced.Select(i => i.itemName))}");
-            }
-
-        // ← AGREGA ESTO: Rellenar cofres vacíos con filler infinito
-            var emptyChests = State.chests
-                .Where(c => string.IsNullOrEmpty(c.itemName))
-                .ToList();
-
-            if (emptyChests.Count > 0)
-            {
-                if (pool.fillerItems.Count > 0)
-                {
-                    Debug.Log($"[Randomizer] ℹ️ {emptyChests.Count} cofres vacíos — rellenando con filler infinito");
-                
-                    foreach (var chest in emptyChests)
-                    {
-                        var filler = pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
-                        State.SetItem(chest.locationId, filler);
-                        Debug.Log($"[Randomizer] ✓ {chest.locationId} → {filler.itemName} (filler, tier {GetTier(filler)})");
-                    }
-                }
-                else
-                {
-                    Debug.LogError(
-                        $"[Randomizer] ✗ CRÍTICO: {emptyChests.Count} cofres vacíos y **fillerItems está vacío** en SOItemPool.\n" +
-                        $"⚠️ Solución: Abre el SOItemPool y arrastra al menos 1 item a 'Filler items'");
-                }
-            }
-}
-
+    /// <summary>
+    /// Fills any empty chest with non-progression items (one-to-one).
+    /// AssumedFill already filled empty chests with filler, so this only matters
+    /// when there are more non-progression items than empty chests left.
+    /// </summary>
     private void FillRemaining(List<SOItem> fillItems)
     {
         var empty = State.chests.Where(c => string.IsNullOrEmpty(c.itemName)).ToList();
+        if (empty.Count == 0 || fillItems == null || fillItems.Count == 0) return;
+
         Shuffle(fillItems);
         for (int i = 0; i < empty.Count && i < fillItems.Count; i++)
             State.SetItem(empty[i].locationId, fillItems[i]);
     }
 
     // ─────────────────────────────────────────────
-    // VALIDACIÓN POST-GENERACIÓN
+    // POST-GEN VALIDATION
     // ─────────────────────────────────────────────
 
+    /// <summary>
+    /// Simulates a playthrough: collects every reachable chest, then re-checks if
+    /// new collected items unlocked more chests, until no more progress is possible.
+    /// Returns true if all required items are reachable.
+    /// </summary>
     public bool ValidateSeed()
     {
         var collected = new HashSet<string>();
@@ -288,10 +304,10 @@ private void AssumedFill(List<SOItem> itemsToPlace)
 
     private bool IsTierProgressionValid(int itemTier, int currentMaxTier)
     {
-        // Tier 0 (pociones, llaves) y Tier 1 (espada inicial) siempre validan
+        // Tier 0 (potions, keys) and tier 1 (starter sword) always validate.
         if (itemTier <= 1) return true;
-    
-        // Tier 2+ requiere maxTier actual >= tier - 1
+
+        // Tier 2+ requires current max tier ≥ itemTier - 1 (so the player can reach it).
         return itemTier <= currentMaxTier + 1;
     }
 

@@ -264,7 +264,7 @@ public class InteractableEditor : Editor
 
                 case ParamSourceMode.Toggle:
                 {
-                    if (pType != typeof(bool)) { EditorGUILayout.HelpBox("Toggle solo funciona con parámetros bool.", MessageType.Warning); break; }
+                    if (pType != typeof(bool)) { EditorGUILayout.HelpBox("Toggle only works with bool parameters.", MessageType.Warning); break; }
                     var tObj3 = bp.FindPropertyRelative("targetObject").objectReferenceValue;
                     if (tObj3 == null) { EditorGUILayout.HelpBox("Assign component first.", MessageType.Warning); break; }
                     var boolMems = EventBusEditorUtils.GetComponentMembers(tObj3, typeof(bool))
