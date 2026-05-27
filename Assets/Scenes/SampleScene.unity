@@ -1258,7 +1258,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -120, y: -120}
+  m_AnchoredPosition: {x: -60, y: -60}
   m_SizeDelta: {x: 200, y: 200}
   m_Pivot: {x: 1, y: 1}
 --- !u!114 &613551245
@@ -1277,8 +1277,6 @@ MonoBehaviour:
   eastButton: {fileID: 2029273550}
   westButton: {fileID: 704419968}
   southButton: {fileID: 37863285}
-  playerMovement: {fileID: 0}
-  interactor: {fileID: 0}
   labelAttack: Attack
   labelUse: Use
   labelEquip: Equip
@@ -2095,7 +2093,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 48, y: -53.333282}
+  m_AnchoredPosition: {x: 60, y: -60}
   m_SizeDelta: {x: 0, y: 100}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1075832878
@@ -3821,6 +3819,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 706114515361705133, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 706114515361705133, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].eventFieldName
+      value: Direction
+      objectReference: {fileID: 0}
+    - target: {fileID: 706114515361705133, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].eventFieldName
+      value: Direction
+      objectReference: {fileID: 0}
     - target: {fileID: 824146926404192644, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: smartBindings.Array.size
       value: 1
@@ -4041,6 +4051,18 @@ PrefabInstance:
       propertyPath: smartBindings.Array.data[1].conditions.Array.data[3].componentFieldName
       value: onInteractArea
       objectReference: {fileID: 0}
+    - target: {fileID: 1458423957814084940, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1458423957814084940, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 1458423957814084940, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 2032308462260549170, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: falloffMinSpeed
       value: 6
@@ -4086,6 +4108,10 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2539656050800056934, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 2539656050800056934, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: smartBindings.Array.data[0].conditions.Array.data[0].source
       value: 2
       objectReference: {fileID: 0}
@@ -4102,6 +4128,14 @@ PrefabInstance:
       value: false
       objectReference: {fileID: 0}
     - target: {fileID: 2539656050800056934, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].eventFieldName
+      value: pressed
+      objectReference: {fileID: 0}
+    - target: {fileID: 2539656050800056934, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].eventFieldName
+      value: pressed
+      objectReference: {fileID: 0}
+    - target: {fileID: 2539656050800056934, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: smartBindings.Array.data[0].conditions.Array.data[0].componentFieldName
       value: IsWallhugging
       objectReference: {fileID: 0}
@@ -4109,12 +4143,85 @@ PrefabInstance:
       propertyPath: m_Name
       value: '[Player]'
       objectReference: {fileID: 0}
+    - target: {fileID: 3145794410301104027, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3145794410301104027, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3145794410301104027, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3977510148982813415, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3977510148982813415, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 3977510148982813415, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 5230418838899386553, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       propertyPath: 'invItems.Array.data[1]'
       value: 
       objectReference: {fileID: 11400000, guid: e5c34576838a4b0479c456f504d6898b, type: 2}
+    - target: {fileID: 5402378114968281294, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5402378114968281294, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5402378114968281294, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5432508675145429631, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5432508675145429631, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 5432508675145429631, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6804025531091216629, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6804025531091216629, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 6804025531091216629, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7759148915602985647, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7759148915602985647, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[1].mode
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 7759148915602985647, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
+      propertyPath: smartBindings.Array.data[0].paramSources.Array.data[2].mode
+      value: 3
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 8303086561480192667, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 3724223639393990921, guid: a9ffcd7fd236b274eb71d5537243b38c, type: 3}
       insertIndex: -1
