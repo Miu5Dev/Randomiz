@@ -25,6 +25,12 @@ public class HealthSystem : MonoBehaviour
         if (maxHearts <= 0) maxHearts = 3;
         UpdateMaxHealth();
         currentHealth = maxHealth;
+    }
+
+    private void Start()
+    {
+        // Se publica en Start (no en Awake) para garantizar que los suscriptores
+        // de UI (HeartsDisplay, etc.) ya hicieron Subscribe en su OnEnable.
         PublishHealthChanged();
     }
 

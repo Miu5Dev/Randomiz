@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemName: Divine Sword
   itemDescription: 
-  itemSprite: {fileID: 0}
+  itemSprite: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
+  isFiller: 0
   prefab: {fileID: 0}
   PivotPoint: {fileID: 0}
-  handWeight: 0
+  handWeightMultiplier: 1
   damage: 8
   range: 1
   speed: 2

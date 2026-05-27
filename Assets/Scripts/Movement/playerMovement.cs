@@ -84,12 +84,12 @@ public class PlayerMovement : MonoBehaviour
     private Vector3 dashDirection;
     private bool isJumping;
 
-    private bool isWallhugging;
+    public bool isWallhugging;
     private Vector3 wallNormal;
     private bool isWallJumping;
     private Vector3 wallJumpNormal;
 
-    private bool isLedgeGrabbing;
+    public bool isLedgeGrabbing;
     private Vector3 ledgeTopPoint;
     private Vector3 ledgeWallNormal;
     private bool ledgeBackwardBlocked; // S estaba presionada al entrar; requiere soltar antes de poder salir
