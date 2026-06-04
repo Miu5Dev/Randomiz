@@ -33,6 +33,12 @@ public class GameplayButtonsHUD : MonoBehaviour
     [SerializeField] private string labelInteract  = "Interact";
     [SerializeField] private string labelClimb     = "Climb";
 
+    [SerializeField] private Sprite ClimbSprite;
+    [SerializeField] private Sprite WallHugSprite;
+    [SerializeField] private Sprite InteractSprite;
+    [SerializeField] private Sprite DashSprite;
+    [SerializeField] private Sprite DefaultSprite;
+    
     private string lastSouthLabel = "";
 
     // ─── Cached locomotion / proximity state (event-driven, no polling) ─────
@@ -131,21 +137,21 @@ public class GameplayButtonsHUD : MonoBehaviour
     private void UpdateNorth(SOItem item)
     {
         if (northButton == null) return;
-        northButton.SetIcon(item != null ? item.itemSprite : null);
+        northButton.SetIcon(item != null ? item.itemSprite : DefaultSprite);
         northButton.SetLabel(GetQuickslotLabel(item));
     }
 
     private void UpdateEast(SOItem item)
     {
         if (eastButton == null) return;
-        eastButton.SetIcon(item != null ? item.itemSprite : null);
+        eastButton.SetIcon(item != null ? item.itemSprite : DefaultSprite);
         eastButton.SetLabel(GetQuickslotLabel(item));
     }
 
     private void UpdateWest(SOItem item)
     {
         if (westButton == null) return;
-        westButton.SetIcon(item != null ? item.itemSprite : null);
+        westButton.SetIcon(item != null ? item.itemSprite : DefaultSprite);
         westButton.SetLabel(GetWestLabel(item));
     }
 
@@ -156,6 +162,27 @@ public class GameplayButtonsHUD : MonoBehaviour
         if (label == lastSouthLabel) return;
         southButton.SetLabel(label);
         lastSouthLabel = label;
+
+        Sprite spriteToUse = DefaultSprite;
+        
+        if (label == labelClimb)
+        {
+            spriteToUse = ClimbSprite;
+        }
+        else if (label == labelInteract)
+        {
+            spriteToUse = InteractSprite;
+        }
+        else if (label == labelDash)
+        {
+            spriteToUse = DashSprite;
+        }
+        else if (label == labelWallhug)
+        {
+            spriteToUse = WallHugSprite;
+        }
+        
+        southButton.SetIcon(spriteToUse);
     }
 
     // ─── Label rules ────────────────────────────────────────────────────────

@@ -17,6 +17,21 @@ public class HealthSystem : MonoBehaviour
                      private float maxHealth;
     [SerializeField] private float currentHealth;
 
+    [Header("Invincibility")]
+    [Tooltip("Seconds of invincibility after taking a hit (i-frames). 0 = disabled (e.g. enemies).")]
+    [SerializeField] private float invincibilityDuration = 0f;
+
+    private float _invincibleUntil;
+
+    /// <summary>Current health as a 0..1 fraction of max. Safe before init.</summary>
+    public float Normalized => maxHealth > 0f ? currentHealth / maxHealth : 0f;
+
+    /// <summary>True while this entity still has health left.</summary>
+    public bool IsAlive => currentHealth > 0f;
+
+    /// <summary>True while i-frames are active (damage is ignored, used to drive the hurt flash).</summary>
+    public bool IsInvincible => invincibilityDuration > 0f && Time.time < _invincibleUntil;
+
     private void Awake()
     {
         if (maxHearts <= 0) maxHearts = 3;
@@ -48,7 +63,8 @@ public class HealthSystem : MonoBehaviour
     private void OnDamageEvent(OnDamageDealtEvent e)
     {
         if (e.Target != gameObject) return;
-        Damage(e.Damage);
+        if (IsInvincible) return;            // i-frames absorb the hit
+        Damage(e.Damage, e.Attacker);
     }
 
     private void OnHealEvent(OnHealReceivedEvent e)
@@ -59,11 +75,22 @@ public class HealthSystem : MonoBehaviour
 
     // ─── Public API ────────────────────────────────────────────────────────
 
-    public void Damage(float amount)
+    public void Damage(float amount) => Damage(amount, null);
+
+    public void Damage(float amount, GameObject attacker)
     {
+        if (amount <= 0f) return;
+
         currentHealth = Mathf.Max(0f, currentHealth - amount);
         PublishHealthChanged();
-        if (currentHealth <= 0f) OnDie();
+
+        // Always announce the hit (HitFlash on enemies, HitReaction on player all listen here).
+        EventBus.Raise(new OnDamagedEvent { victim = gameObject, attacker = attacker, damage = amount });
+
+        if (currentHealth <= 0f) { OnDie(); return; }
+
+        // Survived: start i-frames if configured.
+        if (invincibilityDuration > 0f) _invincibleUntil = Time.time + invincibilityDuration;
     }
 
     public void Heal(float amount)
@@ -82,12 +109,24 @@ public class HealthSystem : MonoBehaviour
 
     // ─── Internals ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Sets max hearts and restores health to full. Use this to initialize enemies from SOEnemy data.
+    /// </summary>
+    public void Initialize(int hearts)
+    {
+        maxHearts = Mathf.Max(1, hearts);
+        UpdateMaxHealth();
+        currentHealth = maxHealth;
+        PublishHealthChanged();
+    }
+
     private void PublishHealthChanged()
     {
         EventBus.Raise(new OnHealthChangedEvent
         {
             currentHealth = currentHealth,
-            maxHearts = maxHearts
+            maxHearts     = maxHearts,
+            target        = gameObject
         });
     }
 

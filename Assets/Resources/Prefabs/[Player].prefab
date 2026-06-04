@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1941626241419284544}
   - component: {fileID: 9078135567922094400}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[HUDButtonCross]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -74,7 +74,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6054934430126916763}
   - component: {fileID: 1109744793252506873}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[WheelContainer]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 191528601597047262}
   - component: {fileID: 1203263052612524551}
   - component: {fileID: 5128167831456836162}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: WheelRing
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -203,7 +203,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8255253196292928471}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[GFX]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -243,7 +243,11 @@ GameObject:
   - component: {fileID: 5230418838899386553}
   - component: {fileID: 5292977422519912547}
   - component: {fileID: 4894913789030065387}
-  m_Layer: 0
+  - component: {fileID: 3546408857210247071}
+  - component: {fileID: 9126995771068281582}
+  - component: {fileID: 808859295670167529}
+  - component: {fileID: 4104761178117751715}
+  m_Layer: 6
   m_Name: '[Player]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -328,64 +332,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   modelTransform: {fileID: 8255253196292928471}
   cameraTarget: {fileID: 2437229657672539260}
+  targetingSystem: {fileID: 0}
   moveSpeed: 5
   runSpeed: 8.27
   rotationSpeed: 15
   runAcceleration: 5
   runThreshold: 0.9
-  dashSpeed: 18
-  dashDuration: 0.6
-  dashCooldown: 0
-  dashCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  targetingSystem: {fileID: 0}
-  targetingJumpForce: 8
-  backflipHorizontalForce: 6
-  targetingForwardJumpForce: 4
   gravity: -20
   groundedGravity: -2
   airControlFactor: 0.1
   airDrag: 2
-  wallhugJumpForce: 6
-  wallhugExitThreshold: 0.3
-  wallhugSpeedMultiplier: 0.35
-  wallhugMinWallHeight: 1
-  wallhugLedgeJumpMaxReach: 2
+  knockbackDrag: 5
   autoStepMaxHeight: 1.25
   autoStepUpDuration: 0.25
-  ledgeGrabSpeedMultiplier: 0.25
-  ledgeDetectionDistance: 0.6
-  ledgeTopSearchHeight: 0.5
-  ledgeClimbDuration: 0.5
-  ledgeMaxReachUp: 1
-  ledgeMaxReachDown: 1
-  falloffMinDropHeight: 4
-  falloffMinSpeed: 6
+  velocity: {x: 0, y: 0, z: 0}
+  isJumping: 0
+  currentSpeed: 0
+  interactHeld: 0
   isWallhugging: 0
   isLedgeGrabbing: 0
   nearWall: 0
+  isClimbingLedge: 0
+  isSteppingUp: 0
 --- !u!114 &3017486104719572446
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -412,6 +380,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHearts: 0
   currentHealth: 0
+  invincibilityDuration: 0.7
 --- !u!114 &5230418838899386553
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -439,6 +408,7 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   defaultBottle: {fileID: 11400000, guid: 7e1ad2b9ccecfb747ac4522ab31e180f, type: 2}
+  itemPool: {fileID: 11400000, guid: 81c5d8e1dfa993d419763feebe21affc, type: 2}
   Coins: 0
 --- !u!114 &5292977422519912547
 MonoBehaviour:
@@ -483,6 +453,104 @@ MonoBehaviour:
   holdToTarget: 1
   lookCycleThreshold: 0.5
   cycleCooldown: 0.4
+--- !u!114 &3546408857210247071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2897982125319167127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c13bfed0e4b95ba4281027747ac47164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dashSpeed: 18
+  dashDuration: 0.2
+  dashCooldown: 0.8
+  dashCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  targetingJumpForce: 8
+  backflipHorizontalForce: 6
+  targetingForwardJumpForce: 4
+--- !u!114 &9126995771068281582
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2897982125319167127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb33226fea0fc9c49bb3c0f6582cf746, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  wallhugJumpForce: 6
+  wallhugExitThreshold: 0.3
+  wallhugSpeedMultiplier: 0.5
+  wallhugMinWallHeight: 1
+  wallhugLedgeJumpMaxReach: 2
+--- !u!114 &808859295670167529
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2897982125319167127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a951c0ef8e5988a48b7eeeeac24fd30c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ledgeGrabSpeedMultiplier: 0.4
+  ledgeDetectionDistance: 0.6
+  ledgeTopSearchHeight: 0.5
+  ledgeClimbDuration: 0.25
+  ledgeMaxReachUp: 0.75
+  ledgeMaxReachDown: 1
+  falloffMinDropHeight: 2.5
+  falloffMinSpeed: 1
+--- !u!114 &4104761178117751715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2897982125319167127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29676430f82b51d4d97d90a68cf0d571, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  knockbackForce: 6
+  knockbackUp: 2
+  knockbackDuration: 0.2
+  flashColor: {r: 1, g: 0, b: 0, a: 1}
+  flashAlpha: 0.4
+  blinkInterval: 0.07
+  renderers: []
 --- !u!1 &2973525265902121720
 GameObject:
   m_ObjectHideFlags: 0
@@ -492,7 +560,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3198502268657319780}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[COMPONENTS]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -527,7 +595,7 @@ GameObject:
   - component: {fileID: 5736249801433235170}
   - component: {fileID: 130249981697755985}
   - component: {fileID: 472944858260484297}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -615,7 +683,7 @@ GameObject:
   - component: {fileID: 7405544147928634307}
   - component: {fileID: 3217875281219291791}
   - component: {fileID: 2639809361039159228}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: glasses
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -703,7 +771,7 @@ GameObject:
   - component: {fileID: 8758449703711999248}
   - component: {fileID: 2509210510547734281}
   - component: {fileID: 3023744552042735519}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[CAM]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -866,7 +934,7 @@ GameObject:
   - component: {fileID: 5248233367882390539}
   - component: {fileID: 2113431452709729515}
   - component: {fileID: 1194399579437809931}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[GameplayUI]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -968,7 +1036,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2437229657672539260}
   - component: {fileID: 5022705967379575738}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[CAMTARGET]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1018,7 +1086,7 @@ GameObject:
   - component: {fileID: 7943756831770384627}
   - component: {fileID: 2907475608254147714}
   - component: {fileID: 5044905992381404534}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[HeartsContainer]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1098,6 +1166,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   heartPrefab: {fileID: 1963545081203527600, guid: 4dff6bd1c1976074a8cfc0871d3863fc, type: 3}
   container: {fileID: 3316236785666220827}
+  playerHealth: {fileID: 0}
 --- !u!1 &7951420870300095979
 GameObject:
   m_ObjectHideFlags: 0
@@ -1107,7 +1176,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 745458273832158095}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: InventoryWheel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1144,7 +1213,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8396987172178239601}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: SlotsContainer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1182,7 +1251,7 @@ GameObject:
   - component: {fileID: 1603252406262766663}
   - component: {fileID: 4120823833106686952}
   - component: {fileID: 1960142659278111576}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[INTERACTOR]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1277,7 +1346,7 @@ GameObject:
   - component: {fileID: 2788555237638045728}
   - component: {fileID: 9115647461880857841}
   - component: {fileID: 7934195087044610055}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: glasses (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1362,7 +1431,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1845484106030798742}
   - component: {fileID: 7462302864198553105}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: '[QUICKSLOTMANAGER]'
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1407,6 +1476,18 @@ PrefabInstance:
     - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Name
       value: HUDButton (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1474702529604415224, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3859008207237429867, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 5070614738296800414, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Color.a
@@ -1537,6 +1618,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: HUDButton (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1474702529604415224, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3859008207237429867, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 5734704515460720608, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -1650,6 +1743,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: HUDButton
       objectReference: {fileID: 0}
+    - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1474702529604415224, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3859008207237429867, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 5734704515460720608, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -1762,6 +1867,18 @@ PrefabInstance:
     - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Name
       value: HUDButton (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 934335175981607393, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 1474702529604415224, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 3859008207237429867, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 5734704515460720608, guid: aceeea43c17397e48a3b195405375a1e, type: 3}
       propertyPath: m_Pivot.x

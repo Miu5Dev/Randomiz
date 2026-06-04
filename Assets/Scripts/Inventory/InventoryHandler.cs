@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.IO;
 
 /// <summary>
 /// Player inventory. Fixed-size array of <see cref="SOItem"/> slots:
@@ -17,8 +18,27 @@ public class InventoryHandler : MonoBehaviour
 
     [SerializeField] private SOItem[] invItems = new SOItem[13];
     [SerializeField] public SOItem defaultBottle; // Empty-bottle reference (shared with EquipHandler)
+    [SerializeField] private SOItemPool itemPool;
 
     [SerializeField] public int Coins = 0;
+
+    // ─── Save/load ─────────────────────────────────────────────────────────────
+
+    [System.Serializable]
+    private class SaveData
+    {
+        public string[] items;
+        public int coins;
+        public string equippedItemName;
+        public string quickslot1Name;
+        public string quickslot2Name;
+    }
+
+    private static string SavePath =>
+        Path.Combine(Application.persistentDataPath, "inventory.json");
+
+    private bool _isLoading;
+    private bool _initialized;
 
     public SOItem[] InvItems => invItems;
 
@@ -36,12 +56,22 @@ public class InventoryHandler : MonoBehaviour
     {
         EventBus.Subscribe<OnItemPickedUpEvent>(OnItemPickedUp);
         EventBus.Subscribe<OnPotionConsumeEvent>(OnPotionConsume);
+        EventBus.Subscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Subscribe<OnQuickslotAssignedEvent>(OnQuickslotAssigned);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnItemPickedUpEvent>(OnItemPickedUp);
         EventBus.Unsubscribe<OnPotionConsumeEvent>(OnPotionConsume);
+        EventBus.Unsubscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Unsubscribe<OnQuickslotAssignedEvent>(OnQuickslotAssigned);
+    }
+
+    private void Start()
+    {
+        if (File.Exists(SavePath)) Load();
+        _initialized = true;
     }
 
     public SOItem GetItem(int index) => invItems[index];
@@ -59,7 +89,11 @@ public class InventoryHandler : MonoBehaviour
     private void OnPotionConsume(OnPotionConsumeEvent e)
     {
         ConsumeItem(e.consumedPotionItem, e.emptyPotionItem);
+        Save();
     }
+
+    private void OnItemEquip(OnItemEquipEvent e) => Save();
+    private void OnQuickslotAssigned(OnQuickslotAssignedEvent e) => Save();
 
     // ─── Add / consume API ─────────────────────────────────────────────────
 
@@ -68,6 +102,13 @@ public class InventoryHandler : MonoBehaviour
     /// reference on success, or null if the item couldn't be added (no space / lower tier).
     /// </summary>
     public SOItem AddItem(SOItem item)
+    {
+        SOItem result = AddItemInternal(item);
+        if (result != null) Save();
+        return result;
+    }
+
+    private SOItem AddItemInternal(SOItem item)
     {
         if (item == null) return null;
 
@@ -154,6 +195,84 @@ public class InventoryHandler : MonoBehaviour
 
         Debug.LogWarning("[Inventory] Inventory full, cannot add item.");
         return null;
+    }
+
+    // ─── Save / load / delete ──────────────────────────────────────────────────
+
+    public void Save()
+    {
+        if (_isLoading || !_initialized) return;
+
+        var data = new SaveData
+        {
+            items = new string[invItems.Length],
+            coins = Coins,
+            equippedItemName = EquipHandler.Instance?.EquipedItem?.itemName,
+            quickslot1Name   = QuickslotManager.Instance?.Slot1?.itemName,
+            quickslot2Name   = QuickslotManager.Instance?.Slot2?.itemName,
+        };
+        for (int i = 0; i < invItems.Length; i++)
+            data.items[i] = invItems[i]?.itemName;
+
+#if UNITY_EDITOR
+        File.WriteAllText(SavePath, JsonUtility.ToJson(data, prettyPrint: true));
+#else
+        File.WriteAllText(SavePath, JsonUtility.ToJson(data));
+#endif
+    }
+
+    private void Load()
+    {
+        _isLoading = true;
+        try
+        {
+            var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
+            if (data == null) return;
+
+            // Restore inventory slots.
+            for (int i = 0; i < invItems.Length && i < data.items.Length; i++)
+                invItems[i] = string.IsNullOrEmpty(data.items[i])
+                    ? null
+                    : itemPool?.FindItem(data.items[i]);
+            Coins = data.coins;
+
+            // Restore equipped item.
+            if (!string.IsNullOrEmpty(data.equippedItemName) && EquipHandler.Instance != null)
+            {
+                SOItem equipped = itemPool?.FindItem(data.equippedItemName);
+                if (equipped != null) EquipHandler.Instance.EquipItem(equipped);
+            }
+
+            // Restore quickslot assignments.
+            if (QuickslotManager.Instance != null)
+            {
+                if (!string.IsNullOrEmpty(data.quickslot1Name))
+                {
+                    SOItem s1 = itemPool?.FindItem(data.quickslot1Name);
+                    if (s1 != null) QuickslotManager.Instance.AssignToSlot(1, s1);
+                }
+                if (!string.IsNullOrEmpty(data.quickslot2Name))
+                {
+                    SOItem s2 = itemPool?.FindItem(data.quickslot2Name);
+                    if (s2 != null) QuickslotManager.Instance.AssignToSlot(2, s2);
+                }
+            }
+
+            Debug.Log("[Inventory] Save loaded ✓");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[Inventory] Load failed: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public static void DeleteSave()
+    {
+        if (File.Exists(SavePath)) File.Delete(SavePath);
     }
 
     private void ConsumeItem(SOItem item, SOItem consumedItem)

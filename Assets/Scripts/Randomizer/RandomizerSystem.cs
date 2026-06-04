@@ -47,6 +47,7 @@ public class RandomizerSystem : MonoBehaviour
     /// <summary>Wipe the existing save and generate a brand-new seed.</summary>
     public void NewGame(List<string> locationIds, List<List<SOItem>> requirements)
     {
+        InventoryHandler.DeleteSave();
         State.Clear();
         GenerateSeed(locationIds, requirements);
     }

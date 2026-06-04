@@ -3,7 +3,27 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Weapon", menuName = "Items/Sword")]
 public class SOSword : SOWeapon
 {
-    [Header("Hitbox Settings")]
+    public enum DamageMode
+    {
+        OverlapBox,    // classic: a single OverlapBox at the swing frame (current behaviour)
+        MovingHitbox,  // a MeleeHitbox collider on the weapon that follows the animation
+    }
+
+    [Header("Damage Mode")]
+    [Tooltip("OverlapBox = instant box at the swing frame. MovingHitbox = a collider on the weapon " +
+             "that deals damage on contact while it follows the swing animation.")]
+    public DamageMode damageMode = DamageMode.OverlapBox;
+
+    [Header("Moving Hitbox (when DamageMode = MovingHitbox)")]
+    [Tooltip("If true, animation events (WeaponAnimationRelay) open/close the window. " +
+             "If false (or no Animator), a timed window is used instead.")]
+    public bool  hitboxUseAnimationEvents = true;
+    [Tooltip("Timed mode: delay before the window opens (seconds).")]
+    public float hitboxActiveDelay = 0.05f;
+    [Tooltip("Timed mode: how long the window stays open (seconds).")]
+    public float hitboxActiveDuration = 0.25f;
+
+    [Header("Hitbox Settings (OverlapBox mode)")]
     public Vector3   hitboxSize  = new Vector3(1f, 1f, 1f);
     public float     hitboxReach = 1f;
     public LayerMask targetLayers;
@@ -23,6 +43,12 @@ public class SOSword : SOWeapon
 
     public override void Use(GameObject user)
     {
+        if (damageMode == DamageMode.MovingHitbox)
+        {
+            UseMovingHitbox(user);
+            return;
+        }
+
         if (_swingOpen)
         {
             TryHit(user);
@@ -44,6 +70,43 @@ public class SOSword : SOWeapon
         {
             TryHit(user);
             _swingOpen = false;
+        }
+    }
+
+    /// <summary>
+    /// MovingHitbox path: plays the swing animation and lets the weapon's
+    /// <see cref="MeleeHitbox"/> deal damage on contact while it follows the blade.
+    /// If animation events are configured, the relay opens/closes the window;
+    /// otherwise a timed window is used.
+    /// </summary>
+    private void UseMovingHitbox(GameObject user)
+    {
+        MeleeHitbox hitbox = user.GetComponentInChildren<MeleeHitbox>();
+        if (hitbox == null)
+        {
+            Debug.LogWarning($"[SOSword] '{itemName}' is MovingHitbox mode but no MeleeHitbox " +
+                             $"was found under {user.name}. Add one to the weapon model.");
+            return;
+        }
+
+        if (_cachedAnimator == null) _cachedAnimator = user.GetComponent<Animator>();
+        bool hasAnimator = _cachedAnimator != null && !string.IsNullOrEmpty(attackTrigger);
+
+        if (hasAnimator)
+        {
+            if (_cachedAttackHash == 0) _cachedAttackHash = Animator.StringToHash(attackTrigger);
+            _cachedAnimator.SetTrigger(_cachedAttackHash);
+        }
+
+        if (hitboxUseAnimationEvents && hasAnimator)
+        {
+            // Pre-arm; WeaponAnimationRelay's events will Begin/End the window.
+            hitbox.Arm(user, damage);
+        }
+        else
+        {
+            // No animator (or events disabled): drive a timed window directly.
+            hitbox.OpenTimed(user, damage, hitboxActiveDelay, hitboxActiveDuration);
         }
     }
 

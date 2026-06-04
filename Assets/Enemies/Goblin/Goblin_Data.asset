@@ -1,0 +1,258 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7348880348607246480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Sneak Chase
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.45
+  stopDistance: 1.4
+--- !u!114 &-6886297847024651974
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8080ea97628f9842a9472bd5f7864d4, type: 3}
+  m_Name: Back Off
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.1
+  safeDistance: 4.5
+  faceWhileFleeing: 1
+--- !u!114 &-5963178850723579860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Hunt
+  m_EditorClassIdentifier: 
+  label: Hunt
+  decisionInterval: {x: 1, y: 2}
+  noise: 0.25
+  states:
+  - label: Sneak In
+    movement: {fileID: -7348880348607246480}
+    attack: {fileID: -5477329877676151528}
+    baseWeight: 50
+    duration: {x: 0.8, y: 1.6}
+    modifiers:
+    - {fileID: 2195638614272757758}
+    - {fileID: 8401708388095116230}
+  - label: Retreat
+    movement: {fileID: -6886297847024651974}
+    attack: {fileID: -2366224544981085415}
+    baseWeight: 35
+    duration: {x: 0.6, y: 1.2}
+    modifiers:
+    - {fileID: -1151364646188002381}
+  - label: Circle
+    movement: {fileID: -327296584297303116}
+    attack: {fileID: -4214060374060287308}
+    baseWeight: 22
+    duration: {x: 0.8, y: 1.5}
+    modifiers:
+    - {fileID: 1642192011687609395}
+  exitCondition: {fileID: -1780782986208719296}
+--- !u!114 &-5477329877676151528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01b9548c6ee1ae41a4ab67792c2c4f1, type: 3}
+  m_Name: Poke
+  m_EditorClassIdentifier: 
+  attackRange: 1.7
+  cooldown: 1
+--- !u!114 &-4214060374060287308
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &-2366224544981085415
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &-1780782986208719296
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay In Hunt
+  m_EditorClassIdentifier: 
+--- !u!114 &-1151364646188002381
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb95bd67b5600e043817a2b60fa746a1, type: 3}
+  m_Name: Flee When Close
+  m_EditorClassIdentifier: 
+  distance: 2.2
+  multiplier: 2.5
+--- !u!114 &-327296584297303116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dea1b5f557c8a2f45809779d75d2b1ec, type: 3}
+  m_Name: Side Step
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.9
+  radius: 2.6
+  direction: 1
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: Goblin_Data
+  m_EditorClassIdentifier: 
+  enemyName: Goblin
+  parts:
+  - partName: Goblin
+    maxHearts: 2
+    moveSpeed: 3.2
+    turnSpeed: 14
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 11400000, guid: b0775c92f16106d49ba9ecde651c0a41, type: 2}
+    vision:
+      range: 10
+      angle: 140
+      alertRadius: 2.5
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: 5462098088586354767}
+    phases:
+    - {fileID: -5963178850723579860}
+    dodgeReaction: {fileID: 5619202764740942297}
+    dodgeChance: 0.6
+    dodgeReactionTime: 0.4
+--- !u!114 &1642192011687609395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb95bd67b5600e043817a2b60fa746a1, type: 3}
+  m_Name: Juke When Close
+  m_EditorClassIdentifier: 
+  distance: 3
+  multiplier: 1.5
+--- !u!114 &2195638614272757758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb3cd80201f8974d9567e8508b692ad, type: 3}
+  m_Name: Approach When Far
+  m_EditorClassIdentifier: 
+  distance: 2
+  multiplier: 2
+--- !u!114 &5462098088586354767
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e8eb10da611f443aceb472e2284cda, type: 3}
+  m_Name: Idle Wander
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.4
+  wanderRadius: 4
+  changeInterval: 3
+  reachDistance: 0.5
+--- !u!114 &5619202764740942297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Evade
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 14
+  burstTime: 0.4
+--- !u!114 &8401708388095116230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ad1073a2f0253498b4dd38c4bb7161, type: 3}
+  m_Name: Don't Re-approach
+  m_EditorClassIdentifier: 
+  cooldown: 2
+  minMultiplier: 0.2
