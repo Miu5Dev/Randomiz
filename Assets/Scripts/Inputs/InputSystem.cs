@@ -11,6 +11,11 @@ using UnityEngine.InputSystem;
 /// </summary>
 public class InputSystem : MonoBehaviour
 {
+    // Single authoritative input router. A duplicate would raise every input event
+    // twice — harmless for additive inputs (move) but breaks toggles (pause/inventory),
+    // since two presses net to no change. The guard below destroys any duplicate.
+    public static InputSystem Instance { get; private set; }
+
     private MyInputs inputs;
     private LookInputSource currentLookSource = LookInputSource.Mouse;
 
@@ -27,6 +32,15 @@ public class InputSystem : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogWarning("[InputSystem] A second InputSystem was found and destroyed. " +
+                             "Only one may exist or every input fires twice (breaks pause/inventory toggles).", this);
+            Destroy(this);
+            return;
+        }
+        Instance = this;
+
         inputs = new MyInputs();
 
         inputs.Player.MOVE.performed += OnMovePerformed;
@@ -57,8 +71,14 @@ public class InputSystem : MonoBehaviour
         inputs.Player.PAUSE.canceled       += OnPauseInput;
     }
 
-    private void OnEnable()  => inputs.Player.Enable();
-    private void OnDisable() => inputs.Player.Disable();
+    // Null-safe: a destroyed duplicate (inputs == null) must not throw here.
+    private void OnEnable()  { if (inputs != null) inputs.Player.Enable(); }
+    private void OnDisable() { if (inputs != null) inputs.Player.Disable(); }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
 
     // ── Look ────────────────────────────────────────────────────────────
 

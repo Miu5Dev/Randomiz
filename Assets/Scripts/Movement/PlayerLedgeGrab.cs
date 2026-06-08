@@ -170,6 +170,7 @@ public class PlayerLedgeGrab : MonoBehaviour
                     }
                     physics.SetPosition(prevPos);
                     pm.velocity = Vector3.zero;
+                    return;  // blocked: skip the trailing re-snap below
                 }
             }
             else
@@ -178,6 +179,7 @@ public class PlayerLedgeGrab : MonoBehaviour
                 {
                     physics.SetPosition(prevPos);
                     pm.velocity = Vector3.zero;
+                    return;  // blocked: skip the trailing re-snap below
                 }
             }
         }
@@ -214,33 +216,13 @@ public class PlayerLedgeGrab : MonoBehaviour
         pm.Dash?.ResetCooldown();
     }
 
-    // Optional: when >= 0, the body follows the ANIMATION's progress (0..1) instead
-    // of its own timer, so the climb motion matches the clip's non-linear curve.
-    // PlayerAnimator feeds this from the ClimbUp state's normalizedTime.
-    private float _animClimbProgress = -1f;
-    public void SetClimbProgress(float t01) => _animClimbProgress = Mathf.Clamp01(t01);
-
     public void TickClimb()
     {
-        float t;
-        if (_animClimbProgress >= 0f)
-        {
-            // Drive the body by the clip's own progress (matches its motion curve).
-            t = _animClimbProgress;
-            physics.SetPosition(Vector3.Lerp(climbStartPos, climbEndPos, t));
-            if (t >= 0.999f)
-            {
-                pm.isClimbingLedge = false;
-                pm.velocity = Vector3.zero;
-                physics.ResolveOverlaps();
-                _animClimbProgress = -1f;
-            }
-            return;
-        }
-
-        // Fallback: timer-driven (no animator hooked up).
+        // Always timer-driven against the (clip-matched) climb duration, so the climb
+        // is GUARANTEED to finish - it never waits on an animation normalizedTime
+        // that may stall just short of 1 and lock the player in a loop.
         climbTimer += Time.fixedDeltaTime;
-        t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(climbTimer / ledgeClimbDuration));
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(climbTimer / ledgeClimbDuration));
         physics.SetPosition(Vector3.Lerp(climbStartPos, climbEndPos, t));
 
         if (climbTimer >= ledgeClimbDuration)

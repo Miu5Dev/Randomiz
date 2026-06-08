@@ -68,6 +68,11 @@ public class InventoryHandler : MonoBehaviour
         EventBus.Unsubscribe<OnQuickslotAssignedEvent>(OnQuickslotAssigned);
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Start()
     {
         if (File.Exists(SavePath)) Load();
@@ -95,6 +100,39 @@ public class InventoryHandler : MonoBehaviour
     private void OnItemEquip(OnItemEquipEvent e) => Save();
     private void OnQuickslotAssigned(OnQuickslotAssignedEvent e) => Save();
 
+    // ─── Save-system snapshot / restore ────────────────────────────────────
+
+    /// <summary>
+    /// Returns the inventory as an array of item names (null entry = empty slot).
+    /// Used by the multi-slot save system to snapshot the exact inventory layout.
+    /// </summary>
+    public string[] GetItemNamesSnapshot()
+    {
+        var names = new string[invItems.Length];
+        for (int i = 0; i < invItems.Length; i++)
+            names[i] = invItems[i]?.itemName;
+        return names;
+    }
+
+    /// <summary>
+    /// Restores the inventory slots and coins from a name snapshot, resolving names
+    /// through the item pool. Bypasses AddItem rules to reproduce the exact layout.
+    /// Does NOT trigger the legacy single-file Save (the slot file is authoritative).
+    /// </summary>
+    public void RestoreInventory(System.Collections.Generic.IList<string> itemNames, int coins)
+    {
+        for (int i = 0; i < invItems.Length; i++)
+        {
+            string name = (itemNames != null && i < itemNames.Count) ? itemNames[i] : null;
+            invItems[i] = string.IsNullOrEmpty(name) ? null : itemPool?.FindItem(name);
+        }
+        Coins = coins;
+    }
+
+    /// <summary>Resolves an item name through the inventory's item pool (may be null).</summary>
+    public SOItem ResolveItem(string itemName) =>
+        string.IsNullOrEmpty(itemName) ? null : itemPool?.FindItem(itemName);
+
     // ─── Add / consume API ─────────────────────────────────────────────────
 
     /// <summary>
@@ -104,13 +142,31 @@ public class InventoryHandler : MonoBehaviour
     public SOItem AddItem(SOItem item)
     {
         SOItem result = AddItemInternal(item);
-        if (result != null) Save();
+        if (result != null)
+        {
+            Save();
+            // Single chokepoint for EVERY acquisition (chest, shop, key, scripted
+            // grant). Drives the pickup popup, sword auto-sync and logging. Save
+            // restore bypasses this via RestoreInventory, so loads don't spam popups.
+            EventBus.Raise(new OnItemPickedUpEvent(result, gameObject));
+        }
         return result;
     }
 
     private SOItem AddItemInternal(SOItem item)
     {
         if (item == null) return null;
+
+        // ─ Keys ────────────────────────────────────────────────────────────
+        // Keys never occupy inventory slots — route straight to KeyInventory.
+        if (item is SOKey key)
+        {
+            if (KeyInventory.Instance != null)
+                KeyInventory.Instance.AddKey(key.keyId, key.itemName, key.itemSprite);
+            else
+                Debug.LogWarning("[Inventory] KeyInventory not in scene — key lost.");
+            return item;   // return non-null so the chest marks itself opened
+        }
 
         // ─ Potions ─────────────────────────────────────────────────────────
         if (item is SOPotion)

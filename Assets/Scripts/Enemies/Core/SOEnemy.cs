@@ -60,6 +60,9 @@ public class SOEnemy : ScriptableObject
 {
     public string enemyName = "Enemy";
 
+    [Tooltip("Prefab instantiated by EnemySpawnZone. Must have EnemyController + PhysicsController + HealthSystem.")]
+    public GameObject prefab;
+
     [Tooltip("One entry per independently-controlled body. 1 = normal enemy, N = multi-part boss.")]
     public List<EnemyPartData> parts = new() { new EnemyPartData() };
 }

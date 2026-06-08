@@ -60,6 +60,9 @@ public class ChestBehaviour : MonoBehaviour
         if (s.opened) SetVisualOpened();
     }
 
+    /// <summary>No-arg wrapper for UnityEvent wiring (e.g. Interactable.OnUse).</summary>
+    public void OpenInteract() => Open(gameObject);
+
     /// <summary>Called by an Interactable trigger / Use(): resolves item and adds to inventory.</summary>
     public void Open(GameObject opener)
     {
@@ -113,7 +116,9 @@ public class ChestBehaviour : MonoBehaviour
             return;
         }
 
-        EventBus.Raise(new OnItemPickedUpEvent(addedItem, opener));
+        // OnItemPickedUpEvent is raised inside InventoryHandler.AddItem (the single
+        // chokepoint for all acquisitions) — not here, to avoid firing it twice.
+        EventBus.Raise(new OnChestOpenedEvent(this));
         State.SetOpened(locationId);
         SetVisualOpened();
 

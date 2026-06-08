@@ -46,6 +46,11 @@ public class PlayerIK : MonoBehaviour
         }
     }
 
+    /// <summary>The authoritative player state (Locomotion if no state machine).</summary>
+    public PlayerAnimState State =>
+        PlayerStateMachine.Instance != null ? PlayerStateMachine.Instance.Current
+                                            : PlayerAnimState.Locomotion;
+
     private void Awake()
     {
         Animator = GetComponent<Animator>();

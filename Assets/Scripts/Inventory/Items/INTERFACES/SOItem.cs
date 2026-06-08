@@ -13,6 +13,11 @@ public abstract class SOItem : ScriptableObject
     public string itemDescription = "";
     public Sprite itemSprite;
 
+    [Header("Economy")]
+    [Tooltip("Base shop price before any NPC personality multiplier is applied.")]
+    [Min(0)]
+    public int baseValue = 10;
+
     [Header("Filler Settings")]
     [Tooltip("This item is used as a fallback when no higher tier is available.")]
     public bool isFiller = false;

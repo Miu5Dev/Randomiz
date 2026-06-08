@@ -61,8 +61,13 @@ public class TargetingSystem : MonoBehaviour
         if (cameraTarget == null) Debug.LogWarning("[TargetingSystem] CameraTarget not assigned.");
 
         // Initialize pitch from the cameraTarget's current X rotation.
+        // eulerAngles.x returns 270 for -90 degrees — normalize to [-180, 180].
         if (cameraTarget != null)
-            _currentPitch = cameraTarget.eulerAngles.x;
+        {
+            float raw = cameraTarget.eulerAngles.x;
+            if (raw > 180f) raw -= 360f;
+            _currentPitch = Mathf.Clamp(raw, minPitch, maxPitch);
+        }
     }
 
     private void OnEnable()

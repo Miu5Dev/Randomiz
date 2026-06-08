@@ -20,6 +20,26 @@ public class RandomizerSystem : MonoBehaviour
 
     private RandomizerState State => pool.state;
 
+    /// <summary>The seed of the current run (exposed for the save system).</summary>
+    public int CurrentSeed => State.currentSeed;
+
+    /// <summary>List of location ids whose chests are currently marked opened.</summary>
+    public List<string> GetOpenedChestIds()
+    {
+        var result = new List<string>();
+        foreach (var c in State.chests)
+            if (c.opened) result.Add(c.locationId);
+        return result;
+    }
+
+    /// <summary>Re-applies opened flags for the given chest ids after a load.</summary>
+    public void RestoreOpenedChests(IEnumerable<string> openedIds)
+    {
+        if (openedIds == null) return;
+        foreach (var id in openedIds)
+            State.SetOpened(id);
+    }
+
     // Cache of "what items each location requires", filled during generation/load.
     private Dictionary<string, List<SOItem>> _locationRequirements = new();
 

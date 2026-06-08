@@ -62,6 +62,16 @@ public class PlayerMovement : MonoBehaviour
     private float knockbackTimer;
     public bool IsKnockedBack => knockbackTimer > 0f;
 
+    // Authoritative facing held while targeting without an enemy.
+    private Vector3 _targetFacing = Vector3.forward;
+    private bool    _targetFacingSet;
+
+    // Wallhug exit: face away from the wall when no movement input is given.
+    private Vector3 _wallhugExitFacing;
+    private bool    _hasWallhugExitFacing;
+    private bool    _prevWallhugging;
+
+
     // ─── Singleton ─────────────────────────────────────────────────────────────
     public static PlayerMovement Instance { get; private set; }
 
@@ -122,7 +132,19 @@ public class PlayerMovement : MonoBehaviour
         EventBus.Unsubscribe<OnItemEquipEvent>(OnItemEquipped);
         EventBus.Unsubscribe<OnItemUnequipEvent>(OnItemUnequipped);
         EventBus.Unsubscribe<OnSetMovementEnabledEvent>(OnSetMovementEnabled);
+        if (targetingSystem != null)
+            targetingSystem.OnTargetingChanged -= OnTargetingChanged;
         if (isWallhugging) isWallhugging = false;
+    }
+
+    // True from the moment targeting turns on until it turns off (event-driven, so
+    // it never flickers like the polled IsTargeting can during hold-to-target).
+    private bool _targetingActive;
+    public bool IsTargeting => _targetingActive;
+    private void OnTargetingChanged(bool active)
+    {
+        _targetingActive = active;
+        if (!active) _targetFacingSet = false;   // re-capture facing next time
     }
 
     void OnDestroy()
@@ -133,6 +155,14 @@ public class PlayerMovement : MonoBehaviour
     void Start()
     {
         EmitLocomotionStateIfChanged(force: true);
+
+        // Subscribe here (not OnEnable) so targetingSystem - assigned in Awake via
+        // TryGetComponent - is guaranteed to exist.
+        if (targetingSystem != null)
+        {
+            targetingSystem.OnTargetingChanged += OnTargetingChanged;
+            _targetingActive = targetingSystem.IsTargeting;
+        }
     }
 
     void LateUpdate()
@@ -174,6 +204,14 @@ public class PlayerMovement : MonoBehaviour
     {
         GroundInfo ground = physics.Ground;
 
+        // Capture wall-away facing on the first frame after exiting wallhug.
+        if (_prevWallhugging && !isWallhugging && Wallhug != null)
+        {
+            Vector3 wn = Wallhug.WallNormal; wn.y = 0f;
+            if (wn.sqrMagnitude > 0.001f) { _wallhugExitFacing = wn.normalized; _hasWallhugExitFacing = true; }
+        }
+        _prevWallhugging = isWallhugging;
+
         if (targetingSystem != null)
             targetingSystem.Locked = isLedgeGrabbing || isClimbingLedge;
 
@@ -195,7 +233,9 @@ public class PlayerMovement : MonoBehaviour
             Wallhug?.HandleJumpLanding();
         }
 
-        bool isTargeting = targetingSystem != null && targetingSystem.IsTargeting;
+        // Event-driven targeting flag (stable; never flickers during hold input).
+        bool isTargeting = _targetingActive;
+
         ComputeMovementAxes(isTargeting, out Vector3 forwardAxis, out Vector3 rightAxis, out Vector2 cardinalInput);
 
         nearWall = !isWallhugging && !isJumping
@@ -309,7 +349,21 @@ public class PlayerMovement : MonoBehaviour
                 modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
             }
         }
-        else if (!isTargeting) HandleRotation(moveDir);
+        else if (!isTargeting)
+        {
+            HandleRotation(moveDir);
+            // After wallhug exit with no movement: smoothly rotate to face away from the wall.
+            if (_hasWallhugExitFacing && moveDir.sqrMagnitude <= 0.01f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(_wallhugExitFacing, Vector3.up);
+                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation, targetRot, rotationSpeed * Time.fixedDeltaTime);
+                if (Quaternion.Angle(modelTransform.rotation, targetRot) < 2f) _hasWallhugExitFacing = false;
+            }
+            else if (moveDir.sqrMagnitude > 0.01f)
+            {
+                _hasWallhugExitFacing = false;
+            }
+        }
 
         if (!ground.isGrounded)
             velocity.y += gravity * Time.fixedDeltaTime;
@@ -318,6 +372,38 @@ public class PlayerMovement : MonoBehaviour
 
         MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
         if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
+
+        // ── Authoritative targeting facing ──────────────────────────────────
+        // Applied LAST so nothing earlier (or any stray rotation) can leave the
+        // model turned toward its movement. With an enemy: face it. Without one:
+        // hold the facing captured when targeting began. Outside targeting: clear
+        // the captured facing so it re-captures next time.
+        if (isTargeting)
+        {
+            Vector3 face;
+            if (targetingSystem != null && targetingSystem.CurrentTarget != null)
+            {
+                face = targetingSystem.CurrentTarget.position - transform.position;
+                face.y = 0f;
+                if (face.sqrMagnitude < 0.0001f) face = _targetFacing;
+            }
+            else
+            {
+                if (!_targetFacingSet)
+                {
+                    Vector3 f = modelTransform.forward; f.y = 0f;
+                    _targetFacing = f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
+                    _targetFacingSet = true;
+                }
+                face = _targetFacing;
+            }
+            if (face.sqrMagnitude > 0.0001f)
+                modelTransform.rotation = Quaternion.LookRotation(face.normalized, Vector3.up);
+        }
+        else
+        {
+            _targetFacingSet = false;
+        }
     }
 
     // ─── Knockback ───────────────────────────────────────────────────────────
@@ -370,8 +456,11 @@ public class PlayerMovement : MonoBehaviour
     {
         if (isTargeting)
         {
+            // Movement axes are relative to the model's facing. The model's rotation
+            // itself is set authoritatively at the END of FixedUpdate (face target,
+            // or hold the captured facing) - NOT here, so movement can never turn it.
             Vector3 facing;
-            if (targetingSystem.CurrentTarget != null)
+            if (targetingSystem != null && targetingSystem.CurrentTarget != null)
             {
                 facing = targetingSystem.CurrentTarget.position - transform.position;
                 facing.y = 0f;
@@ -379,12 +468,10 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                float yawNoTarget = cameraTarget != null ? cameraTarget.eulerAngles.y : modelTransform.eulerAngles.y;
-                facing = Quaternion.Euler(0f, yawNoTarget, 0f) * Vector3.forward;
-                modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation,
-                    Quaternion.LookRotation(facing, Vector3.up), rotationSpeed * Time.fixedDeltaTime);
+                facing = modelTransform.forward;
+                facing.y = 0f;
             }
-            forwardAxis = facing.normalized;
+            forwardAxis = facing.sqrMagnitude > 0.0001f ? facing.normalized : modelTransform.forward;
             rightAxis   = Vector3.Cross(Vector3.up, forwardAxis);
 
             Vector2 rawInput = moveInput;
@@ -451,6 +538,8 @@ public class PlayerMovement : MonoBehaviour
     public bool IsLedgeGrabbing         => isLedgeGrabbing;
     public bool IsClimbingLedge         => isClimbingLedge;
     public bool IsSteppingUp            => isSteppingUp;
+    /// <summary>True when standing on ground (from the physics ground check, not velocity).</summary>
+    public bool IsGrounded              => physics != null && physics.Ground.isGrounded;
     public float DashCooldownNormalized => Dash != null ? Dash.DashCooldownNormalized : 0f;
     public Vector2 MoveInput            => moveInput;
     public Transform CameraTarget       => cameraTarget;

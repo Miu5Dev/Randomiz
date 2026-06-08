@@ -46,6 +46,11 @@ public class EquipHandler : MonoBehaviour
         EventBus.Unsubscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
     private void Start()
     {
         if (InventoryHandler.Instance == null)
@@ -78,6 +83,9 @@ public class EquipHandler : MonoBehaviour
     private void OnAttackInput(OnAttackInputEvent e)
     {
         if (!attackEnabled || !e.pressed) return;
+        // Gate by the player's authoritative state: no attacking/using items while
+        // hanging, climbing, dashing, airborne, wallhugging, etc.
+        if (PlayerStateMachine.Instance != null && !PlayerStateMachine.Instance.CanAct) return;
         UseItem();
     }
 

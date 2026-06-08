@@ -22,6 +22,7 @@ public static class AnimationClipImporter
     {
         "Idle", "Idle2", "Walking", "Running",
         "Hanging Idle", "Left Shimmy", "Right Shimmy",
+        "left strafe walking", "right strafe walking",
     };
 
     // Clips whose POSITION is driven by a movement script (not the animation). Their

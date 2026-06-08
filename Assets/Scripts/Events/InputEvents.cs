@@ -50,6 +50,5 @@ public class OnInventoryInputEvent : InputEventBase
 {
 }
 
-public class OnPauseInputEvent : InputEventBase
-{
-}
+// OnPauseInputEvent lives in Assets/Scripts/UI/PauseMenu/OnPauseInputEvent.cs
+// (namespace Randomiz.Events) — do not redeclare here.

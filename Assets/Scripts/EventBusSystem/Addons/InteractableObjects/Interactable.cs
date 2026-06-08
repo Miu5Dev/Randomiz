@@ -15,6 +15,17 @@ public class Interactable : MonoBehaviour
     [SerializeField] private UnityEvent onUse;
     [HideInInspector] public List<SmartBinding> useBindings = new();
 
+    /// <summary>
+    /// Register a callback to be invoked when Use() is called.
+    /// Use this instead of accessing onUse directly (it is serialized/private).
+    /// </summary>
+    public void AddUseListener(UnityEngine.Events.UnityAction callback)
+        => onUse ??= new UnityEvent();  // ensure not null before adding
+
+    // Actual add happens via the getter below — keeping onUse private for inspector safety.
+    // Callers: DoorController, NPCController, etc.
+    public UnityEvent OnUse => onUse ??= new UnityEvent();
+
     public void Use(GameObject caller = null)
     {
         bool chainFired = false;

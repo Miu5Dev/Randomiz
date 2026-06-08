@@ -13,6 +13,9 @@ public static class AnimParams
     // ── Names (used by the generator to create the parameters) ─────────────
     public const string SpeedName         = "Speed";
     public const string VerticalSpeedName = "VerticalSpeed";
+    public const string MoveXName         = "MoveX";        // strafe (local right), -1..1
+    public const string MoveYName         = "MoveY";        // forward/back (local fwd), -1..1
+    public const string IsTargetingName   = "IsTargeting";
     public const string IsGroundedName    = "IsGrounded";
     public const string IsMovingName      = "IsMoving";
     public const string IsDashingName     = "IsDashing";
@@ -31,6 +34,9 @@ public static class AnimParams
     // ── Cached hashes (used at runtime) ────────────────────────────────────
     public static readonly int Speed          = Animator.StringToHash(SpeedName);
     public static readonly int VerticalSpeed  = Animator.StringToHash(VerticalSpeedName);
+    public static readonly int MoveX          = Animator.StringToHash(MoveXName);
+    public static readonly int MoveY          = Animator.StringToHash(MoveYName);
+    public static readonly int IsTargeting    = Animator.StringToHash(IsTargetingName);
     public static readonly int IsGrounded     = Animator.StringToHash(IsGroundedName);
     public static readonly int IsMoving       = Animator.StringToHash(IsMovingName);
     public static readonly int IsDashing      = Animator.StringToHash(IsDashingName);

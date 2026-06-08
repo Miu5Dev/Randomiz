@@ -39,6 +39,7 @@ public static class AnimatorControllerBuilder
         ctrl.AddParameter(AnimParams.UseItemName,       AnimatorControllerParameterType.Trigger);
         ctrl.AddParameter(AnimParams.HitName,           AnimatorControllerParameterType.Trigger);
         ctrl.AddParameter(AnimParams.LandName,          AnimatorControllerParameterType.Trigger);
+        ctrl.AddParameter("Death",                      AnimatorControllerParameterType.Trigger); // PlayerAnimator hashes "Death"
 
         // ── Clips. Match by the FBX FILE name (robust to Mixamo's internal clip
         //    name being "mixamo.com" / "Take 001"), not the clip's own name. ─────
@@ -55,6 +56,10 @@ public static class AnimatorControllerBuilder
         var climbUp   = FindClipInFile("Climbing");
         var shimmyL   = FindClipInFile("Left Shimmy");
         var shimmyR   = FindClipInFile("Right Shimmy");
+
+        // Targeting strafe set (Basic Locomotion Pack).
+        var strafeL   = FindClipInFile("left strafe walking");
+        var strafeR   = FindClipInFile("right strafe walking");
 
         // ── BASE LAYER: locomotion blend tree ───────────────────────────────
         var baseSm = ctrl.layers[0].stateMachine;
@@ -73,6 +78,44 @@ public static class AnimatorControllerBuilder
         if (run  != null) tree.AddChild(run,  1f);
         locoState.motion = tree;
         baseSm.defaultState = locoState;
+
+        // ── Targeting strafe: 2D blend (MoveX strafe, MoveY forward/back). The model
+        // faces the target, so movement is relative to its local axes. Head looks at
+        // the target via LookAtIK. Entered/left by the IsTargeting bool. ───────────
+        ctrl.AddParameter(AnimParams.MoveXName,       AnimatorControllerParameterType.Float);
+        ctrl.AddParameter(AnimParams.MoveYName,       AnimatorControllerParameterType.Float);
+        ctrl.AddParameter(AnimParams.IsTargetingName, AnimatorControllerParameterType.Bool);
+
+        // FreeformCartesian2D blends by nearest position - robust with sparse points
+        // and no problem reusing 'walk' for both forward and back. Idle at centre.
+        var strafeTree = new BlendTree
+        {
+            name = "TargetStrafe",
+            blendType = BlendTreeType.FreeformCartesian2D,
+            blendParameter  = AnimParams.MoveXName,   // X = strafe (local right)
+            blendParameterY = AnimParams.MoveYName,    // Y = forward/back (local fwd)
+        };
+        AssetDatabase.AddObjectToAsset(strafeTree, ctrl);
+        if (idle    != null) strafeTree.AddChild(idle,    new Vector2( 0f,  0f));
+        if (walk    != null) strafeTree.AddChild(walk,    new Vector2( 0f,  1f));   // forward
+        if (walk    != null) strafeTree.AddChild(walk,    new Vector2( 0f, -1f));   // back
+        if (strafeL != null) strafeTree.AddChild(strafeL, new Vector2(-1f,  0f));   // left
+        if (strafeR != null) strafeTree.AddChild(strafeR, new Vector2( 1f,  0f));   // right
+        // Diagonal points so strafing-while-advancing still reads as a strafe.
+        if (strafeL != null) strafeTree.AddChild(strafeL, new Vector2(-1f,  1f));
+        if (strafeR != null) strafeTree.AddChild(strafeR, new Vector2( 1f,  1f));
+
+        var targetState = baseSm.AddState("TargetStrafe");
+        targetState.motion = strafeTree;
+
+        var toTarget = locoState.AddTransition(targetState);
+        toTarget.AddCondition(AnimatorConditionMode.If, 0, AnimParams.IsTargetingName);
+        toTarget.hasExitTime = false;
+        toTarget.duration = 0.15f;
+        var fromTarget = targetState.AddTransition(locoState);
+        fromTarget.AddCondition(AnimatorConditionMode.IfNot, 0, AnimParams.IsTargetingName);
+        fromTarget.hasExitTime = false;
+        fromTarget.duration = 0.15f;
 
         // Roll (dash) state. Playback speed driven by RollSpeed so the whole clip
         // fits inside the dash duration (PlayerAnimator computes it).
@@ -115,40 +158,29 @@ public static class AnimatorControllerBuilder
             fromHit.duration = 0.15f;
         }
 
-        // ── Ledge grab: hang idle + shimmy blend, driven by IsLedgeGrabbing ─────
-        // While hanging, the planar input (Speed signed by shimmy direction) is not
-        // available, so we use a simple Hang state holding the Hanging Idle. Shimmy
-        // L/R can be added later via a sub-blend on a dedicated "ShimmyDir" param.
-        if (hangIdle != null)
+        // Death (full-body) state - triggered from Any State, TERMINAL (no auto-return).
+        // The death clip plays once and holds; DeathScreenUI's respawn rebinds the
+        // animator to leave this state. If no death clip exists, the death SCREEN still
+        // works (fade + buttons + respawn) - only the animation is skipped.
+        var death = FindDeathClip();
+        if (death != null)
         {
-            ctrl.AddParameter(AnimParams.ShimmySpeedName, AnimatorControllerParameterType.Float);
+            var deathState = baseSm.AddState("Death");
+            deathState.motion = death;
+            var toDeath = baseSm.AddAnyStateTransition(deathState);
+            toDeath.AddCondition(AnimatorConditionMode.If, 0, "Death");
+            toDeath.duration = 0.1f;
+            toDeath.canTransitionToSelf = false;
+        }
 
-            AnimatorState hangState;
-            if (shimmyL != null && shimmyR != null)
-            {
-                // 1D blend: left shimmy (-1) -> hang idle (0) -> right shimmy (+1).
-                ctrl.AddParameter(AnimParams.ShimmyDirName, AnimatorControllerParameterType.Float);
-                var hangTree = new BlendTree
-                {
-                    name = "Hang", blendType = BlendTreeType.Simple1D,
-                    blendParameter = AnimParams.ShimmyDirName, useAutomaticThresholds = false,
-                };
-                AssetDatabase.AddObjectToAsset(hangTree, ctrl);
-                hangTree.AddChild(shimmyL, -1f);
-                hangTree.AddChild(hangIdle, 0f);
-                hangTree.AddChild(shimmyR,  1f);
-                hangState = baseSm.AddState("Hang");
-                hangState.motion = hangTree;
-            }
-            else
-            {
-                hangState = baseSm.AddState("Hang");
-                hangState.motion = hangIdle;
-            }
-
-            // Sync shimmy playback to actual drag speed (PlayerAnimator drives it).
-            hangState.speedParameterActive = true;
-            hangState.speedParameter = AnimParams.ShimmySpeedName;
+        // ── Ledge grab: the hang pose is FULLY PROCEDURAL (LedgeHangIK drives hands
+        // and feet). The Animator just holds a calm base pose (Hanging Idle if it
+        // exists, else Idle) so IK has something to override. No shimmy blend tree -
+        // the lateral movement is handled by the IK following the body.
+        {
+            Motion hangPose = hangIdle != null ? hangIdle : idle;
+            var hangState = baseSm.AddState("Hang");
+            hangState.motion = hangPose;
 
             var toHang = baseSm.AddAnyStateTransition(hangState);
             toHang.AddCondition(AnimatorConditionMode.If, 0, AnimParams.IsLedgeGrabName);
@@ -173,20 +205,15 @@ public static class AnimatorControllerBuilder
                 toClimb.duration = 0.02f;       // snap in - synced with the body lerp
                 toClimb.canTransitionToSelf = false;
 
-                // Exit at the end of the clip (animation-driven, plays out fully).
+                // Exit when the climb script finishes (IsClimbingLedge false). The
+                // script is timer-driven and always completes, so this can't hang.
+                // No exitTime dependence -> a non-looping clip that stalls near its
+                // end never traps the state.
                 var fromClimb = climbState.AddTransition(locoState);
-                fromClimb.hasExitTime = true;
-                fromClimb.exitTime = 0.95f;
+                fromClimb.AddCondition(AnimatorConditionMode.IfNot, 0, AnimParams.IsClimbingName);
+                fromClimb.hasExitTime = false;
                 fromClimb.hasFixedDuration = true;
                 fromClimb.duration = 0.12f;
-
-                // Safety exit: if the script already finished the climb, leave even
-                // if exitTime hasn't hit (prevents the clip looping/holding).
-                var fromClimbFlag = climbState.AddTransition(locoState);
-                fromClimbFlag.AddCondition(AnimatorConditionMode.IfNot, 0, AnimParams.IsClimbingName);
-                fromClimbFlag.hasExitTime = false;
-                fromClimbFlag.hasFixedDuration = true;
-                fromClimbFlag.duration = 0.12f;
             }
 
             // Leave the hang back to locomotion if we let go without climbing.
@@ -290,7 +317,23 @@ public static class AnimatorControllerBuilder
     // ── Find the AnimationClip inside the FBX whose FILE NAME matches, preferring
     //    an EXACT name in a preferred folder. Deterministic so duplicate file names
     //    across packs don't pick the wrong (e.g. strafing) clip. ─────────────────
-    private static AnimationClip FindClipInFile(string fileName)
+    private static AnimationClip FindClipInFile(string fileName) => FindClipInFile(fileName, true);
+
+    // Tries the common Mixamo death-clip file names; warns once if none are present.
+    private static AnimationClip FindDeathClip()
+    {
+        foreach (var n in new[] { "Death", "Dying", "Defeated", "Falling Back Death", "Stagger Death" })
+        {
+            var c = FindClipInFile(n, false);
+            if (c != null) return c;
+        }
+        Debug.LogWarning("[AnimatorControllerBuilder] No death clip found (tried Death / Dying / Defeated). " +
+                         "Death STATE skipped — the death screen still works, only the animation is missing. " +
+                         "Add a death FBX named 'Death' or 'Dying' and rebuild.");
+        return null;
+    }
+
+    private static AnimationClip FindClipInFile(string fileName, bool warn)
     {
         string[] modelGuids = AssetDatabase.FindAssets($"{fileName} t:Model", new[] { ClipSearchFolder });
 
@@ -318,7 +361,7 @@ public static class AnimatorControllerBuilder
         }
 
         var chosen = exactPreferred ?? exactAny ?? suffixAny;
-        if (chosen == null)
+        if (chosen == null && warn)
             Debug.LogWarning($"[AnimatorControllerBuilder] No AnimationClip found in an FBX named " +
                              $"'{fileName}' under {ClipSearchFolder}.");
         return chosen;

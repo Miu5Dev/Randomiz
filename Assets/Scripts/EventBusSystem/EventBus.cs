@@ -137,4 +137,9 @@ public static class EventBus
 
     public static bool HasSubscribers<T>() where T : class
         => _handlers.TryGetValue(typeof(T), out var list) && list.Count > 0;
+
+    // Clears all static state when Unity enters Play mode so stale delegates
+    // from previous Play sessions never accumulate in the editor.
+    [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void DomainReload() => Clear();
 }

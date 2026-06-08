@@ -26,6 +26,19 @@ public class HealthSystem : MonoBehaviour
     /// <summary>Current health as a 0..1 fraction of max. Safe before init.</summary>
     public float Normalized => maxHealth > 0f ? currentHealth / maxHealth : 0f;
 
+    /// <summary>Raw current health value. Exposed for the save system to snapshot/restore.</summary>
+    public float CurrentHealth => currentHealth;
+
+    /// <summary>
+    /// Restores health to an exact value (clamped to max). Used by the save system on
+    /// load. Publishes OnHealthChangedEvent so the HUD stays in sync.
+    /// </summary>
+    public void SetHealth(float value)
+    {
+        currentHealth = Mathf.Clamp(value, 0f, maxHealth);
+        PublishHealthChanged();
+    }
+
     /// <summary>True while this entity still has health left.</summary>
     public bool IsAlive => currentHealth > 0f;
 
@@ -36,7 +49,8 @@ public class HealthSystem : MonoBehaviour
     {
         if (maxHearts <= 0) maxHearts = 3;
         UpdateMaxHealth();
-        currentHealth = maxHealth;
+        // Only set to full when uninitialized; preserves values loaded from a save file.
+        if (currentHealth <= 0f) currentHealth = maxHealth;
     }
 
     private void OnEnable()

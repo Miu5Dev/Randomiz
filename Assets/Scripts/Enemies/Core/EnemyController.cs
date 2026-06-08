@@ -66,6 +66,45 @@ public class EnemyController : MonoBehaviour
     public bool IsAlive => !_dead;
     public string PartName => part != null ? part.partName : name;
 
+    /// <summary>
+    /// Label of the currently active decision state, or an empty string when idle
+    /// or uninitialized. Consumed by EnemyAnimator for parameter mapping.
+    /// </summary>
+    public string CurrentStateLabel
+    {
+        get
+        {
+            EnemyStateEntry s = CurrentState();
+            return s != null ? s.label : string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Flat (XZ) speed the enemy is actually applying this frame.
+    /// EnemyAnimator drives the Speed animator parameter with this value.
+    /// </summary>
+    public float CurrentSpeed
+    {
+        get
+        {
+            Vector3 v = ctx != null ? ctx.velocity : Vector3.zero;
+            return new Vector2(v.x, v.z).magnitude;
+        }
+    }
+
+    /// <summary>
+    /// True when the active state has a non-None attack pattern assigned.
+    /// Used by EnemyAnimator to drive the IsAttacking bool.
+    /// </summary>
+    public bool IsActivelyAttacking
+    {
+        get
+        {
+            EnemyStateEntry s = CurrentState();
+            return s?.attack != null && !(s.attack is SOAttack_None);
+        }
+    }
+
     // ─── Lifecycle ───────────────────────────────────────────────────────────
 
     private void Awake()
@@ -174,6 +213,9 @@ public class EnemyController : MonoBehaviour
 
     private bool CanPerceivePlayer()
     {
+        // Lazy-resolve: handles player spawning after enemy Start().
+        if (ctx.player == null && PlayerMovement.Instance != null)
+            ctx.player = PlayerMovement.Instance.transform;
         if (ctx.player == null) return false;
 
         Vector3 eye   = transform.position + eyeOffset;
@@ -216,6 +258,8 @@ public class EnemyController : MonoBehaviour
         _phaseIndex = -1;
         _stateIndex = -1;
         _reactionTimer = 0f;
+        _reactNow = false;
+        _reactionMove = null;
         ctx.StopHorizontal();
         part.idleMovement?.Enter(ctx);
     }
@@ -401,7 +445,8 @@ public class EnemyController : MonoBehaviour
         if (e.murdered != gameObject || _dead) return;
         _dead = true;
         ctx.StopHorizontal();
-        gameObject.SetActive(false);
+        // Destroy instead of SetActive(false): avoids stale _dead on re-enable if pooled.
+        Destroy(gameObject, 0.05f);
     }
 
     private void OnPlayerAttack(OnAttackInputEvent e)
