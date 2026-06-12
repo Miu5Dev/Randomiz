@@ -37,6 +37,8 @@ public class TargetingSystem : MonoBehaviour
 
     public bool IsTargeting { get; private set; }
     public Transform CurrentTarget { get; private set; }
+    /// <summary>True when locked on AND a ranged weapon is in hand (first-person aim mode).</summary>
+    public bool IsRangedAiming => _rangedEquipped && IsTargeting;
     /// <summary>
     /// External lock. While true, targeting input is ignored and any active target is cleared.
     /// Used by movement states like ledge grab to disable targeting.
@@ -49,8 +51,15 @@ public class TargetingSystem : MonoBehaviour
     private bool _consumedThisPress;
     private float _lastCycleTime = -999f;
     private float _snapRotationRemaining = 0f;
-    private float _currentCameraYawVelocity = 0f;
+    private float _currentCameraYawVelocity   = 0f;
+    private float _currentCameraPitchVelocity = 0f;
     private float _currentPitch = 0f;          // Ángulo vertical acumulado (grados)
+
+    // True when a ranged weapon (slingshot/grapple) is in hand.
+    // While targeting with a ranged weapon the player aims in first-person:
+    // look input passes through to CameraTargetController (free aim) and
+    // the camera auto-align is suppressed so the camera doesn't fight the player.
+    private bool _rangedEquipped;
 
     private Quaternion _desiredPlayerRotation;
     private bool _hasDesiredRotation;
@@ -74,14 +83,23 @@ public class TargetingSystem : MonoBehaviour
     {
         EventBus.Subscribe<OnTargetInputEvent>(HandleTargetInput);
         EventBus.Subscribe<OnLookInputEvent>(HandleLookInput, priority: 100);
+        EventBus.Subscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Subscribe<OnItemUnequipEvent>(OnItemUnequip);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnTargetInputEvent>(HandleTargetInput);
         EventBus.Unsubscribe<OnLookInputEvent>(HandleLookInput);
+        EventBus.Unsubscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Unsubscribe<OnItemUnequipEvent>(OnItemUnequip);
         if (IsTargeting) SetTargeting(false);
     }
+
+    private void OnItemEquip(OnItemEquipEvent e) =>
+        _rangedEquipped = e.item is SOSlingShot || e.item is SOGrappleHook;
+
+    private void OnItemUnequip(OnItemUnequipEvent e) => _rangedEquipped = false;
 
     private void HandleTargetInput(OnTargetInputEvent e)
     {
@@ -134,20 +152,28 @@ public class TargetingSystem : MonoBehaviour
     {
         if (!IsTargeting) return;
 
-        // Cancel the event so no other handler moves the camera horizontally.
+        // First-person ranged aim: free look goes to CameraTargetController.
+        // Don't cancel the event — just handle the target-cycle gesture and exit.
+        if (_rangedEquipped)
+        {
+            if (e != null && e.pressed && Time.time - _lastCycleTime >= cycleCooldown)
+            {
+                float x = e.Delta.x;
+                if (Mathf.Abs(x) >= lookCycleThreshold)
+                {
+                    CycleTargetDirectional(x > 0f ? 1 : -1);
+                    _lastCycleTime = Time.time;
+                }
+            }
+            return;
+        }
+
+        // Normal lock-on: cancel so CameraTargetController doesn't also rotate.
+        // Pitch is auto-driven toward the target's elevation in LateUpdate.
         EventBus.Cancel<OnLookInputEvent>();
 
         if (e == null) return;
 
-        // Ajustar el pitch (vertical) con la entrada en Y
-        float verticalDelta = e.Delta.y;
-        if (Mathf.Abs(verticalDelta) > 0.01f)
-        {
-            _currentPitch -= verticalDelta * cameraPitchSpeed * Time.deltaTime;
-            _currentPitch = Mathf.Clamp(_currentPitch, minPitch, maxPitch);
-        }
-
-        // Horizontal cycle logic with the right stick (uses e.Delta.x).
         if (e.pressed && Time.time - _lastCycleTime >= cycleCooldown)
         {
             float x = e.Delta.x;
@@ -268,6 +294,21 @@ public class TargetingSystem : MonoBehaviour
                 SetTarget(null);
         }
 
+        // First-person ranged aim: model always faces camera regardless of target.
+        if (_rangedEquipped)
+        {
+            if (cameraTarget != null)
+            {
+                Vector3 aimFlat = cameraTarget.forward;
+                aimFlat.y = 0f;
+                if (aimFlat.sqrMagnitude > 0.001f)
+                    modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation,
+                        Quaternion.LookRotation(aimFlat.normalized, Vector3.up),
+                        playerRotationSpeed * Time.deltaTime);
+            }
+            return;
+        }
+
         if (CurrentTarget == null) return;
 
         Vector3 toTarget = CurrentTarget.position - transform.position;
@@ -297,22 +338,29 @@ public class TargetingSystem : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!IsTargeting || CurrentTarget == null || !_hasDesiredRotation)
-            return;
+        if (!IsTargeting || _rangedEquipped || cameraTarget == null) return;
 
-        if (cameraTarget != null)
+        if (CurrentTarget != null && _hasDesiredRotation)
         {
-            // Yaw: smooth auto-orientation toward the target.
+            // With target: auto-aim yaw AND pitch toward target elevation.
             float currentYaw = cameraTarget.eulerAngles.y;
             float desiredYaw = _desiredPlayerRotation.eulerAngles.y;
             float newYaw = Mathf.SmoothDampAngle(currentYaw, desiredYaw, ref _currentCameraYawVelocity, 1f / cameraAlignSpeed);
 
-            // Pitch: player-controlled (clamped).
-            // Ensure pitch is applied in the [-180, 180] range (normalized).
-            float newPitch = _currentPitch;
+            Vector3 toTarget3D = (CurrentTarget.position + Vector3.up * 0.5f) - cameraTarget.position;
+            float horizontalDist = Mathf.Sqrt(toTarget3D.x * toTarget3D.x + toTarget3D.z * toTarget3D.z);
+            float pitchToTarget  = -Mathf.Atan2(toTarget3D.y, Mathf.Max(horizontalDist, 0.01f)) * Mathf.Rad2Deg;
+            pitchToTarget = Mathf.Clamp(pitchToTarget, minPitch, maxPitch);
+            _currentPitch = Mathf.SmoothDampAngle(_currentPitch, pitchToTarget, ref _currentCameraPitchVelocity, 1f / cameraAlignSpeed);
 
-            // Apply the final rotation: (pitch, yaw, 0).
-            cameraTarget.eulerAngles = new Vector3(newPitch, newYaw, 0f);
+            cameraTarget.eulerAngles = new Vector3(_currentPitch, newYaw, 0f);
+        }
+        else
+        {
+            // No target: hold current yaw, smoothly return pitch to neutral forward.
+            float currentYaw = cameraTarget.eulerAngles.y;
+            _currentPitch = Mathf.SmoothDampAngle(_currentPitch, 0f, ref _currentCameraPitchVelocity, 1f / cameraAlignSpeed);
+            cameraTarget.eulerAngles = new Vector3(_currentPitch, currentYaw, 0f);
         }
     }
 

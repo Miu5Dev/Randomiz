@@ -22,6 +22,16 @@ public class KeyPickup : MonoBehaviour
     // Replace EventBus.Raise(new OnHUDMessageEvent(...)) if that event exists.
     private const string PlayerTag = "Player";
 
+    private void Awake()
+    {
+        // PhysicsController has no Rigidbody — kinematic Rigidbody on this volume
+        // is required for OnTriggerEnter to fire against the player's static collider.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+    }
+
     private void Start()
     {
         // If an Interactable is present, wire the pickup into it so the player

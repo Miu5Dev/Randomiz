@@ -29,6 +29,38 @@ MonoBehaviour:
     priority: 0
     isProgression: 1
     isRequired: 0
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 1
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 0
+    isProgression: 0
+    isRequired: 1
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 1
+    isProgression: 1
+    isRequired: 1
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 0
+    isProgression: 1
+    isRequired: 1
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 1
+    isProgression: 1
+    isRequired: 0
+  - item: {fileID: 11400000, guid: ca715d896862a164280c6b2e052c7334, type: 2}
+    priority: 1
+    isProgression: 1
+    isRequired: 0
+  - item: {fileID: 11400000, guid: 3de0fe81f053c44478df466a42939c17, type: 2}
+    priority: 1
+    isProgression: 1
+    isRequired: 0
+  - item: {fileID: 11400000, guid: 77206cd9c9f506840a56ab4eeda6ec80, type: 2}
+    priority: 1
+    isProgression: 1
+    isRequired: 1
   fillerItems:
   - {fileID: 11400000, guid: e5c34576838a4b0479c456f504d6898b, type: 2}
   - {fileID: 11400000, guid: ff28c949c8307a84b94624d940bebf64, type: 2}

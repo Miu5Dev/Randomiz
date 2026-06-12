@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b2b961dbc01d85408e28c4eb6ab0237, type: 3}
+  m_Name: Slingshot
+  m_EditorClassIdentifier: 
+  itemName: Slingshot
+  itemDescription: Just a slingshot
+  itemSprite: {fileID: 541408724, guid: 59bb80a2e5071fb46826590f6fc9461d, type: 3}
+  baseValue: 10
+  isFiller: 0
+  prefab: {fileID: 0}
+  PivotPoint: {fileID: 0}
+  handWeightMultiplier: 1
+  damage: 6
+  range: 10
+  speed: 3
+  tier: 1
+  projectileSpeed: 20
+  stonePrefab: {fileID: 9022116688857116784, guid: 35bcde44527da484dbaa5565152eb06d, type: 3}
+  aimFOV: 40

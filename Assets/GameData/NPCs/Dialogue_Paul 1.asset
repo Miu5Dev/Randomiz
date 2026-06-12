@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 413254fdefae1ac48b7ebe7d580a5ed9, type: 3}
+  m_Name: Dialogue_Paul 1
+  m_EditorClassIdentifier: 
+  lines:
+  - That cloud looks like my dog Rocco!
+  voiceClip: {fileID: 8300000, guid: bde56f0c60ac05447b87ee9c25ab7b6e, type: 3}

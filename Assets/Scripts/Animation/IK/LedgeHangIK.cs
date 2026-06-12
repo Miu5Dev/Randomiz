@@ -49,8 +49,7 @@ public class LedgeHangIK : MonoBehaviour, IIKModule
     [Tooltip("Gait cycles per metre travelled along the wall.")]
     public float gaitFrequency = 2.2f;
 
-    [Header("Facing & blend")]
-    public float faceTurnSpeed = 14f;
+    [Header("Blend")]
     public float weightSmooth = 14f;
 
     [Header("Debug")]
@@ -93,9 +92,11 @@ public class LedgeHangIK : MonoBehaviour, IIKModule
         Vector3 along  = Vector3.Cross(Vector3.up, wallN).normalized;
         if (Vector3.Dot(along, transform.right) < 0f) along = -along;
 
-        // ── Face the wall ───────────────────────────────────────────────────
-        transform.rotation = Quaternion.Slerp(transform.rotation,
-            Quaternion.LookRotation(toWall, Vector3.up), faceTurnSpeed * Time.deltaTime * _w);
+        // NOTE: facing the wall is the locomotion layer's job - PlayerLedgeGrab.ApplyWallFacing
+        // already rotates the model (the [GFX] root) toward the wall. This IK module must NOT
+        // write transform.rotation: it lives on the rig (a CHILD of the model) and the value it
+        // leaves is never undone on release, so it bakes a permanent local tilt once the hang
+        // ends - the same "leaning" bug WallhugIK had.
 
         // ── Gait phase advances with distance travelled along the wall ──────
         float lateralVel = Vector3.Dot(_pm.velocity, along);

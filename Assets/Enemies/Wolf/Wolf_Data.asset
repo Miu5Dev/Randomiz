@@ -1,0 +1,310 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8873152658640253570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Enraged
+  m_EditorClassIdentifier: 
+  label: Enraged
+  decisionInterval: {x: 0.8, y: 1.6}
+  noise: 0.15
+  states:
+  - label: Enraged Chase
+    movement: {fileID: 6614408913757156179}
+    attack: {fileID: -7640639476331884285}
+    baseWeight: 70
+    duration: {x: 1, y: 2}
+    modifiers: []
+  - label: Howl
+    movement: {fileID: 2867405416106276954}
+    attack: {fileID: 872928807571175729}
+    baseWeight: 25
+    duration: {x: 1.2, y: 1.5}
+    modifiers:
+    - {fileID: -5453074519917897260}
+  exitCondition: {fileID: -7482549808728578807}
+--- !u!114 &-8463681208556800273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: No Attack Dodge
+  m_EditorClassIdentifier: 
+--- !u!114 &-7640639476331884285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c66fb10895ed7da46a65d68d59a9b26f, type: 3}
+  m_Name: Wolf Flurry
+  m_EditorClassIdentifier: 
+  attackRange: 1.5
+  strikes: 2
+  timeBetween: 0.2
+  cooldown: 1.2
+--- !u!114 &-7482549808728578807
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay Enraged
+  m_EditorClassIdentifier: 
+--- !u!114 &-5453074519917897260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ad1073a2f0253498b4dd38c4bb7161, type: 3}
+  m_Name: Howl Cooldown
+  m_EditorClassIdentifier: 
+  cooldown: 8
+  minMultiplier: 0
+--- !u!114 &-2431337654743547856
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c66fb10895ed7da46a65d68d59a9b26f, type: 3}
+  m_Name: Wolf Bite
+  m_EditorClassIdentifier: 
+  attackRange: 1.5
+  strikes: 2
+  timeBetween: 0.25
+  cooldown: 1.5
+--- !u!114 &-1844671986234293944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb3cd80201f8974d9567e8508b692ad, type: 3}
+  m_Name: Close Gap
+  m_EditorClassIdentifier: 
+  distance: 3
+  multiplier: 1.8
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: Wolf_Data
+  m_EditorClassIdentifier: 
+  enemyName: Wolf
+  prefab: {fileID: 0}
+  parts:
+  - partName: Wolf
+    maxHearts: 10
+    moveSpeed: 5
+    turnSpeed: 14
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 11400000, guid: b0775c92f16106d49ba9ecde651c0a41, type: 2}
+    vision:
+      range: 10
+      angle: 150
+      alertRadius: 3
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: 7207576364522058800}
+    phases:
+    - {fileID: 6877672285269527352}
+    - {fileID: -8873152658640253570}
+    dodgeReaction: {fileID: 6202362481934787108}
+    dodgeChance: 0.3
+    dodgeReactionTime: 0.35
+--- !u!114 &872928807571175729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: Howl Taunt
+  m_EditorClassIdentifier: 
+--- !u!114 &2867405416106276954
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d831b63f8a70d484d9ef841381b9839b, type: 3}
+  m_Name: Stand Still
+  m_EditorClassIdentifier: 
+  facePlayer: 1
+--- !u!114 &3666940433106168454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Wolf Dodge
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 9
+  burstTime: 0.3
+--- !u!114 &5304581259894955395
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Wolf Chase
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1
+  stopDistance: 1.3
+--- !u!114 &6202362481934787108
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Wolf Evade
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 10
+  burstTime: 0.3
+--- !u!114 &6614408913757156179
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Wolf Run
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.4
+  stopDistance: 1.1
+--- !u!114 &6877672285269527352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Hunt
+  m_EditorClassIdentifier: 
+  label: Hunt
+  decisionInterval: {x: 1, y: 2}
+  noise: 0.2
+  states:
+  - label: Chase
+    movement: {fileID: 5304581259894955395}
+    attack: {fileID: -2431337654743547856}
+    baseWeight: 60
+    duration: {x: 1.2, y: 2.5}
+    modifiers:
+    - {fileID: -1844671986234293944}
+  - label: Dodge Away
+    movement: {fileID: 3666940433106168454}
+    attack: {fileID: -8463681208556800273}
+    baseWeight: 30
+    duration: {x: 0.5, y: 1}
+    modifiers:
+    - {fileID: 8497490750134607428}
+  exitCondition: {fileID: 7036577788670043200}
+--- !u!114 &7036577788670043200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f6de1c2fe4b08240a982f20818af334, type: 3}
+  m_Name: Below 30pct
+  m_EditorClassIdentifier: 
+  threshold: 0.3
+--- !u!114 &7207576364522058800
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85429bb6447d15a4b9f7d460bd03da85, type: 3}
+  m_Name: Wolf Patrol
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.6
+  reachDistance: 0.4
+  pingPong: 0
+--- !u!114 &8497490750134607428
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27703c2b823065b419a9923525ba15a0, type: 3}
+  m_Name: Reactive Dodge
+  m_EditorClassIdentifier: 
+  window: 0.4
+  multiplier: 3

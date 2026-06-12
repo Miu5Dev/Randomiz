@@ -26,7 +26,9 @@ public class MinimapIcon : MonoBehaviour
     {
         rectTransform.anchoredPosition = anchoredPos;
         image.color = color;
-        rectTransform.rotation = Quaternion.AngleAxis(rotation, Vector3.forward);
+        // Negative sign converts from Unity world-space clockwise convention
+        // to UI AngleAxis counter-clockwise convention
+        rectTransform.localRotation = Quaternion.AngleAxis(-rotation, Vector3.forward);
     }
 
     /// <summary>

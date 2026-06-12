@@ -62,6 +62,14 @@ public class PlayerMovement : MonoBehaviour
     private float knockbackTimer;
     public bool IsKnockedBack => knockbackTimer > 0f;
 
+    // ─── Grapple state (driven by GrappleHookBehaviour) ──────────────────────────
+    private bool    _isGrappling;
+    private Vector3 _grappleAnchor;
+    private float   _grappleRopeLength;
+    private float   _grapplePull;
+    private float   _grappleSwing;
+    public bool IsGrappling => _isGrappling;
+
     // Authoritative facing held while targeting without an enemy.
     private Vector3 _targetFacing = Vector3.forward;
     private bool    _targetFacingSet;
@@ -88,7 +96,11 @@ public class PlayerMovement : MonoBehaviour
     private readonly OnPlayerLocomotionStateEvent _locomotionEvt = new();
     private bool _lastEmittedWallhug;
     private bool _lastEmittedLedge;
+    private bool _lastEmittedClimbing;
     private bool _lastEmittedNearWall;
+    private bool _lastEmittedIsGrounded;
+    private bool _lastEmittedDashing;
+    private bool _lastEmittedTargeting;
     private bool _hasEmittedLocomotion;
 
     void Awake()
@@ -144,7 +156,13 @@ public class PlayerMovement : MonoBehaviour
     private void OnTargetingChanged(bool active)
     {
         _targetingActive = active;
-        if (!active) _targetFacingSet = false;   // re-capture facing next time
+        if (!active)
+        {
+            _targetFacingSet = false;
+            // Snap model to camera yaw so movement immediately feels camera-relative.
+            if (cameraTarget != null && modelTransform != null)
+                modelTransform.rotation = Quaternion.Euler(0f, cameraTarget.eulerAngles.y, 0f);
+        }
     }
 
     void OnDestroy()
@@ -237,6 +255,13 @@ public class PlayerMovement : MonoBehaviour
         bool isTargeting = _targetingActive;
 
         ComputeMovementAxes(isTargeting, out Vector3 forwardAxis, out Vector3 rightAxis, out Vector2 cardinalInput);
+
+        // Grapple takes over locomotion entirely (like dash/wallhug) while hooked.
+        if (_isGrappling)
+        {
+            TickGrapple(forwardAxis, rightAxis, cardinalInput);
+            return;
+        }
 
         nearWall = !isWallhugging && !isJumping
                    && (Dash == null || !Dash.IsDashing)
@@ -380,25 +405,30 @@ public class PlayerMovement : MonoBehaviour
         // the captured facing so it re-captures next time.
         if (isTargeting)
         {
-            Vector3 face;
-            if (targetingSystem != null && targetingSystem.CurrentTarget != null)
+            // In first-person ranged aim TargetingSystem.Update drives model rotation
+            // toward the camera aim direction — don't override it here.
+            if (targetingSystem == null || !targetingSystem.IsRangedAiming)
             {
-                face = targetingSystem.CurrentTarget.position - transform.position;
-                face.y = 0f;
-                if (face.sqrMagnitude < 0.0001f) face = _targetFacing;
-            }
-            else
-            {
-                if (!_targetFacingSet)
+                Vector3 face;
+                if (targetingSystem != null && targetingSystem.CurrentTarget != null)
                 {
-                    Vector3 f = modelTransform.forward; f.y = 0f;
-                    _targetFacing = f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
-                    _targetFacingSet = true;
+                    face = targetingSystem.CurrentTarget.position - transform.position;
+                    face.y = 0f;
+                    if (face.sqrMagnitude < 0.0001f) face = _targetFacing;
                 }
-                face = _targetFacing;
+                else
+                {
+                    if (!_targetFacingSet)
+                    {
+                        Vector3 f = modelTransform.forward; f.y = 0f;
+                        _targetFacing = f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
+                        _targetFacingSet = true;
+                    }
+                    face = _targetFacing;
+                }
+                if (face.sqrMagnitude > 0.0001f)
+                    modelTransform.rotation = Quaternion.LookRotation(face.normalized, Vector3.up);
             }
-            if (face.sqrMagnitude > 0.0001f)
-                modelTransform.rotation = Quaternion.LookRotation(face.normalized, Vector3.up);
         }
         else
         {
@@ -450,6 +480,68 @@ public class PlayerMovement : MonoBehaviour
         if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
     }
 
+    // ─── Grapple ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Begins grapple control: the player hangs from <paramref name="anchor"/> and
+    /// swings/reels under gravity until <see cref="EndGrapple"/> is called. Driven by
+    /// GrappleHookBehaviour; takes over locomotion (like dash/wallhug) while active.
+    /// </summary>
+    public void BeginGrapple(Vector3 anchor, float pullSpeed, float swingForce)
+    {
+        _grappleAnchor     = anchor;
+        _grapplePull       = Mathf.Max(0f, pullSpeed);
+        _grappleSwing      = Mathf.Max(0f, swingForce);
+        _grappleRopeLength = Vector3.Distance(transform.position, anchor);
+        _isGrappling       = true;
+        isJumping          = false;
+        isWallhugging      = false;
+        isLedgeGrabbing    = false;
+    }
+
+    public void EndGrapple() => _isGrappling = false;
+
+    // Pendulum + reel-in. Gravity makes the player hang; movement input adds tangential
+    // swing; the rope length shrinks at pullSpeed so the player is drawn toward the
+    // anchor while still able to swing. Position is constrained to the rope sphere.
+    private void TickGrapple(Vector3 forwardAxis, Vector3 rightAxis, Vector2 cardinalInput)
+    {
+        Vector3 toAnchor = _grappleAnchor - transform.position;
+        float dist = toAnchor.magnitude;
+        if (dist < 0.001f) { EndGrapple(); return; }
+        Vector3 dir = toAnchor / dist;   // toward the anchor
+
+        // Swing: movement input pushes tangentially in the horizontal plane.
+        Vector3 moveDir = forwardAxis * cardinalInput.y + rightAxis * cardinalInput.x;
+        if (moveDir.sqrMagnitude > 0.01f)
+            velocity += moveDir.normalized * (_grappleSwing * Time.fixedDeltaTime);
+
+        // Reel in: shorten the rope so the player is drawn toward the anchor over time.
+        _grappleRopeLength = Mathf.Max(0f, _grappleRopeLength - _grapplePull * Time.fixedDeltaTime);
+
+        // Rope constraint: keep the player on/inside the sphere of radius ropeLength.
+        if (dist > _grappleRopeLength)
+        {
+            // Cancel outward radial velocity so the rope stays taut (pendulum).
+            float outward = Vector3.Dot(velocity, -dir);
+            if (outward > 0f) velocity += dir * outward;
+            physics.SetPosition(_grappleAnchor - dir * _grappleRopeLength);
+        }
+
+        // Safety clamp so repeated swing input can't build runaway speed.
+        velocity = Vector3.ClampMagnitude(velocity, 30f);
+
+        MoveResult result = physics.Move(velocity * Time.fixedDeltaTime);
+        if (result.HitCeiling() && velocity.y > 0f) velocity.y = 0f;
+
+        // Face the direction of travel (fall back to the rope direction when near-still).
+        Vector3 faceDir = velocity; faceDir.y = 0f;
+        if (faceDir.sqrMagnitude < 0.01f) { faceDir = dir; faceDir.y = 0f; }
+        if (faceDir.sqrMagnitude > 0.01f)
+            modelTransform.rotation = Quaternion.Slerp(modelTransform.rotation,
+                Quaternion.LookRotation(faceDir.normalized, Vector3.up), rotationSpeed * Time.fixedDeltaTime);
+    }
+
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     private void ComputeMovementAxes(bool isTargeting, out Vector3 forwardAxis, out Vector3 rightAxis, out Vector2 cardinalInput)
@@ -485,9 +577,16 @@ public class PlayerMovement : MonoBehaviour
             {
                 float deltaX = Mathf.Abs(rawInput.x - lastTargetingInput.x);
                 float deltaY = Mathf.Abs(rawInput.y - lastTargetingInput.y);
-                if (deltaX > deltaY)      cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
-                else if (deltaY > deltaX) cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
-                else                      cardinalInput = lastTargetingMoveDir;
+                if (deltaX > deltaY)
+                    cardinalInput = new Vector2(Mathf.Sign(rawInput.x), 0f);
+                else if (deltaY > deltaX)
+                    cardinalInput = new Vector2(0f, Mathf.Sign(rawInput.y));
+                else if (lastTargetingMoveDir.sqrMagnitude > 0.01f)
+                    cardinalInput = lastTargetingMoveDir;  // true tie: keep last direction
+                else  // first diagonal press with no history — pick dominant axis by magnitude
+                    cardinalInput = Mathf.Abs(rawInput.x) >= Mathf.Abs(rawInput.y)
+                        ? new Vector2(Mathf.Sign(rawInput.x), 0f)
+                        : new Vector2(0f, Mathf.Sign(rawInput.y));
             }
 
             lastTargetingInput   = rawInput;
@@ -512,19 +611,34 @@ public class PlayerMovement : MonoBehaviour
 
     private void EmitLocomotionStateIfChanged(bool force)
     {
+        bool grounded   = IsGrounded;
+        bool dashing    = IsDashing;
+        bool targeting  = _targetingActive;
         if (!force && _hasEmittedLocomotion
-            && _lastEmittedWallhug  == isWallhugging
-            && _lastEmittedLedge    == isLedgeGrabbing
-            && _lastEmittedNearWall == nearWall) return;
+            && _lastEmittedWallhug    == isWallhugging
+            && _lastEmittedLedge      == isLedgeGrabbing
+            && _lastEmittedClimbing   == isClimbingLedge
+            && _lastEmittedNearWall   == nearWall
+            && _lastEmittedIsGrounded == grounded
+            && _lastEmittedDashing    == dashing
+            && _lastEmittedTargeting  == targeting) return;
 
-        _lastEmittedWallhug   = isWallhugging;
-        _lastEmittedLedge     = isLedgeGrabbing;
-        _lastEmittedNearWall  = nearWall;
-        _hasEmittedLocomotion = true;
+        _lastEmittedWallhug    = isWallhugging;
+        _lastEmittedLedge      = isLedgeGrabbing;
+        _lastEmittedClimbing   = isClimbingLedge;
+        _lastEmittedNearWall   = nearWall;
+        _lastEmittedIsGrounded = grounded;
+        _lastEmittedDashing    = dashing;
+        _lastEmittedTargeting  = targeting;
+        _hasEmittedLocomotion  = true;
 
         _locomotionEvt.isWallhugging   = isWallhugging;
         _locomotionEvt.isLedgeGrabbing = isLedgeGrabbing;
+        _locomotionEvt.isClimbingLedge = isClimbingLedge;
         _locomotionEvt.nearWall        = nearWall;
+        _locomotionEvt.isGrounded      = grounded;
+        _locomotionEvt.isDashing       = dashing;
+        _locomotionEvt.isTargeting     = targeting;
         EventBus.Raise(_locomotionEvt);
     }
 

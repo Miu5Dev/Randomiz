@@ -28,7 +28,7 @@ Material:
   - _OUTLINE_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
@@ -135,6 +135,7 @@ Material:
     - _AddPrecomputedVelocity: 0
     - _AlphaClip: 0
     - _AlphaToMask: 0
+    - _AmbientStrength: 0.15
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
@@ -163,7 +164,7 @@ Material:
     - _NormalStrength: 1
     - _OcclusionStrength: 1
     - _OutlineOn: 1
-    - _OutlineWidth: 0.02
+    - _OutlineWidth: 0.002
     - _PaintBlend: 1
     - _Parallax: 0.02
     - _QueueOffset: 0
@@ -185,6 +186,9 @@ Material:
     - _Tiling2: 5
     - _Tiling3: 4
     - _UVSec: 0
+    - _WindScale: 0.05
+    - _WindSpeed: 1.2
+    - _WindStrength: 0.15
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:
@@ -197,5 +201,10 @@ Material:
     - _RimColor: {r: 0.54999995, g: 0.6, b: 1, a: 1}
     - _ShadowColor: {r: 0.24999997, g: 0.29999998, b: 0.45, a: 1}
     - _SpecColor: {r: 0.19999996, g: 0.19999996, b: 0.19999996, a: 1}
+    - _TreeBillboardCameraForward: {r: 0, g: 0, b: 1, a: 0}
+    - _TreeBillboardCameraRight: {r: 1, g: 0, b: 0, a: 0}
+    - _TreeBillboardCameraUp: {r: 0, g: 1, b: 0, a: 0}
+    - _TreeBillboardPos: {r: 0, g: 0, b: 0, a: 0}
+    - _TreeBillboardSize: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

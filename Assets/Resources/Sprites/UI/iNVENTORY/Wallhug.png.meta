@@ -100,10 +100,10 @@ TextureImporter:
       name: Wallhug_0
       rect:
         serializedVersion: 2
-        x: 111
-        y: 131
-        width: 263
-        height: 270
+        x: 0
+        y: 0
+        width: 218
+        height: 554
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -133,6 +133,8 @@ TextureImporter:
       entries: []
     nameFileIdTable:
       Wallhug_0: -1889343320
+      Wallhug_1: -180897308
+      Wallhug_2: -63308709
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 413254fdefae1ac48b7ebe7d580a5ed9, type: 3}
+  m_Name: Dialogue_Nere
+  m_EditorClassIdentifier: 
+  lines:
+  - Hey, I heard Carlos already told you what happened with the chests!
+  - "But I think I\u2019ve figured out the cause\u2014or at least I think so. At
+    the end of the meadow, some kind of dungeon appeared."
+  - "And I believe that\u2019s probably the reason! Maybe if you defeat the boss
+    in that dungeon, everything will go back to normal\u2026 or not\u2026 I\u2019m
+    not sure."
+  - "But I\u2019d kill it anyway, because that definitely wasn\u2019t there before."
+  voiceClip: {fileID: 8300000, guid: 7412283917459194dbb1598d7b1c1ec5, type: 3}

@@ -1,0 +1,171 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-7051065087194019298
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay Swarming
+  m_EditorClassIdentifier: 
+--- !u!114 &-5287718465095755822
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c66fb10895ed7da46a65d68d59a9b26f, type: 3}
+  m_Name: Quick Nip
+  m_EditorClassIdentifier: 
+  attackRange: 0.8
+  strikes: 3
+  timeBetween: 0.15
+  cooldown: 0.8
+--- !u!114 &-5027687148467115120
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e8eb10da611f443aceb472e2284cda, type: 3}
+  m_Name: Erratic Move
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.3
+  wanderRadius: 2
+  changeInterval: 0.5
+  reachDistance: 0.5
+--- !u!114 &-2293882286794762902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Swarm
+  m_EditorClassIdentifier: 
+  label: Swarm
+  decisionInterval: {x: 0.4, y: 1}
+  noise: 0.35
+  states:
+  - label: Dart In
+    movement: {fileID: 3187133184697346271}
+    attack: {fileID: -5287718465095755822}
+    baseWeight: 55
+    duration: {x: 0.5, y: 1.2}
+    modifiers: []
+  - label: Scatter
+    movement: {fileID: -5027687148467115120}
+    attack: {fileID: -999159061762013880}
+    baseWeight: 35
+    duration: {x: 0.3, y: 0.7}
+    modifiers:
+    - {fileID: 3728381362597817904}
+  exitCondition: {fileID: -7051065087194019298}
+--- !u!114 &-999159061762013880
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: No Attack Scatter
+  m_EditorClassIdentifier: 
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: Silverfish_Data
+  m_EditorClassIdentifier: 
+  enemyName: Silverfish
+  prefab: {fileID: 0}
+  parts:
+  - partName: Silverfish
+    maxHearts: 4
+    moveSpeed: 7
+    turnSpeed: 22
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 11400000, guid: b0775c92f16106d49ba9ecde651c0a41, type: 2}
+    vision:
+      range: 8
+      angle: 200
+      alertRadius: 1.5
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: 6427651246086746078}
+    phases:
+    - {fileID: -2293882286794762902}
+    dodgeReaction: {fileID: 0}
+    dodgeChance: 0.6
+    dodgeReactionTime: 0.4
+--- !u!114 &3187133184697346271
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4292ae9012a5f34aad99037b3dacf37, type: 3}
+  m_Name: Zigzag Rush
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1
+  width: 2.5
+  frequency: 2.2
+  stopDistance: 0.7
+--- !u!114 &3728381362597817904
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ad1073a2f0253498b4dd38c4bb7161, type: 3}
+  m_Name: Brief Gap
+  m_EditorClassIdentifier: 
+  cooldown: 1
+  minMultiplier: 0.1
+--- !u!114 &6427651246086746078
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5e8eb10da611f443aceb472e2284cda, type: 3}
+  m_Name: Scuttle Idle
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.8
+  wanderRadius: 3
+  changeInterval: 1.5
+  reachDistance: 0.5

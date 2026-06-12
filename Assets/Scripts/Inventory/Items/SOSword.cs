@@ -139,9 +139,10 @@ public class SOSword : SOWeapon
 
         Collider[] hits = Physics.OverlapBox(center, hitboxSize * 0.5f, rotation, targetLayers);
 
+        GameObject userRoot = user.transform.root.gameObject;
         foreach (Collider hit in hits)
         {
-            if (hit.gameObject == user) continue;
+            if (hit.transform.root.gameObject == userRoot) continue;
 
             _hasHitThisSwing = true;
             EventBus.Raise(new OnDamageDealtEvent(user, hit.transform.root.gameObject, damage));

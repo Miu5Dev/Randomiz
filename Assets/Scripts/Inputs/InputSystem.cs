@@ -80,10 +80,17 @@ public class InputSystem : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
+    // Gameplay inputs are suppressed while the game is paused (timeScale == 0).
+    // Move/Look cancels are always allowed through to zero out accumulated state.
+    // Pause itself is never blocked.
+    private bool IsGameplayBlocked => Time.timeScale == 0f;
+
     // ── Look ────────────────────────────────────────────────────────────
 
     private void OnLookPerformed(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
+
         currentLookSource = context.control.device is Gamepad
             ? LookInputSource.Gamepad
             : LookInputSource.Mouse;
@@ -106,6 +113,8 @@ public class InputSystem : MonoBehaviour
 
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
+
         _moveEvt.pressed   = true;
         _moveEvt.Direction = context.ReadValue<Vector2>();
         EventBus.Raise(_moveEvt);
@@ -122,36 +131,42 @@ public class InputSystem : MonoBehaviour
 
     private void OnAttackInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _attackEvt.pressed = context.performed;
         EventBus.Raise(_attackEvt);
     }
 
     private void OnItemOneInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _item1Evt.pressed = context.performed;
         EventBus.Raise(_item1Evt);
     }
 
     private void OnItemTwoInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _item2Evt.pressed = context.performed;
         EventBus.Raise(_item2Evt);
     }
 
     private void OnInteractDodgeInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _interactEvt.pressed = context.performed;
         EventBus.Raise(_interactEvt);
     }
 
     private void OnTargetInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _targetEvt.pressed = context.performed;
         EventBus.Raise(_targetEvt);
     }
 
     private void OnInventoryInput(InputAction.CallbackContext context)
     {
+        if (IsGameplayBlocked) return;
         _invEvt.pressed = context.performed;
         EventBus.Raise(_invEvt);
     }

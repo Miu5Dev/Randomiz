@@ -97,9 +97,9 @@ public class GrappleHookBehaviour : MonoBehaviour
     {
         if (!_isHooked) return;
 
-        ApplyGrapplePhysics();
-
-        // Auto-release if the player has reached the anchor.
+        // Physics is owned by PlayerMovement.TickGrapple (so it isn't stomped by the
+        // normal locomotion that overwrites velocity each frame). We only watch for
+        // arrival here and release.
         if (_playerMovement != null)
         {
             float dist = Vector3.Distance(_playerMovement.transform.position, _hookPoint);
@@ -209,76 +209,72 @@ public class GrappleHookBehaviour : MonoBehaviour
         Vector3 origin    = GetRayOrigin();
         Vector3 direction = GetAimDirection();
 
-        if (Physics.Raycast(origin, direction, out RaycastHit hit,
-                            _data.ropeLength, _data.hookableLayers,
-                            QueryTriggerInteraction.Ignore))
+        // Fall back to "everything" when the asset's hookable layers are left unset,
+        // so the hook still attaches instead of silently doing nothing.
+        LayerMask mask = _data.hookableLayers.value == 0 ? ~0 : _data.hookableLayers;
+
+        // SphereCast (radius 0.08) instead of Raycast: prevents the hook from
+        // clipping through thin walls when the ray origin is near geometry.
+        const float castRadius = 0.08f;
+        if (Physics.SphereCast(origin, castRadius, direction, out RaycastHit hit,
+                               _data.ropeLength, mask,
+                               QueryTriggerInteraction.Ignore))
         {
-            _hookPoint = hit.point;
-            AttachHook(hit);
+            // Never hook onto the player itself.
+            if (_playerMovement != null &&
+                hit.collider.transform.root == _playerMovement.transform.root)
+                return;
+
+            // Validate line-of-sight from the player's head to the hit point.
+            // The camera origin can sit inside or behind thin walls in tight spaces,
+            // causing the hook to land on an unreachable surface.
+            Vector3 playerHead = _playerMovement != null
+                ? _playerMovement.transform.position + Vector3.up * 1.5f
+                : origin;
+
+            if (Physics.Linecast(playerHead, hit.point, out RaycastHit blocker,
+                                 mask, QueryTriggerInteraction.Ignore)
+                && blocker.collider != hit.collider
+                && (_playerMovement == null ||
+                    blocker.collider.transform.root != _playerMovement.transform.root))
+            {
+                // Something blocks the path from the player — attach to the near
+                // surface instead so the hook always lands somewhere reachable.
+                AttachHook(blocker);
+            }
+            else
+            {
+                AttachHook(hit);
+            }
         }
         // On miss just exit aim — no hook is spawned.
     }
 
     private void AttachHook(RaycastHit hit)
     {
-        _isHooked = true;
+        _isHooked  = true;
+        _hookPoint = hit.point;
 
-        // Spawn hook head visual at the impact point.
         if (_data.hookPrefab != null)
             _hookInstance = Instantiate(_data.hookPrefab, hit.point,
                                         Quaternion.LookRotation(hit.normal));
 
-        // Enable rope LineRenderer.
         _lineRenderer.enabled = true;
         UpdateRopeVisual();
+
+        if (_playerMovement != null)
+            _playerMovement.BeginGrapple(_hookPoint, _data.pullSpeed, _data.swingForce);
     }
 
-    // ── Physics ────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Each FixedUpdate: pull the player toward the hook point and apply a
-    /// lateral swing force so the player can pendulum around the anchor.
-    /// Forces are injected into PlayerMovement.velocity so they blend with
-    /// existing movement (walk, jump, air control).
-    /// </summary>
-    private void ApplyGrapplePhysics()
-    {
-        if (_playerMovement == null || _data == null) return;
-
-        Vector3 playerPos  = _playerMovement.transform.position;
-        Vector3 toAnchor   = (_hookPoint - playerPos);
-        float   dist       = toAnchor.magnitude;
-
-        if (dist < 0.01f) return;
-
-        Vector3 pullDir    = toAnchor.normalized;
-
-        // Pull force — stronger when farther away for a snappy feel.
-        float pullMag      = _data.pullSpeed * Time.fixedDeltaTime;
-        _playerMovement.velocity += pullDir * pullMag;
-
-        // Swing force — perpendicular to pull, in the horizontal plane.
-        // This gives the classic pendulum swing when the player moves laterally.
-        Vector3 swingAxis  = Vector3.up;
-        Vector3 lateralDir = Vector3.ProjectOnPlane(_playerMovement.velocity, pullDir).normalized;
-        if (lateralDir.sqrMagnitude > 0.001f)
-            _playerMovement.velocity += lateralDir * (_data.swingForce * Time.fixedDeltaTime);
-
-        // Clamp velocity along the rope direction to not overshoot the anchor.
-        float ropeComponent = Vector3.Dot(_playerMovement.velocity, pullDir);
-        float maxPull       = _data.pullSpeed;
-        if (ropeComponent > maxPull)
-            _playerMovement.velocity -= pullDir * (ropeComponent - maxPull);
-
-        _ = swingAxis; // suppress unused-variable warning
-    }
-
-    // ── Release ────────────────────────────────────────────────────────────────
+// ── Release ────────────────────────────────────────────────────────────────
 
     private void ReleaseHook()
     {
         if (!_isHooked) return;
         _isHooked = false;
+
+        if (_playerMovement != null)
+            _playerMovement.EndGrapple();
 
         if (_hookInstance != null)
         {

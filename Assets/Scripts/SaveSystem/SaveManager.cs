@@ -173,6 +173,7 @@ public class SaveManager : MonoBehaviour
         if (BossTracker.Instance != null)
             data.defeatedBossIds = BossTracker.Instance.DefeatedBosses;
         data.shopPurchases = new List<ShopPurchase>(_shopPurchases);
+        data.openedDoorIds = DoorController.GetOpenedDoorIds();
 
         // ─ Key inventory ─
         if (KeyInventory.Instance != null)
@@ -272,6 +273,8 @@ public class SaveManager : MonoBehaviour
         _shopPurchases.Clear();
         BossTracker.Instance?.Clear();
         CheckpointManager.Instance?.Clear();
+        KeyInventory.Instance?.Clear();
+        DoorController.ClearAll();
         DeleteSlot(slot);
 
         // Deferred: once the scene loads, generate the seed from the scene's chests
@@ -352,11 +355,10 @@ public class SaveManager : MonoBehaviour
         var rnd = ResolveRandomizer();
         if (rnd != null)
         {
-            // The seed lives in RandomizerState; the scene's chests rebuild the layout
-            // deterministically from it. GenerateSeedFromScene reads the scene chests;
-            // because Random.InitState uses the saved seed, the layout matches.
-            // We restore the saved seed first so generation is reproducible.
-            rnd.GenerateSeedFromScene();
+            // Reproduce the run deterministically: regenerate the layout from the SAVED
+            // seed (not a fresh roll), so chest contents and shop stock match what was
+            // saved. Then re-apply which chests were already opened.
+            rnd.GenerateSeedFromScene(data.seed);
             rnd.RestoreOpenedChests(data.openedChestIds);
         }
 
@@ -364,11 +366,12 @@ public class SaveManager : MonoBehaviour
         var inv = InventoryHandler.Instance;
         inv?.RestoreInventory(data.inventoryItemNames, data.coins);
 
-        // ─ Equipped item ─
+        // ─ Equipped item ─ (swords are always drawn on demand, never restored)
         if (inv != null && !string.IsNullOrEmpty(data.equippedItemName) && EquipHandler.Instance != null)
         {
             var equipped = inv.ResolveItem(data.equippedItemName);
-            if (equipped != null) EquipHandler.Instance.EquipItem(equipped);
+            if (equipped != null && equipped is not SOSword)
+                EquipHandler.Instance.EquipItem(equipped);
         }
 
         // ─ Quickslots ─
@@ -385,6 +388,9 @@ public class SaveManager : MonoBehaviour
         _shopPurchases.Clear();
         if (data.shopPurchases != null)
             _shopPurchases.AddRange(data.shopPurchases);
+
+        // ─ Doors ─ (must happen before DoorController.Start() runs; sceneLoaded fires before Start)
+        DoorController.RestoreOpenedDoors(data.openedDoorIds);
 
         // ─ Key inventory ─
         if (KeyInventory.Instance != null && data.heldKeyIds != null)

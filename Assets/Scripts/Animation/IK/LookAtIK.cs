@@ -45,8 +45,10 @@ public class LookAtIK : MonoBehaviour, IIKModule
         Vector3 desired;
         float targetWeight = weight;
 
-        if (_targeting != null && _targeting.IsTargeting && _targeting.CurrentTarget != null)
+        if (_targeting != null && _targeting.IsTargeting && _targeting.CurrentTarget != null
+            && !_targeting.IsRangedAiming)
         {
+            // Normal lock-on: head tracks the locked target.
             desired = _targeting.CurrentTarget.position;
         }
         else

@@ -85,7 +85,11 @@ public class PlayerWallhug : MonoBehaviour
 
         CollisionInfo wallCheck = physics.CheckDirection(wallDir, 0.1f);
         pm.isWallhugging = true;
-        wallNormal = wallCheck.normal;
+        // Fire the wallhug-enter cue right here, at the authoritative entry point.
+        // (The LateUpdate locomotion-state event also carries isWallhugging, but
+        // triggering at the source guarantees the cue regardless of event timing.)
+        VFXPlayer.PlayWallhugEnter(pm.transform.position);
+        wallNormal = FlattenNormal(wallCheck.normal);
         wallhugUpBlocked = cardinalInput.y > wallhugExitThreshold;
     }
 
@@ -98,7 +102,7 @@ public class PlayerWallhug : MonoBehaviour
             ApplyGravityAndMove(ground);
             return;
         }
-        wallNormal = wallCheck.normal;
+        wallNormal = FlattenNormal(wallCheck.normal);
 
         bool isGrounded = ground.isGrounded || HasWallSideGround(wallCheck.point, wallNormal);
 
@@ -205,7 +209,7 @@ public class PlayerWallhug : MonoBehaviour
         if (reentry.hit && reentry.IsWall(physics.maxGroundAngle))
         {
             pm.isWallhugging = true;
-            wallNormal = reentry.normal;
+            wallNormal = FlattenNormal(reentry.normal);
         }
     }
 
@@ -234,6 +238,16 @@ public class PlayerWallhug : MonoBehaviour
         Vector3 midOrigin = new Vector3(midXZ.x, feetPos.y + originHeight, midXZ.z);
         return Physics.Raycast(midOrigin, Vector3.down, castDist,
             physics.collisionMask, QueryTriggerInteraction.Ignore);
+    }
+
+    // Returns the horizontal projection of a wall normal, normalized.
+    // Walls on inclined surfaces return normals with a Y component; keeping it
+    // causes CheckDirection(-wallNormal) to cast diagonally and potentially hit
+    // the floor instead of the wall, producing unstable wallhug and wrong exit angle.
+    private static Vector3 FlattenNormal(Vector3 n)
+    {
+        Vector3 flat = new Vector3(n.x, 0f, n.z);
+        return flat.sqrMagnitude > 0.001f ? flat.normalized : n;
     }
 
     private void ApplyGravityAndMove(GroundInfo ground)

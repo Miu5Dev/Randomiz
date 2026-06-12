@@ -21,7 +21,10 @@ public class QuickslotManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // Duplicate component (e.g. a stray QuickslotManager on a child of the player).
+            // Remove ONLY this component — destroying the host GameObject here would delete
+            // the whole player when this singleton lives on the player root.
+            Destroy(this);
             return;
         }
         Instance = this;
@@ -36,7 +39,10 @@ public class QuickslotManager : MonoBehaviour
     {
         EventBus.Subscribe<OnItemOneInputEvent>(OnItemOne);
         EventBus.Subscribe<OnItemTwoInputEvent>(OnItemTwo);
-        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteract);
+        // Priority 5: above PlayerMovement (0) so we can cancel the dash when the
+        // dodge press is consumed to sheathe the sword; below Interactor (10) so
+        // interacting with world objects still wins.
+        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteract, 5);
         EventBus.Subscribe<OnInventoryWheelStateEvent>(OnWheelState);
         // Negative priority so this runs AFTER InventoryHandler.OnPotionConsume,
         // which updates the inventory array in response to the same event.
@@ -195,9 +201,14 @@ public class QuickslotManager : MonoBehaviour
         SOItem equipped = EquipHandler.Instance.EquipedItem;
         if (equipped == null) return;
 
-        SOItem sword = InventoryHandler.Instance != null ? InventoryHandler.Instance.GetItem(0) : null;
-        if (equipped == sword) return;
-
-        EquipHandler.Instance.UnEquipItem();
+        // Any item: stationary + grounded → store (cancel dodge).
+        //           moving → dodge normally with item still equipped.
+        PlayerMovement pm = PlayerMovement.Instance;
+        bool still = pm != null && pm.MoveInput.sqrMagnitude <= 0.04f && pm.IsGrounded;
+        if (still)
+        {
+            EquipHandler.Instance.UnEquipItem();
+            EventBus.Cancel<OnInteractDodgeInputEvent>();
+        }
     }
 }

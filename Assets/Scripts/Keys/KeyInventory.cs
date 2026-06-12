@@ -1,12 +1,14 @@
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 
 /// <summary>
 /// Singleton that tracks all keys the player is currently holding.
 /// Separate from the main InventoryHandler — keys are not SOItems and do not
 /// occupy inventory slots.
-/// Persists to a dedicated JSON file alongside the main inventory save.
+///
+/// State is persisted exclusively through SaveManager (SaveData.heldKeyIds).
+/// There is intentionally no independent JSON file here — a separate file
+/// caused keys to leak across seeds/runs.
 /// </summary>
 public class KeyInventory : MonoBehaviour
 {
@@ -23,35 +25,10 @@ public class KeyInventory : MonoBehaviour
         public Sprite icon;
     }
 
-    // Internal list — KeyData is serializable for the inspector view but we
-    // manage it ourselves so the list is not exposed to the inspector directly.
     [SerializeField] private List<KeyData> keys = new();
 
     /// <summary>Read-only view of the current key list.</summary>
     public List<KeyData> Keys => keys;
-
-    // ─── Save / load ───────────────────────────────────────────────────────────
-
-    [System.Serializable]
-    private class SaveData
-    {
-        // We only persist id + displayName; Sprite references cannot be saved
-        // as JSON, so they are re-resolved from KeyPickup/world objects on load
-        // (or simply lost — keys are typically consumed on door use anyway).
-        public List<SaveEntry> entries = new();
-
-        [System.Serializable]
-        public class SaveEntry
-        {
-            public string keyId;
-            public string displayName;
-        }
-    }
-
-    private static string SavePath =>
-        Path.Combine(Application.persistentDataPath, "keyInventory.json");
-
-    private bool _initialized;
 
     // ─── Unity lifecycle ───────────────────────────────────────────────────────
 
@@ -70,12 +47,6 @@ public class KeyInventory : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
-    private void Start()
-    {
-        if (File.Exists(SavePath)) Load();
-        _initialized = true;
-    }
-
     // ─── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -91,7 +62,6 @@ public class KeyInventory : MonoBehaviour
             icon        = icon
         });
 
-        Save();
         EventBus.Raise(new OnKeyInventoryChangedEvent());
     }
 
@@ -116,52 +86,8 @@ public class KeyInventory : MonoBehaviour
         }
 
         keys.RemoveAt(index);
-        Save();
         EventBus.Raise(new OnKeyInventoryChangedEvent());
         return true;
-    }
-
-    // ─── Persistence ───────────────────────────────────────────────────────────
-
-    private void Save()
-    {
-        if (!_initialized) return;
-
-        var data = new SaveData();
-        foreach (var k in keys)
-            data.entries.Add(new SaveData.SaveEntry { keyId = k.keyId, displayName = k.displayName });
-
-#if UNITY_EDITOR
-        File.WriteAllText(SavePath, JsonUtility.ToJson(data, prettyPrint: true));
-#else
-        File.WriteAllText(SavePath, JsonUtility.ToJson(data));
-#endif
-    }
-
-    private void Load()
-    {
-        try
-        {
-            var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
-            if (data == null) return;
-
-            keys.Clear();
-            foreach (var entry in data.entries)
-            {
-                keys.Add(new KeyData
-                {
-                    keyId       = entry.keyId,
-                    displayName = entry.displayName,
-                    icon        = null   // Sprite cannot be serialized; stays null after load
-                });
-            }
-
-            Debug.Log($"[KeyInventory] Loaded {keys.Count} key(s).");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[KeyInventory] Load failed: {ex.Message}");
-        }
     }
 
     /// <summary>
@@ -171,10 +97,5 @@ public class KeyInventory : MonoBehaviour
     public void Clear()
     {
         keys.Clear();
-    }
-
-    public static void DeleteSave()
-    {
-        if (File.Exists(SavePath)) File.Delete(SavePath);
     }
 }

@@ -3,7 +3,6 @@ using UnityEngine;
 /// <summary>
 /// Fully procedural wall-hug pose (no animation clip needed). While the player is
 /// wallhugging it:
-///   • faces the wall (rotates the model to look at it),
 ///   • pins both hands flat on the wall, spread to the sides,
 ///   • pins both feet to the wall, slightly lower and apart,
 ///   • when moving sideways, animates a subtle climbing/crawl cycle - hands and
@@ -17,10 +16,6 @@ public class WallhugIK : MonoBehaviour, IIKModule
     [Header("Blend")]
     [Tooltip("How fast the pose fades in/out when entering/leaving wallhug.")]
     public float weightSmooth = 10f;
-
-    [Header("Facing")]
-    [Tooltip("How fast the model turns to face the wall.")]
-    public float faceTurnSpeed = 12f;
 
     [Header("Hands")]
     public float handSpread   = 0.28f;   // sideways from body centre
@@ -87,10 +82,12 @@ public class WallhugIK : MonoBehaviour, IIKModule
         // cross over (the cross product can point either way along the wall).
         if (Vector3.Dot(along, transform.right) < 0f) along = -along;
 
-        // ── Face the wall ───────────────────────────────────────────────────
-        Quaternion faceRot = Quaternion.LookRotation(toWall, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, faceRot,
-                                              faceTurnSpeed * Time.deltaTime * _w);
+        // NOTE: facing the wall is the locomotion layer's job - PlayerWallhug.TickWallhug
+        // already rotates the model (the [GFX] root) toward the wall. This IK module must
+        // NOT write transform.rotation: it lives on the rig (a CHILD of the model) and the
+        // value it leaves is never undone on release (ReleaseAll only clears limb IK
+        // weights, and the Animator doesn't rewrite this transform), so it bakes a
+        // permanent local tilt the moment wallhug ends. That was the "leaning" bug.
 
         // Crawl offsets: limbs alternate. Left side uses +phase, right uses -phase,
         // scaled by how fast we move sideways (0 = still pose, no crawl).

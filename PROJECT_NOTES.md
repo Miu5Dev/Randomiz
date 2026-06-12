@@ -150,10 +150,77 @@ If it STILL rotates after this:
 - `MeleeHitbox` + `WeaponAnimationRelay`: animation-driven moving weapon hitbox
   (SOSword `damageMode` chooses OverlapBox vs MovingHitbox).
 
+## VFX / SFX (feedback effects)
+
+One-shot visual + audio feedback, decoupled via EventBus. Spawn a VFX prefab and
+play an SFX clip per named action.
+
+| Script | Role |
+|--------|------|
+| `Assets/Scripts/VFX/VFXPlayer.cs` | Scene singleton. Bridges EventBus → effects; shared `AudioSource` for one-shots. `Play(action, pos, parent?)` is the public entry. |
+| `Assets/Scripts/VFX/SOVFXProfile.cs` | Asset holding a list of `VFXBinding`. `GetBinding(action)` lookup. Action-name constants live here (single source of truth). |
+| `Assets/Scripts/VFX/VFXBinding.cs` | One mapping: `actionName` + `vfxPrefab` (+ `duration`, `attachToSource`) + `sfxClip` (+ `sfxVolume`). |
+
+**What triggers each action** (so a binding actually fires):
+- `OnDamagedEvent` → `TakeDamage`; `OnDieEvent` → `Death` / `EnemyDeath` (by tag).
+- `OnAttackInputEvent` (pressed) → `AttackSwing`, but **only for a real sword swing**.
+  VFXPlayer subscribes at **priority 1** (above EquipHandler@0) so it reads the
+  *pre-press* equipped item and plays only when `EquipedItem is SOSword` **and**
+  `PlayerStateMachine.CanAct`. An empty-hand draw (first press from empty), a potion
+  sip, a ranged weapon, or a press the player can't act on all stay silent.
+- `OnItemPickedUpEvent` → `ItemPickup` (every acquisition: chest / shop / key / grant).
+  Save-load uses `InventoryHandler.RestoreInventory` (bypasses `AddItem`), so loading a
+  save does **not** replay the pickup cue.
+- `OnPlayerLocomotionStateEvent` → `Dash` / `LedgeGrab` / `LedgeClimb` / `Land`, fired on
+  the **rising edge** of each flag (VFXPlayer keeps the previous state; first event after
+  enable only captures the baseline so `Land` doesn't fire on spawn).
+- `WallhugEnter` is fired at its **source**: `PlayerWallhug.TryEnter` calls
+  `VFXPlayer.PlayWallhugEnter(...)` the instant `isWallhugging` is set true. It used to
+  ride the locomotion event's rising edge like the others, but that proved unreliable in
+  practice, so it was moved to the entry point and removed from `OnLocomotionState`.
+- Footstep coroutine polls `PlayerMovement` velocity → `WalkStep` (interval scales walk↔run).
+- Static helpers for code-driven hits: `PlayAttackHit` / `PlayCheckpoint` / `PlayBossSlam`
+  (call from the relevant systems).
+
+> Gotcha: an unconfigured action is a **silent skip**, and the event-driven locomotion
+> effects (`Dash` / `LedgeGrab` / `LedgeClimb` / `Land`) do nothing until
+> `OnPlayerLocomotionStateEvent` carries the flag — `isDashing` / `isClimbingLedge` were
+> added to that event so dash/ledge-climb SFX work.
+
+### Setup
+- `Randomiz > ★ Game Setup Wizard` → **🎆 Character SFX / VFX**: assign/create the
+  `SOVFXProfile`, fill the per-action table (SFX clip + volume, VFX prefab + lifetime),
+  tune footstep timing, then **Apply** (writes the profile + footstep fields on VFXPlayer).
+- The wizard's **🔎 Scan** warns if `VFXPlayer.profile` is unassigned.
+
 ## Enemies
 Modular SO system under `Assets/Scripts/Enemies/` (SOEnemy → parts → phases →
 weighted decision states; movement/attack/condition/weight-modifier SOs). Built via
 **Tools → Enemy Creator** (also `Enemy Presets → Create Goblin`). Auto-adds `HitFlash`.
+
+## Randomizer / shop
+
+`RandomizerSystem` distributes the run's items across **chests AND shop slots** from
+one shared `SOItemPool` (state in `RandomizerState`, keyed by `locationId`). Shop
+slots are first-class locations (`shop_{npcId}_{i}`), so any item — progression sword
+included — appears in exactly one place, never duplicated.
+
+### Tier progression delivery (chests + shop)
+Progression weapons are always delivered **in order**: regardless of which tier a
+location advertises, the player receives the next tier they still need.
+- **Chests** — `ChestBehaviour.ResolveItem`: tier ≤ owned → filler; tier == owned+1 →
+  give it; sequence break → swap item with another unopened location holding the
+  needed tier (keeps the run beatable), else filler.
+- **Shop** — `ShopInventory` resolves each weapon slot to the next tier for that
+  family (`ResolveProgression` → `FindNextFamilyWeapon`) and **shows/sells that** at
+  its honest price. `EnsureGenerated()` re-resolves whenever the player's weapon tier
+  changes, so re-opening the shop advances the displayed tier. So you can **buy any
+  weapon slot and always get the correct order**; a slot disappears once that family
+  is maxed. Per-family ownership comes from `InventoryHandler.GetHighestWeaponTierOfType`.
+
+> Wiring: `NPCData.shopItemPool` must be the SAME `SOItemPool` asset the chests and
+> RandomizerSystem use (one shared run state) or slots won't resolve. Sold state is
+> slot-scoped in `SaveManager` (resets on new game, restored on load) — not a per-NPC file.
 
 ## Shaders
 See `Assets/Shaders/SHADERS.md` (cel shading, per-material outline + auto smooth

@@ -10,9 +10,10 @@ using UnityEngine.UI;
 /// (icon, name, price), the player's current coin count, and a selection highlight.
 ///
 /// Input:
-///   • Move input navigates the selection (left/right/up/down).
-///   • Interact press buys the selected item (with "Not enough coins" feedback).
-///   • Pause/back input closes the shop.
+///   • Move navigates the selection (left/right/up/down).
+///   • Interact OR a mouse click opens a buy confirmation; Interact again / the Buy
+///     button confirms (with "Not enough coins" / "Sold out" feedback).
+///   • Pause/back (Esc) backs out of the confirmation first, then closes the shop.
 ///
 /// Opened via the static <see cref="Open"/> helper, which the NPCController calls
 /// after a shopkeeper's dialogue ends.
@@ -40,6 +41,11 @@ public class ShopUI : MonoBehaviour
     private float _navCooldown;
     private Coroutine _feedbackRoutine;
 
+    // Purchase confirmation dialog (built in code, shown over the grid).
+    private GameObject _confirmRoot;
+    private TMP_Text _confirmMessage;
+    private bool _confirmOpen;
+
     private class Entry
     {
         public SOItem item;
@@ -58,8 +64,19 @@ public class ShopUI : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<OnMoveInputEvent>(OnMove);
-        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnConfirm);
-        EventBus.Subscribe<OnPauseInputEvent>(OnBack);
+        // Priority 20: must run before Interactor (10) so a confirm press while shopping
+        // is consumed here and doesn't re-trigger the NPC's dialogue.
+        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnConfirm, 20);
+        // Priority 20: above PauseMenuUI (10) so a back/escape press while shopping
+        // closes the shop and is consumed — the pause menu must NOT also open.
+        EventBus.Subscribe<OnPauseInputEvent>(OnBack, 20);
+        // Block all gameplay inputs that must not fire while the shop is open.
+        // Priority 20 matches OnBack so they all run before InventoryWheelUI (10) and TargetingSystem (0).
+        EventBus.Subscribe<OnTargetInputEvent>(OnBlockTarget, 20);
+        EventBus.Subscribe<OnAttackInputEvent>(OnBlockAttack, 20);
+        EventBus.Subscribe<OnInventoryInputEvent>(OnBlockInventory, 20);
+        EventBus.Subscribe<OnItemOneInputEvent>(OnBlockItemOne, 20);
+        EventBus.Subscribe<OnItemTwoInputEvent>(OnBlockItemTwo, 20);
     }
 
     private void OnDisable()
@@ -67,6 +84,11 @@ public class ShopUI : MonoBehaviour
         EventBus.Unsubscribe<OnMoveInputEvent>(OnMove);
         EventBus.Unsubscribe<OnInteractDodgeInputEvent>(OnConfirm);
         EventBus.Unsubscribe<OnPauseInputEvent>(OnBack);
+        EventBus.Unsubscribe<OnTargetInputEvent>(OnBlockTarget);
+        EventBus.Unsubscribe<OnAttackInputEvent>(OnBlockAttack);
+        EventBus.Unsubscribe<OnInventoryInputEvent>(OnBlockInventory);
+        EventBus.Unsubscribe<OnItemOneInputEvent>(OnBlockItemOne);
+        EventBus.Unsubscribe<OnItemTwoInputEvent>(OnBlockItemTwo);
     }
 
     /// <summary>Open the shop for the given shopkeeper NPC.</summary>
@@ -136,12 +158,49 @@ public class ShopUI : MonoBehaviour
         fRt.offsetMax = Vector2.zero;
 
         var hint = UIFactory.CreateLabel(window.transform,
-            "[Interact] Buy    [Pause] Close", 18, new Color(0.6f, 0.6f, 0.6f));
+            "[Interact] / Click Buy    [Esc] Close", 18, new Color(0.6f, 0.6f, 0.6f));
         var hRt = hint.rectTransform;
         hRt.anchorMin = new Vector2(0.05f, 0.02f);
         hRt.anchorMax = new Vector2(0.95f, 0.09f);
         hRt.offsetMin = Vector2.zero;
         hRt.offsetMax = Vector2.zero;
+
+        BuildConfirmDialog();
+    }
+
+    /// <summary>
+    /// Full-screen confirm overlay shown when the player picks an item. Its panel
+    /// blocks clicks to the grid beneath; Buy/Cancel resolve the pending purchase.
+    /// </summary>
+    private void BuildConfirmDialog()
+    {
+        var overlay = UIFactory.CreatePanel(_canvas.transform, new Color(0f, 0f, 0f, 0.7f));
+        UIFactory.StretchToParent(overlay.rectTransform);
+        _confirmRoot = overlay.gameObject;
+
+        var card = UIFactory.CreatePanel(overlay.transform, new Color(0.12f, 0.12f, 0.16f, 1f));
+        UIFactory.CenterWithSize(card.rectTransform, new Vector2(480f, 240f));
+
+        _confirmMessage = UIFactory.CreateLabel(card.transform, "", 26, Color.white);
+        var mRt = _confirmMessage.rectTransform;
+        mRt.anchorMin = new Vector2(0.05f, 0.42f);
+        mRt.anchorMax = new Vector2(0.95f, 0.95f);
+        mRt.offsetMin = Vector2.zero;
+        mRt.offsetMax = Vector2.zero;
+
+        var btnRow = UIFactory.CreateLayoutGroup(card.transform, vertical: false, spacing: 24f);
+        var rRt = btnRow.GetComponent<RectTransform>();
+        rRt.anchorMin = new Vector2(0.05f, 0.08f);
+        rRt.anchorMax = new Vector2(0.95f, 0.4f);
+        rRt.offsetMin = Vector2.zero;
+        rRt.offsetMax = Vector2.zero;
+
+        UIFactory.CreateButton(btnRow.transform, "Buy", 22, ConfirmPurchase)
+            .GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 58f);
+        UIFactory.CreateButton(btnRow.transform, "Cancel", 22, CancelPurchase)
+            .GetComponent<RectTransform>().sizeDelta = new Vector2(180f, 58f);
+
+        _confirmRoot.SetActive(false);
     }
 
     private void BuildEntries()
@@ -159,6 +218,7 @@ public class ShopUI : MonoBehaviour
             cell.gameObject.name = "ShopEntry";
 
             var icon = UIFactory.CreateImage(cell.transform, item.itemSprite);
+            icon.preserveAspect = true;
             var iRt = icon.rectTransform;
             iRt.anchorMin = new Vector2(0.02f, 0.1f);
             iRt.anchorMax = new Vector2(0.28f, 0.9f);
@@ -181,6 +241,13 @@ public class ShopUI : MonoBehaviour
             pRt.anchorMax = new Vector2(0.98f, 0.5f);
             pRt.offsetMin = Vector2.zero;
             pRt.offsetMax = Vector2.zero;
+
+            // Mouse support: clicking an entry selects it; clicking the selected entry buys.
+            // Transition = None so Unity's tint doesn't fight our manual highlight in RefreshState.
+            var btn = cell.gameObject.AddComponent<Button>();
+            btn.transition = Selectable.Transition.None;
+            int index = _entries.Count;
+            btn.onClick.AddListener(() => OnEntryClicked(index));
 
             _entries.Add(new Entry
             {
@@ -207,31 +274,57 @@ public class ShopUI : MonoBehaviour
         _selected = 0;
         RefreshState();
         SetFeedback("");
+        CloseConfirm();
 
         _isOpen = true;
         _root.SetActive(true);
 
-        // Keep the player frozen while shopping.
+        // Gameplay hides/locks the cursor — free it so the player can click entries.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        // Freeze the player AND the camera while shopping (time isn't paused, so the
+        // mouse would otherwise still drive look and spin the camera behind the panel).
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = false });
+        EventBus.Raise(new OnSetCameraEnabledEvent { enabled = false });
     }
 
     private void Close()
     {
         HideImmediate();
+
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = true });
+        EventBus.Raise(new OnSetCameraEnabledEvent { enabled = true });
+        // Defer cursor lock by one frame: Unity processes ESC internally on the same
+        // frame and would override an immediate CursorLockMode.Locked assignment.
+        StartCoroutine(RestoreCursorLock());
+    }
+
+    private IEnumerator RestoreCursorLock()
+    {
+        yield return null;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     private void HideImmediate()
     {
         _isOpen = false;
+        CloseConfirm();
         if (_root != null) _root.SetActive(false);
+    }
+
+    private void CloseConfirm()
+    {
+        _confirmOpen = false;
+        if (_confirmRoot != null) _confirmRoot.SetActive(false);
     }
 
     // ─── Input ─────────────────────────────────────────────────────────────
 
     private void OnMove(OnMoveInputEvent e)
     {
-        if (!_isOpen || !e.pressed || _entries.Count == 0) return;
+        if (!_isOpen || _confirmOpen || !e.pressed || _entries.Count == 0) return;
         if (Time.unscaledTime < _navCooldown) return;
 
         Vector2 d = e.Direction;
@@ -254,7 +347,47 @@ public class ShopUI : MonoBehaviour
 
     private void OnConfirm(OnInteractDodgeInputEvent e)
     {
-        if (!_isOpen || !e.pressed || _entries.Count == 0) return;
+        if (!_isOpen || !e.pressed) return;
+        // Consume the press so Interactor (priority 10) doesn't re-trigger the NPC.
+        EventBus.Cancel<OnInteractDodgeInputEvent>();
+        if (_entries.Count == 0) return;
+        // Interact/dodge doubles as the dialog's confirm button while it's open.
+        if (_confirmOpen) ConfirmPurchase();
+        else RequestPurchase();
+    }
+
+    /// <summary>Mouse click on an entry: selects it and opens the buy confirmation.</summary>
+    private void OnEntryClicked(int index)
+    {
+        if (!_isOpen || _confirmOpen || index < 0 || index >= _entries.Count) return;
+        _selected = index;
+        RefreshState();
+        RequestPurchase();
+    }
+
+    /// <summary>Validates the selected entry and pops the confirm dialog (or feedback).</summary>
+    private void RequestPurchase()
+    {
+        if (_selected < 0 || _selected >= _entries.Count) return;
+
+        var entry = _entries[_selected];
+        if (_shop.IsSold(entry.item))
+        {
+            SetFeedback("Sold out", new Color(0.7f, 0.7f, 0.7f));
+            return;
+        }
+
+        int price = _shop.GetPrice(entry.item);
+        _confirmMessage.text = $"Buy {entry.item.itemName}\nfor {price} coins?";
+        _confirmOpen = true;
+        _confirmRoot.SetActive(true);
+    }
+
+    /// <summary>Dialog "Buy" pressed — charge and grant, with the usual feedback.</summary>
+    private void ConfirmPurchase()
+    {
+        CloseConfirm();
+        if (_selected < 0 || _selected >= _entries.Count) return;
 
         var entry = _entries[_selected];
         if (_shop.IsSold(entry.item))
@@ -281,11 +414,24 @@ public class ShopUI : MonoBehaviour
         }
     }
 
+    /// <summary>Dialog "Cancel" pressed — dismiss without buying.</summary>
+    private void CancelPurchase() => CloseConfirm();
+
     private void OnBack(OnPauseInputEvent e)
     {
         if (!_isOpen || !e.pressed) return;
-        Close();
+        // Consume the press so PauseMenuUI (lower priority) doesn't also open.
+        EventBus.Cancel<OnPauseInputEvent>();
+        // Esc backs out of the confirm dialog first, then out of the shop.
+        if (_confirmOpen) CancelPurchase();
+        else Close();
     }
+
+    private void OnBlockTarget(OnTargetInputEvent e)    { if (_isOpen) EventBus.Cancel<OnTargetInputEvent>(); }
+    private void OnBlockAttack(OnAttackInputEvent e)    { if (_isOpen) EventBus.Cancel<OnAttackInputEvent>(); }
+    private void OnBlockInventory(OnInventoryInputEvent e) { if (_isOpen) EventBus.Cancel<OnInventoryInputEvent>(); }
+    private void OnBlockItemOne(OnItemOneInputEvent e)  { if (_isOpen) EventBus.Cancel<OnItemOneInputEvent>(); }
+    private void OnBlockItemTwo(OnItemTwoInputEvent e)  { if (_isOpen) EventBus.Cancel<OnItemTwoInputEvent>(); }
 
     // ─── Visuals ───────────────────────────────────────────────────────────
 

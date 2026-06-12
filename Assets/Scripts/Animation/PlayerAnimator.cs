@@ -217,6 +217,10 @@ public class PlayerAnimator : MonoBehaviour
     private void OnDamaged(OnDamagedEvent e)
     {
         if (_pm != null && e.victim != _pm.gameObject) return;
+        // HealthSystem already applied the damage before raising this event,
+        // so IsAlive==false means this is a fatal hit — skip Hit to let Death play cleanly.
+        var hp = _pm != null ? _pm.GetComponent<HealthSystem>() : null;
+        if (hp != null && !hp.IsAlive) return;
         _animator.SetTrigger(AnimParams.Hit);
     }
 

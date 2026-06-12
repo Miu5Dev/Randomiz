@@ -322,14 +322,18 @@ public static class AnimatorControllerBuilder
     // Tries the common Mixamo death-clip file names; warns once if none are present.
     private static AnimationClip FindDeathClip()
     {
-        foreach (var n in new[] { "Death", "Dying", "Defeated", "Falling Back Death", "Stagger Death" })
+        foreach (var n in new[]
+        {
+            "Death", "Dying", "Defeated", "Falling Back Death", "Stagger Death",
+            "two handed sword death", "two handed sword death (2)",
+        })
         {
             var c = FindClipInFile(n, false);
             if (c != null) return c;
         }
-        Debug.LogWarning("[AnimatorControllerBuilder] No death clip found (tried Death / Dying / Defeated). " +
+        Debug.LogWarning("[AnimatorControllerBuilder] No death clip found. " +
                          "Death STATE skipped — the death screen still works, only the animation is missing. " +
-                         "Add a death FBX named 'Death' or 'Dying' and rebuild.");
+                         "Add a death FBX named 'Death', 'Dying', or 'two handed sword death' and rebuild.");
         return null;
     }
 

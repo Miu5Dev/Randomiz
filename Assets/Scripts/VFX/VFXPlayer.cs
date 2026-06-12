@@ -34,6 +34,15 @@ public class VFXPlayer : MonoBehaviour
     // ── Private state ─────────────────────────────────────────────────────────
     private Coroutine _stepCoroutine;
 
+    // Previous locomotion flags, so we only fire an effect on the rising edge of
+    // each transition (dash start, ledge grab, ledge climb, land). Wallhug-enter is
+    // fired at its source in PlayerWallhug.TryEnter, so it has no _prev flag here.
+    private bool _locInit;
+    private bool _prevDashing;
+    private bool _prevLedge;
+    private bool _prevClimbing;
+    private bool _prevGrounded;
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     private void Awake()
     {
@@ -60,7 +69,12 @@ public class VFXPlayer : MonoBehaviour
     {
         EventBus.Subscribe<OnDamagedEvent>(OnDamaged);
         EventBus.Subscribe<OnDieEvent>(OnDie);
-        EventBus.Subscribe<OnAttackInputEvent>(OnAttackInput);
+        // Priority 1: run BEFORE EquipHandler (priority 0) so we read the equipped
+        // item as it was BEFORE this press. An empty-hand press only DRAWS the sword
+        // in EquipHandler — at priority 1 we still see an empty hand and stay silent.
+        EventBus.Subscribe<OnAttackInputEvent>(OnAttackInput, priority: 1);
+        EventBus.Subscribe<OnPlayerLocomotionStateEvent>(OnLocomotionState);
+        EventBus.Subscribe<OnItemPickedUpEvent>(OnItemPickedUp);
     }
 
     private void OnDisable()
@@ -68,6 +82,8 @@ public class VFXPlayer : MonoBehaviour
         EventBus.Unsubscribe<OnDamagedEvent>(OnDamaged);
         EventBus.Unsubscribe<OnDieEvent>(OnDie);
         EventBus.Unsubscribe<OnAttackInputEvent>(OnAttackInput);
+        EventBus.Unsubscribe<OnPlayerLocomotionStateEvent>(OnLocomotionState);
+        EventBus.Unsubscribe<OnItemPickedUpEvent>(OnItemPickedUp);
 
         if (_stepCoroutine != null)
         {
@@ -111,11 +127,61 @@ public class VFXPlayer : MonoBehaviour
         // Only trigger on button press, not on release.
         if (!e.pressed) return;
 
+        // The swoosh must reflect an ACTUAL sword swing — not an empty-hand draw
+        // (the first press from an empty hand only draws the sword), not a potion
+        // sip or a ranged weapon, and not a press the player can't act on. Because
+        // we run at priority 1 (above EquipHandler), EquipedItem here is the
+        // pre-press state: an empty hand still reads as null even though this very
+        // press will draw the sword.
+        EquipHandler equip = EquipHandler.Instance;
+        if (equip == null || !(equip.EquipedItem is SOSword)) return;
+        if (PlayerStateMachine.Instance != null && !PlayerStateMachine.Instance.CanAct) return;
+
         Vector3 pos = PlayerMovement.Instance != null
             ? PlayerMovement.Instance.transform.position
             : Vector3.zero;
 
         Play(SOVFXProfile.ATTACK_SWING, pos);
+    }
+
+    private void OnItemPickedUp(OnItemPickedUpEvent e)
+    {
+        // Play the pickup cue at the collector (the player who picked it up).
+        Vector3 pos = e.receiver != null
+            ? e.receiver.transform.position
+            : transform.position;
+
+        Play(SOVFXProfile.ITEM_PICKUP, pos);
+    }
+
+    /// <summary>
+    /// Fires the matching effect on the RISING edge of each locomotion flag
+    /// (dash start, ledge grab, ledge climb, landing). The first event after enable
+    /// only captures the baseline so we don't play LAND on spawn. Wallhug-enter is
+    /// handled at its source (PlayerWallhug.TryEnter), not here.
+    /// </summary>
+    private void OnLocomotionState(OnPlayerLocomotionStateEvent e)
+    {
+        Vector3 pos = PlayerMovement.Instance != null
+            ? PlayerMovement.Instance.transform.position
+            : transform.position;
+
+        if (_locInit)
+        {
+            if (e.isDashing       && !_prevDashing)  Play(SOVFXProfile.DASH,          pos);
+            // WallhugEnter is fired at its source (PlayerWallhug.TryEnter), which is
+            // more reliable than inferring the rising edge here — so it is
+            // intentionally not handled in this block.
+            if (e.isLedgeGrabbing && !_prevLedge)    Play(SOVFXProfile.LEDGE_GRAB,    pos);
+            if (e.isClimbingLedge && !_prevClimbing) Play(SOVFXProfile.LEDGE_CLIMB,   pos);
+            if (e.isGrounded      && !_prevGrounded) Play(SOVFXProfile.LAND,          pos);
+        }
+
+        _prevDashing  = e.isDashing;
+        _prevLedge    = e.isLedgeGrabbing;
+        _prevClimbing = e.isClimbingLedge;
+        _prevGrounded = e.isGrounded;
+        _locInit      = true;
     }
 
     // ── Footstep coroutine ────────────────────────────────────────────────────

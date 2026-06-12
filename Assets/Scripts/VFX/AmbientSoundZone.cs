@@ -36,6 +36,13 @@ public class AmbientSoundZone : MonoBehaviour
     // ── Lifecycle ─────────────────────────────────────────────────────────────
     private void Awake()
     {
+        // PhysicsController moves the player via transform (no Rigidbody).
+        // Kinematic Rigidbody on this volume lets Unity fire OnTriggerEnter.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+
         // Create a dedicated AudioSource so the zone is self-contained and
         // does not interfere with other AudioSources on the GameObject.
         _audioSource = gameObject.AddComponent<AudioSource>();

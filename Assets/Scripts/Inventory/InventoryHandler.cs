@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using System.IO;
 
 /// <summary>
@@ -20,7 +21,22 @@ public class InventoryHandler : MonoBehaviour
     [SerializeField] public SOItem defaultBottle; // Empty-bottle reference (shared with EquipHandler)
     [SerializeField] private SOItemPool itemPool;
 
-    [SerializeField] public int Coins = 0;
+    [SerializeField, FormerlySerializedAs("Coins")] private int _coins = 0;
+
+    /// <summary>
+    /// Player's coin total. Setting it raises <see cref="OnCoinsChangedEvent"/> so the
+    /// HUD updates without polling. Works transparently with += / -= (get then set).
+    /// </summary>
+    public int Coins
+    {
+        get => _coins;
+        set
+        {
+            if (_coins == value) return;
+            _coins = value;
+            EventBus.Raise(new OnCoinsChangedEvent { coins = _coins });
+        }
+    }
 
     // ─── Save/load ─────────────────────────────────────────────────────────────
 
@@ -46,7 +62,9 @@ public class InventoryHandler : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // Player-attached singleton: remove only the duplicate component, never the
+            // host GameObject — Destroy(gameObject) here would delete the whole player.
+            Destroy(this);
             return;
         }
         Instance = this;
@@ -292,11 +310,14 @@ public class InventoryHandler : MonoBehaviour
                     : itemPool?.FindItem(data.items[i]);
             Coins = data.coins;
 
-            // Restore equipped item.
+            // Restore equipped item. Swords are always drawn on demand (player starts
+            // empty-handed each session), so we skip them here even if the last save
+            // had a sword in hand.
             if (!string.IsNullOrEmpty(data.equippedItemName) && EquipHandler.Instance != null)
             {
                 SOItem equipped = itemPool?.FindItem(data.equippedItemName);
-                if (equipped != null) EquipHandler.Instance.EquipItem(equipped);
+                if (equipped != null && equipped is not SOSword)
+                    EquipHandler.Instance.EquipItem(equipped);
             }
 
             // Restore quickslot assignments.
@@ -357,6 +378,21 @@ public class InventoryHandler : MonoBehaviour
         int max = 0;
         for (int i = 1; i < invItems.Length; i++)
             if (invItems[i] is SOWeapon w && w.tier > max)
+                max = w.tier;
+        return max;
+    }
+
+    /// <summary>
+    /// Highest tier currently owned within a single weapon family (exact type match,
+    /// e.g. only SOSwords). Used by the shop to figure out which tier the player
+    /// should receive next for that family. Returns 0 when none are owned.
+    /// </summary>
+    public int GetHighestWeaponTierOfType(System.Type weaponType)
+    {
+        int max = 0;
+        for (int i = 0; i < invItems.Length; i++)
+            if (invItems[i] != null && invItems[i].GetType() == weaponType
+                && invItems[i] is SOWeapon w && w.tier > max)
                 max = w.tier;
         return max;
     }

@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96532d267c2d3824ea5af7be7d2f2664, type: 3}
+  m_Name: VFXProfile
+  m_EditorClassIdentifier: 
+  bindings:
+  - actionName: WalkStep
+    vfxPrefab: {fileID: 6848570603200742141, guid: 1cf2abcc7866eff4ea22abc7e69d700a, type: 3}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 03aee1f8495e31947b168f9c8ca5d1b7, type: 3}
+    sfxVolume: 0.1
+  - actionName: Land
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 767c058669b9e084d8ff6324bb1a955d, type: 3}
+    sfxVolume: 0.2
+  - actionName: AttackSwing
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 425f190d6af4a8d469c758a3b3605cd9, type: 3}
+    sfxVolume: 1
+  - actionName: AttackHit
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 1196025a059693c4f92f1651d2277ea0, type: 3}
+    sfxVolume: 1
+  - actionName: TakeDamage
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 921f3e01fed27074e9c0d2fdeb211e54, type: 3}
+    sfxVolume: 1
+  - actionName: Death
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: df45636977c0f4e42b0c1c9a3cccce2d, type: 3}
+    sfxVolume: 1
+  - actionName: Dash
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: b190cb8344090d1448ed3ee29736ad91, type: 3}
+    sfxVolume: 2
+  - actionName: WallhugEnter
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: ba2c3ed34718dcb4f816f2bcee939ec1, type: 3}
+    sfxVolume: 1
+  - actionName: LedgeGrab
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 174f6ca95e525ce43998ac7dbc5375c5, type: 3}
+    sfxVolume: 1
+  - actionName: LedgeClimb
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 936b199cf24faa74dbf4aede5fe00db6, type: 3}
+    sfxVolume: 1
+  - actionName: ItemPickup
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 41af41ed0702ee04283cd65ba20d954c, type: 3}
+    sfxVolume: 2
+  - actionName: EnemyDeath
+    vfxPrefab: {fileID: 0}
+    attachToSource: 0
+    duration: 2
+    sfxClip: {fileID: 8300000, guid: 2e7134413adc8cb429257306a347d91a, type: 3}
+    sfxVolume: 1

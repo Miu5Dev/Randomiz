@@ -1,0 +1,416 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-6188137680514699357
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27703c2b823065b419a9923525ba15a0, type: 3}
+  m_Name: Panic Dodge
+  m_EditorClassIdentifier: 
+  window: 0.5
+  multiplier: 5
+--- !u!114 &-5918533892929851588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Bandit Evade
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 12
+  burstTime: 0.38
+--- !u!114 &-3581813273535047110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Charge Approach
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.4
+  stopDistance: 1.2
+--- !u!114 &-3220074251850436497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f6de1c2fe4b08240a982f20818af334, type: 3}
+  m_Name: Half Health
+  m_EditorClassIdentifier: 
+  threshold: 0.5
+--- !u!114 &-1711338758535976241
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85429bb6447d15a4b9f7d460bd03da85, type: 3}
+  m_Name: Bandit Patrol
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.55
+  reachDistance: 0.4
+  pingPong: 0
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: Bandit_Data
+  m_EditorClassIdentifier: 
+  enemyName: Bandit
+  prefab: {fileID: 3940894468604637404, guid: 68be52471c8936543bfd65709dee1c09, type: 3}
+  parts:
+  - partName: Bandit
+    maxHearts: 13
+    moveSpeed: 3
+    turnSpeed: 13
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 11400000, guid: b0775c92f16106d49ba9ecde651c0a41, type: 2}
+    vision:
+      range: 11
+      angle: 140
+      alertRadius: 3
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: -1711338758535976241}
+    phases:
+    - {fileID: 4871061595804984249}
+    - {fileID: 8103321552596468440}
+    dodgeReaction: {fileID: -5918533892929851588}
+    dodgeChance: 0.5
+    dodgeReactionTime: 0.4
+--- !u!114 &137998814417689592
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b78e96008e1887845861da2b7d097434, type: 3}
+  m_Name: Panic More
+  m_EditorClassIdentifier: 
+  threshold: 0.3
+  multiplier: 2
+--- !u!114 &982982084670723528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ad1073a2f0253498b4dd38c4bb7161, type: 3}
+  m_Name: Charge CD
+  m_EditorClassIdentifier: 
+  cooldown: 6
+  minMultiplier: 0
+--- !u!114 &1533525098206010472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc5f34446e8c59b4183207b1d0b53d5d, type: 3}
+  m_Name: Slash Parry Counter
+  m_EditorClassIdentifier: 
+  steps:
+  - attack: {fileID: 1549482023424633014}
+    duration: 1
+  - attack: {fileID: 4999806871876364489}
+    duration: 0.6
+  - attack: {fileID: 5206268765116023495}
+    duration: 0.8
+  loop: 0
+--- !u!114 &1549482023424633014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01b9548c6ee1ae41a4ab67792c2c4f1, type: 3}
+  m_Name: Slash
+  m_EditorClassIdentifier: 
+  attackRange: 1.8
+  cooldown: 0.8
+--- !u!114 &2099566466067535832
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Frantic Dodge
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 13
+  burstTime: 0.35
+--- !u!114 &2859359010286006164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc51a1a9b2c049b4ebf45a5cea146fb7, type: 3}
+  m_Name: Bandit Charge
+  m_EditorClassIdentifier: 
+  triggerRange: 7
+  windupTime: 0.6
+  chargeSpeed: 12
+  chargeDuration: 0.45
+  recoverTime: 0.55
+  cooldown: 5
+  damage: 15
+  hitRadius: 0.75
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &2868357219175063775
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay Desperate
+  m_EditorClassIdentifier: 
+--- !u!114 &3158510896304672951
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c66fb10895ed7da46a65d68d59a9b26f, type: 3}
+  m_Name: Desperate Combo
+  m_EditorClassIdentifier: 
+  attackRange: 1.8
+  strikes: 4
+  timeBetween: 0.18
+  cooldown: 1.8
+--- !u!114 &3572627403434121572
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ea4599f01d742342b5b5b9931a4ff75, type: 3}
+  m_Name: Pressure Orbit
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.9
+  radius: 2.5
+  direction: 1
+  radiusStiffness: 1.2
+--- !u!114 &3596829488127819768
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27703c2b823065b419a9923525ba15a0, type: 3}
+  m_Name: Dodge On Attack
+  m_EditorClassIdentifier: 
+  window: 0.5
+  multiplier: 4
+--- !u!114 &4871061595804984249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Composed
+  m_EditorClassIdentifier: 
+  label: Composed
+  decisionInterval: {x: 1.2, y: 2.5}
+  noise: 0.2
+  states:
+  - label: Slash Sequence
+    movement: {fileID: 3572627403434121572}
+    attack: {fileID: 1533525098206010472}
+    baseWeight: 40
+    duration: {x: 2.4, y: 3}
+    modifiers: []
+  - label: Charge
+    movement: {fileID: -3581813273535047110}
+    attack: {fileID: 2859359010286006164}
+    baseWeight: 30
+    duration: {x: 1.8, y: 2.5}
+    modifiers:
+    - {fileID: 982982084670723528}
+  - label: Dodge
+    movement: {fileID: 5295551052573447633}
+    attack: {fileID: 7404096719349535665}
+    baseWeight: 30
+    duration: {x: 0.5, y: 1}
+    modifiers:
+    - {fileID: 3596829488127819768}
+  exitCondition: {fileID: -3220074251850436497}
+--- !u!114 &4999806871876364489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: Parry Stance
+  m_EditorClassIdentifier: 
+--- !u!114 &5206268765116023495
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01b9548c6ee1ae41a4ab67792c2c4f1, type: 3}
+  m_Name: Counter Strike
+  m_EditorClassIdentifier: 
+  attackRange: 2
+  cooldown: 0.5
+--- !u!114 &5295551052573447633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Tactical Dodge
+  m_EditorClassIdentifier: 
+  direction: 2
+  dodgeSpeed: 11
+  burstTime: 0.38
+--- !u!114 &7234354321436465570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Flurry Chase
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.2
+  stopDistance: 1.1
+--- !u!114 &7277640261693581945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: No Attack Desperation
+  m_EditorClassIdentifier: 
+--- !u!114 &7404096719349535665
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccea551adb5069b4b91c066201b2b2d9, type: 3}
+  m_Name: No Attack Dodge
+  m_EditorClassIdentifier: 
+--- !u!114 &8103321552596468440
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Desperate
+  m_EditorClassIdentifier: 
+  label: Desperate
+  decisionInterval: {x: 0.8, y: 1.8}
+  noise: 0.15
+  states:
+  - label: Desperate Flurry
+    movement: {fileID: 7234354321436465570}
+    attack: {fileID: 3158510896304672951}
+    baseWeight: 65
+    duration: {x: 1.5, y: 2.5}
+    modifiers: []
+  - label: Desperate Dodge
+    movement: {fileID: 2099566466067535832}
+    attack: {fileID: 7277640261693581945}
+    baseWeight: 35
+    duration: {x: 0.4, y: 0.9}
+    modifiers:
+    - {fileID: -6188137680514699357}
+    - {fileID: 137998814417689592}
+  exitCondition: {fileID: 2868357219175063775}

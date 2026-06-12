@@ -21,8 +21,10 @@ public class BossShockwave : MonoBehaviour
     [Header("Damage")]
     [Tooltip("Damage dealt to the player on contact.")]
     [SerializeField] private float damage = 10f;
-    [Tooltip("Upward knockback impulse applied to the player's physics on hit.")]
+    [Tooltip("Upward force passed to PlayerMovement.ApplyKnockback.")]
     [SerializeField] private float knockbackForce = 8f;
+    [Tooltip("Seconds the player is hit-stunned after the knockback.")]
+    [SerializeField] private float knockbackDuration = 0.35f;
 
     // ── Runtime ──────────────────────────────────────────────────────────────
 
@@ -31,6 +33,16 @@ public class BossShockwave : MonoBehaviour
     private bool    _playerHit; // prevent hitting the player more than once per shockwave
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    private void Awake()
+    {
+        // PhysicsController has no Rigidbody — kinematic Rigidbody on this volume
+        // is required for OnTriggerEnter to fire against the player's static collider.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+    }
 
     private void Update()
     {
@@ -62,9 +74,7 @@ public class BossShockwave : MonoBehaviour
             target:   other.gameObject,
             damage:   damage));
 
-        // Apply upward knockback so the player has time to react (jump over hint).
-        Rigidbody playerRb = other.GetComponent<Rigidbody>();
-        if (playerRb != null)
-            playerRb.AddForce(Vector3.up * knockbackForce, ForceMode.Impulse);
+        // Apply upward knockback through the custom physics system.
+        PlayerMovement.Instance?.ApplyKnockback(transform.position, 0f, knockbackForce, knockbackDuration);
     }
 }

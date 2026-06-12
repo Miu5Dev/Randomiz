@@ -67,6 +67,9 @@ public class NPCController : MonoBehaviour
         if (e.npc != this || !_waitingForDialogueEnd) return;
         _waitingForDialogueEnd = false;
 
+        // Player backed out with Esc — don't open the shop.
+        if (e.cancelled) return;
+
         if (data.isShopkeeper)
         {
             _shop?.EnsureGenerated();

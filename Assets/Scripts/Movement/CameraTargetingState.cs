@@ -1,4 +1,5 @@
 using System.Collections;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -54,6 +55,20 @@ public class CameraTargetingState : MonoBehaviour
     [Tooltip("Sorting order of the procedural Canvas. Keep it high so the bars sit above gameplay UI.")]
     [SerializeField] private int letterboxSortingOrder = 999;
 
+    [Header("Ranged Aim (slingshot / grapple)")]
+    [Tooltip("When a ranged weapon is equipped AND the player is targeting, the camera moves " +
+             "to this local Z (≈ first person) so the shot lines up with the crosshair.")]
+    [SerializeField] private float firstPersonLocalZ = 0.2f;
+
+    [Tooltip("Show a procedural crosshair while aiming a ranged weapon.")]
+    [SerializeField] private bool showCrosshair = true;
+
+    [Tooltip("Crosshair size in pixels.")]
+    [SerializeField] private float crosshairSize = 28f;
+
+    [Tooltip("Crosshair color.")]
+    [SerializeField] private Color crosshairColor = new(1f, 1f, 1f, 0.85f);
+
     // ────────────────────────────────────────────────────────────────────────
     // INTERNAL STATE — Zoom (SmoothDamp)
     // ────────────────────────────────────────────────────────────────────────
@@ -65,6 +80,12 @@ public class CameraTargetingState : MonoBehaviour
     private float _localZVelocity;
     private bool _active;
 
+    // Cinemachine path: drive CameraDistance instead of localPosition.z.
+    private CinemachineThirdPersonFollow _thirdPersonFollow;
+    private float _baseCameraDistance;
+    private float _currentCameraDistance;
+    private float _cameraDistanceVelocity;
+
     // ────────────────────────────────────────────────────────────────────────
     // INTERNAL STATE — Letterbox
     // ────────────────────────────────────────────────────────────────────────
@@ -72,6 +93,17 @@ public class CameraTargetingState : MonoBehaviour
     private RectTransform _topBar;
     private RectTransform _bottomBar;
     private Coroutine _letterboxRoutine;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // INTERNAL STATE — Ranged aim
+    // ────────────────────────────────────────────────────────────────────────
+    private bool _rangedEquipped;            // slingshot or grapple in hand
+    private bool _wasAiming;                 // previous-frame aiming state for edge detection
+    private GameObject _crosshair;
+
+    // True if cameraRig was explicitly set in the inspector; false = no-op to avoid
+    // fighting with CinemachineBrain that also drives the camera every LateUpdate.
+    private bool _cameraRigExplicit;
 
     private void Awake()
     {
@@ -83,13 +115,24 @@ public class CameraTargetingState : MonoBehaviour
             _currentFOV = _baseFOV;
         }
 
-        if (cameraRig == null && cameraToZoom != null)
-            cameraRig = cameraToZoom.transform;
-
+        // Only take control of local Z if the user explicitly assigned a rig.
+        // Auto-assigning Camera.main here would fight CinemachineBrain every frame.
+        _cameraRigExplicit = cameraRig != null;
         if (cameraRig != null)
         {
             _baseLocalZ = cameraRig.localPosition.z;
             _currentLocalZ = _baseLocalZ;
+        }
+
+        // Cinemachine 3.x path: preferred over localPosition.z manipulation.
+        // CameraTargetingState lives on [CAM] (the VCam) which also has ThirdPersonFollow.
+        _thirdPersonFollow = GetComponent<CinemachineThirdPersonFollow>();
+        if (_thirdPersonFollow == null)
+            _thirdPersonFollow = GetComponentInParent<CinemachineThirdPersonFollow>();
+        if (_thirdPersonFollow != null)
+        {
+            _baseCameraDistance    = _thirdPersonFollow.CameraDistance;
+            _currentCameraDistance = _baseCameraDistance;
         }
 
         BuildLetterbox();
@@ -99,13 +142,22 @@ public class CameraTargetingState : MonoBehaviour
     {
         if (targetingSystem != null)
             targetingSystem.OnTargetingChanged += HandleTargetingChanged;
+        EventBus.Subscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Subscribe<OnItemUnequipEvent>(OnItemUnequip);
     }
 
     private void OnDisable()
     {
         if (targetingSystem != null)
             targetingSystem.OnTargetingChanged -= HandleTargetingChanged;
+        EventBus.Unsubscribe<OnItemEquipEvent>(OnItemEquip);
+        EventBus.Unsubscribe<OnItemUnequipEvent>(OnItemUnequip);
     }
+
+    private void OnItemEquip(OnItemEquipEvent e) =>
+        _rangedEquipped = e.item is SOSlingShot || e.item is SOGrappleHook;
+
+    private void OnItemUnequip(OnItemUnequipEvent e) => _rangedEquipped = false;
 
     // ────────────────────────────────────────────────────────────────────────
     // PROCEDURAL LETTERBOX BUILD
@@ -134,6 +186,40 @@ public class CameraTargetingState : MonoBehaviour
         // Start off-screen (height = barHeightPixels but pivoted so they sit just beyond the edge).
         PositionBar(_topBar, 0f);
         PositionBar(_bottomBar, 0f);
+
+        BuildCrosshair();
+    }
+
+    // Simple centered "+" crosshair (two bars) on the same canvas. Hidden by default.
+    private void BuildCrosshair()
+    {
+        _crosshair = new GameObject("Crosshair", typeof(RectTransform));
+        var rt = (RectTransform)_crosshair.transform;
+        rt.SetParent(_letterboxCanvas.transform, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = new Vector2(crosshairSize, crosshairSize);
+
+        float thickness = Mathf.Max(2f, crosshairSize * 0.08f);
+        MakeCrossBar(rt, new Vector2(crosshairSize, thickness));   // horizontal
+        MakeCrossBar(rt, new Vector2(thickness, crosshairSize));   // vertical
+
+        _crosshair.SetActive(false);
+    }
+
+    private void MakeCrossBar(RectTransform parent, Vector2 size)
+    {
+        var go = new GameObject("Bar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        var rt = (RectTransform)go.transform;
+        rt.SetParent(parent, false);
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = Vector2.zero;
+        rt.sizeDelta = size;
+        var img = go.GetComponent<Image>();
+        img.color = crosshairColor;
+        img.raycastTarget = false;
     }
 
     private RectTransform CreateBar(string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot)
@@ -231,19 +317,53 @@ public class CameraTargetingState : MonoBehaviour
     {
         if (cameraToZoom == null) return;
 
-        if (zoomMode == ZoomMode.FieldOfView)
+        // Aiming = targeting while a ranged weapon is in hand → go first person.
+        bool aiming = _active && _rangedEquipped;
+
+        // Block movement while aiming, restore when done.
+        if (aiming != _wasAiming)
         {
-            float desiredFOV = _active ? targetingFOV : _baseFOV;
-            _currentFOV = Mathf.SmoothDamp(_currentFOV, desiredFOV, ref _fovVelocity, zoomSmoothTime);
-            cameraToZoom.fieldOfView = _currentFOV;
+            EventBus.Raise(new OnSetMovementEnabledEvent { enabled = !aiming });
+            _wasAiming = aiming;
         }
-        else if (cameraRig != null)
+
+        if (_crosshair != null)
+            _crosshair.SetActive(showCrosshair && aiming);
+
+        // ── Camera distance: Cinemachine ThirdPersonFollow path (preferred).
+        if (_thirdPersonFollow != null)
         {
-            float desiredZ = _active ? _baseLocalZ * targetingDistanceMultiplier : _baseLocalZ;
+            float desiredDist;
+            if (aiming)                                           desiredDist = firstPersonLocalZ;
+            else if (zoomMode == ZoomMode.Distance && _active)    desiredDist = _baseCameraDistance * targetingDistanceMultiplier;
+            else                                                  desiredDist = _baseCameraDistance;
+
+            _currentCameraDistance = Mathf.SmoothDamp(_currentCameraDistance, desiredDist, ref _cameraDistanceVelocity, zoomSmoothTime);
+            _thirdPersonFollow.CameraDistance = _currentCameraDistance;
+        }
+        // ── Legacy path: direct Transform rig control (non-Cinemachine setups).
+        // Only run when cameraRig was explicitly assigned — auto-assigning Camera.main
+        // would fight CinemachineBrain that also drives the camera in LateUpdate.
+        else if (_cameraRigExplicit && cameraRig != null)
+        {
+            float desiredZ;
+            if (aiming)                                        desiredZ = firstPersonLocalZ;
+            else if (zoomMode == ZoomMode.Distance && _active) desiredZ = _baseLocalZ * targetingDistanceMultiplier;
+            else                                               desiredZ = _baseLocalZ;
+
             _currentLocalZ = Mathf.SmoothDamp(_currentLocalZ, desiredZ, ref _localZVelocity, zoomSmoothTime);
             Vector3 lp = cameraRig.localPosition;
             lp.z = _currentLocalZ;
             cameraRig.localPosition = lp;
+        }
+
+        // ── FOV zoom (FieldOfView mode only). Weapon behaviours do their own aim-FOV
+        //    zoom, so we leave FOV at base while free-aiming. ──
+        if (zoomMode == ZoomMode.FieldOfView)
+        {
+            float desiredFOV = (_active && !aiming) ? targetingFOV : _baseFOV;
+            _currentFOV = Mathf.SmoothDamp(_currentFOV, desiredFOV, ref _fovVelocity, zoomSmoothTime);
+            cameraToZoom.fieldOfView = _currentFOV;
         }
     }
 }

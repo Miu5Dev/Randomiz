@@ -1,0 +1,186 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-5737684516653323796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce6d37f2403f1f3478e03c02dbce225c, type: 3}
+  m_Name: Arrow Shot
+  m_EditorClassIdentifier: 
+  projectilePrefab: {fileID: 0}
+  fireRange: 15
+  cooldown: 2.5
+  projectileSpeed: 12
+  projectileDamage: 8
+  projectileLife: 6
+  projectileRadius: 0.15
+  muzzleOffset: {x: 0, y: 1.2, z: 0.3}
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &-3506354316787444201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cb95bd67b5600e043817a2b60fa746a1, type: 3}
+  m_Name: Flee When Close
+  m_EditorClassIdentifier: 
+  distance: 5
+  multiplier: 3
+--- !u!114 &-2832005663991355614
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay Kiting
+  m_EditorClassIdentifier: 
+--- !u!114 &-727545064501552886
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8080ea97628f9842a9472bd5f7864d4, type: 3}
+  m_Name: Back Away
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.2
+  safeDistance: 7
+  faceWhileFleeing: 1
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: GoblinArcher_Data
+  m_EditorClassIdentifier: 
+  enemyName: GoblinArcher
+  prefab: {fileID: 0}
+  parts:
+  - partName: Goblin Archer
+    maxHearts: 5
+    moveSpeed: 2.5
+    turnSpeed: 12
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 0}
+    vision:
+      range: 16
+      angle: 100
+      alertRadius: 2
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: 3512204033954854783}
+    phases:
+    - {fileID: 5316404066166485608}
+    dodgeReaction: {fileID: 0}
+    dodgeChance: 0.6
+    dodgeReactionTime: 0.4
+--- !u!114 &3512204033954854783
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85429bb6447d15a4b9f7d460bd03da85, type: 3}
+  m_Name: Archer Patrol
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.45
+  reachDistance: 0.4
+  pingPong: 0
+--- !u!114 &3690677755672621063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce6d37f2403f1f3478e03c02dbce225c, type: 3}
+  m_Name: Fleeing Shot
+  m_EditorClassIdentifier: 
+  projectilePrefab: {fileID: 0}
+  fireRange: 15
+  cooldown: 3
+  projectileSpeed: 12
+  projectileDamage: 8
+  projectileLife: 6
+  projectileRadius: 0.15
+  muzzleOffset: {x: 0, y: 1.2, z: 0.3}
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &5316404066166485608
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Kite
+  m_EditorClassIdentifier: 
+  label: Kite
+  decisionInterval: {x: 1.2, y: 2.5}
+  noise: 0.2
+  states:
+  - label: Strafe And Shoot
+    movement: {fileID: 5378853296904536738}
+    attack: {fileID: -5737684516653323796}
+    baseWeight: 60
+    duration: {x: 1.5, y: 3}
+    modifiers: []
+  - label: Flee
+    movement: {fileID: -727545064501552886}
+    attack: {fileID: 3690677755672621063}
+    baseWeight: 30
+    duration: {x: 1, y: 2}
+    modifiers:
+    - {fileID: -3506354316787444201}
+  exitCondition: {fileID: -2832005663991355614}
+--- !u!114 &5378853296904536738
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dea1b5f557c8a2f45809779d75d2b1ec, type: 3}
+  m_Name: Side Strafe
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1
+  radius: 9
+  direction: 1

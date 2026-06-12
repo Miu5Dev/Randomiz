@@ -8,10 +8,11 @@ using UnityEngine;
 /// with a staggered delay.
 ///
 /// Lifecycle:
-///   • Player ENTERS: if <c>canSpawn</c> is true, begin spawning enemies.
+///   • Player ENTERS: if <c>canSpawn</c> is true AND no live enemies remain, begin spawning.
 ///   • Player IN ZONE: no new spawns; enemies remain active.
-///   • Player EXITS: if <c>respawnOnReentry</c> is true, re-enable spawning for the next entry.
-///   • All enemies DEFEATED: zone is cleared; <c>canSpawn</c> stays false (no respawn this session).
+///   • Player EXITS mid-fight: live enemies stay; player fights the same wave on re-entry.
+///   • All enemies DEFEATED: if <c>respawnOnReentry</c> true → ready to spawn next entry;
+///     if false → zone permanently cleared.
 ///   • Scene RELOADS: all zones reset and can spawn again.
 ///
 /// Optional persistence: stores cleared state via SaveManager (if <c>zoneId</c> is set).
@@ -47,6 +48,13 @@ public class EnemySpawnZone : MonoBehaviour
 
     private void Awake()
     {
+        // PhysicsController has no Rigidbody — kinematic Rigidbody on this volume
+        // is required for OnTriggerEnter to fire against the player's static collider.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+
         _zoneCollider = GetComponent<Collider>();
 
         // Load cleared state from save if persistence is enabled.
@@ -69,7 +77,11 @@ public class EnemySpawnZone : MonoBehaviour
 
         _playerInZone = true;
 
-        if (_canSpawn && !_isCleared)
+        // Prune stale refs before checking live count.
+        _liveEnemies.RemoveAll(e => e == null || !e.IsAlive);
+
+        // Only spawn if allowed AND no enemies from a previous wave are still alive.
+        if (_canSpawn && !_isCleared && _liveEnemies.Count == 0)
         {
             _spawnCoroutine = StartCoroutine(SpawnEnemiesCoroutine());
             _canSpawn = false;
@@ -82,18 +94,16 @@ public class EnemySpawnZone : MonoBehaviour
 
         _playerInZone = false;
 
-        // Stop spawning if we're mid-spawn and the player exits.
+        // Stop mid-spawn if the player exits before all enemies have appeared.
         if (_spawnCoroutine != null)
         {
             StopCoroutine(_spawnCoroutine);
             _spawnCoroutine = null;
         }
 
-        // Re-enable spawning for the next entry only if not all enemies are dead.
-        if (respawnOnReentry && _liveEnemies.Count > 0 && !_isCleared)
-        {
-            _canSpawn = true;
-        }
+        // Do NOT re-enable spawning here: if enemies are still alive they remain
+        // in the world and the player should fight the same ones on re-entry.
+        // Respawn readiness is handled in FixedUpdate once the wave is fully cleared.
     }
 
     // ─── Spawning ─────────────────────────────────────────────────────────────
@@ -209,10 +219,14 @@ public class EnemySpawnZone : MonoBehaviour
         // Prune dead enemies from the tracking list.
         _liveEnemies.RemoveAll(enemy => enemy == null || !enemy.IsAlive);
 
-        // If all enemies are dead and player is still in zone, mark zone as cleared.
-        if (_liveEnemies.Count == 0 && _playerInZone && !_isCleared && !_canSpawn)
+        // Wave fully cleared: all spawned enemies are dead and no spawn is in progress.
+        // This fires regardless of whether the player is in the zone or not.
+        if (_liveEnemies.Count == 0 && !_isCleared && !_canSpawn && _spawnCoroutine == null)
         {
-            ClearZone();
+            if (respawnOnReentry)
+                _canSpawn = true;  // ready for next entry
+            else
+                ClearZone();       // permanently cleared
         }
     }
 

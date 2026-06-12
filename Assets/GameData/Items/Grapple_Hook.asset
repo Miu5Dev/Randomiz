@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cf3e3c8fe521e747b3c4cb2b8642bcf, type: 3}
+  m_Name: Grapple_Hook
+  m_EditorClassIdentifier: 
+  itemName: Grapple Hook
+  itemDescription: Just the Grapple Hook
+  itemSprite: {fileID: 1828263944, guid: 860362bb8e895764e8e6aeb157a0f838, type: 3}
+  baseValue: 10
+  isFiller: 0
+  prefab: {fileID: 0}
+  PivotPoint: {fileID: 0}
+  handWeightMultiplier: 1
+  ropeLength: 30
+  pullSpeed: 12
+  swingForce: 8
+  hookableLayers:
+    serializedVersion: 2
+    m_Bits: 128
+  hookPrefab: {fileID: 919132149155446097, guid: 7d0dda3efb99fcc45a19285bff66e829, type: 3}
+  ropePrefab: {fileID: 0}

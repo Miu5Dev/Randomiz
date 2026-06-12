@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6c562e007c88fa458c3f55e86fa0227, type: 3}
+  m_Name: Simple_Key
+  m_EditorClassIdentifier: 
+  itemName: Simple Key
+  itemDescription: Just a Key
+  itemSprite: {fileID: -1883236281, guid: 5d2e06362c858b5458793b2eec51688c, type: 3}
+  baseValue: 10
+  isFiller: 0
+  prefab: {fileID: 0}
+  PivotPoint: {fileID: 0}
+  handWeightMultiplier: 1
+  keyId: key_door_1

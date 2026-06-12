@@ -15,11 +15,12 @@ MonoBehaviour:
   itemName: Divine Sword
   itemDescription: 
   itemSprite: {fileID: 287046354, guid: 5f929ef81eb1c4b4183aaa4e4ef52716, type: 3}
+  baseValue: 10
   isFiller: 0
-  prefab: {fileID: 0}
+  prefab: {fileID: 919132149155446097, guid: 5895cd3b9eea69f47b65ff3380ce4e17, type: 3}
   PivotPoint: {fileID: 0}
   handWeightMultiplier: 1
-  damage: 8
+  damage: 10
   range: 1
   speed: 2
   tier: 3
@@ -27,7 +28,7 @@ MonoBehaviour:
   hitboxUseAnimationEvents: 1
   hitboxActiveDelay: 0.05
   hitboxActiveDuration: 0.25
-  hitboxSize: {x: 0.81, y: 1.11, z: 1.31}
+  hitboxSize: {x: 2.5, y: 1, z: 2}
   hitboxReach: 1.33
   targetLayers:
     serializedVersion: 2

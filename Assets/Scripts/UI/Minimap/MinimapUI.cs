@@ -2,45 +2,59 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
-/// <summary>
-/// Creates and manages the minimap UI panel in the bottom-left corner.
-///
-/// Responsibilities:
-/// - Creates Canvas and minimap panel on Start (if not already present).
-/// - Pools MinimapIcon components for chests and the player.
-/// - Each Update: reads chest positions from MinimapManager and repositions icons.
-/// - Calculates minimap positions using the formula:
-///   minimapPos = (chestWorldPos - playerWorldPos) / mapRadius * mapSizePixels * 0.5
-/// - Clamps positions to minimap bounds.
-/// - Colors: white for closed chests, gold (1, 0.8, 0) for opened.
-/// - Player dot always centered with arrow showing facing direction.
-/// </summary>
 public class MinimapUI : MonoBehaviour
 {
+    [Header("Icons")]
     [SerializeField] private Sprite chestIcon;
+    [SerializeField] private Sprite shopIcon;
     [SerializeField] private Sprite playerArrowIcon;
+
+    [Header("Size")]
+    [Tooltip("Side length of the minimap panel in pixels. Change at runtime to resize.")]
     [SerializeField] private float mapSizePixels = 150f;
     [SerializeField] private float iconSizePixels = 16f;
-    [SerializeField] private Color closedChestColor = Color.white;
-    [SerializeField] private Color openChestColor = new Color(1f, 0.8f, 0f, 1f);
+
+    [Header("Chest Colors")]
+    [Tooltip("Unopened chests — bright so the player can spot loot still worth visiting.")]
+    [SerializeField] private Color closedChestColor = new Color(1f, 0.85f, 0.3f, 1f);
+    [Tooltip("Opened chests — dimmed since there's nothing left to grab.")]
+    [SerializeField] private Color openChestColor = new Color(0.45f, 0.45f, 0.45f, 0.6f);
+
+    [Header("Shop Colors")]
+    [Tooltip("Shop with at least one item still available to buy.")]
+    [SerializeField] private Color shopActiveColor = new Color(0.3f, 0.85f, 1f, 1f);
+    [Tooltip("Shop where everything has already been purchased.")]
+    [SerializeField] private Color shopSoldOutColor = new Color(0.35f, 0.35f, 0.35f, 0.6f);
+
+    [Header("Player")]
     [SerializeField] private Color playerColor = Color.cyan;
 
     private Canvas minimapCanvas;
     private RectTransform minimapPanel;
     private List<MinimapIcon> chestIconPool = new();
+    private List<MinimapIcon> shopIconPool  = new();
     private MinimapIcon playerIcon;
     private Transform playerTransform;
+    private Transform _facingTransform;
+    private float _lastMapSizePixels;
 
     private void Start()
     {
         CreateMinimapUI();
         FindPlayer();
+        _lastMapSizePixels = mapSizePixels;
     }
 
     private void Update()
     {
         if (playerTransform == null || minimapPanel == null)
             return;
+
+        if (!Mathf.Approximately(_lastMapSizePixels, mapSizePixels))
+        {
+            _lastMapSizePixels = mapSizePixels;
+            RefreshMapSize();
+        }
 
         UpdateMinimapDisplay();
     }
@@ -55,7 +69,7 @@ public class MinimapUI : MonoBehaviour
         if (existingCanvas != null && existingCanvas.name == "MinimapCanvas")
         {
             minimapCanvas = existingCanvas;
-            minimapPanel = minimapCanvas.GetComponentInChildren<RawImage>()?.GetComponent<RectTransform>();
+            minimapPanel = minimapCanvas.GetComponentInChildren<RectTransform>()?.GetComponent<RectTransform>();
             if (minimapPanel != null)
                 return;
         }
@@ -67,48 +81,32 @@ public class MinimapUI : MonoBehaviour
         canvasGO.AddComponent<CanvasScaler>();
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Create Panel (RawImage in bottom-left corner)
+        // Create Panel in bottom-left corner
         var panelGO = new GameObject("MinimapPanel");
         panelGO.transform.SetParent(canvasGO.transform, false);
         minimapPanel = panelGO.AddComponent<RectTransform>();
 
-        // Position: bottom-left corner with padding
         float padding = 10f;
         minimapPanel.anchorMin = Vector2.zero;
         minimapPanel.anchorMax = Vector2.zero;
         minimapPanel.anchoredPosition = new Vector2(padding + mapSizePixels * 0.5f, padding + mapSizePixels * 0.5f);
         minimapPanel.sizeDelta = new Vector2(mapSizePixels, mapSizePixels);
 
-        // Add Image component for background
         var bgImage = panelGO.AddComponent<Image>();
         bgImage.color = new Color(0f, 0f, 0f, 0.5f);
 
-        // Create icon pool for chests
-        InitializeChestIconPool();
-
-        // Create player icon
         CreatePlayerIcon();
 
         Debug.Log("[MinimapUI] Minimap panel created in bottom-left corner.");
     }
 
     /// <summary>
-    /// Initializes the chest icon pool based on discovered chests.
+    /// Grows the chest-icon pool until it can show every discovered chest.
     /// </summary>
-    private void InitializeChestIconPool()
+    private void EnsureChestIconPool(int needed)
     {
-        var manager = MinimapManager.Instance;
-        if (manager == null)
-        {
-            Debug.LogError("[MinimapUI] MinimapManager not found in scene.");
-            return;
-        }
-
-        int chestCount = manager.ChestEntries.Count;
-        for (int i = 0; i < chestCount; i++)
-        {
+        while (chestIconPool.Count < needed)
             CreateChestIcon();
-        }
     }
 
     /// <summary>
@@ -126,7 +124,7 @@ public class MinimapUI : MonoBehaviour
         if (chestIcon != null)
             image.sprite = chestIcon;
         else
-            image.color = Color.white; // Fallback: white circle
+            image.color = Color.white;
 
         var icon = iconGO.AddComponent<MinimapIcon>();
         chestIconPool.Add(icon);
@@ -155,30 +153,31 @@ public class MinimapUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Finds the player Transform (assumes a GameObject with a CharacterMovement or Player tag).
+    /// Finds the player Transform (assumes a GameObject tagged "Player" or PlayerMovement singleton).
     /// </summary>
     private void FindPlayer()
     {
-        // Try common player tags/names
         var player = GameObject.FindWithTag("Player");
         if (player != null)
-        {
             playerTransform = player.transform;
-            return;
-        }
-
-        // Fallback: look for PlayerMovement singleton
-        if (PlayerMovement.Instance != null)
-        {
+        else if (PlayerMovement.Instance != null)
             playerTransform = PlayerMovement.Instance.transform;
+        else
+        {
+            Debug.LogWarning("[MinimapUI] Could not find player Transform. Minimap will not display.");
             return;
         }
 
-        Debug.LogWarning("[MinimapUI] Could not find player Transform. Minimap will not display.");
+        // Root transform never rotates — use modelTransform for the facing direction.
+        _facingTransform = PlayerMovement.Instance != null && PlayerMovement.Instance.modelTransform != null
+            ? PlayerMovement.Instance.modelTransform
+            : playerTransform;
     }
 
     /// <summary>
     /// Updates the minimap display each frame based on player position and chest positions.
+    /// All chest positions are rotated to match the player's facing direction so the
+    /// minimap stays player-oriented (forward = up).
     /// </summary>
     private void UpdateMinimapDisplay()
     {
@@ -189,83 +188,138 @@ public class MinimapUI : MonoBehaviour
         var chestEntries = manager.ChestEntries;
         Vector3 playerWorldPos = playerTransform.position;
         float mapRadius = manager.MapRadius;
+        float playerAngle = GetPlayerFacingAngle();
 
-        // Update chest icons
+        EnsureChestIconPool(chestEntries.Count);
+
+        // Update chest icons — rotate each position so player always faces "up"
         for (int i = 0; i < chestEntries.Count && i < chestIconPool.Count; i++)
         {
             var entry = chestEntries[i];
             Vector3 relativePos = entry.worldPos - playerWorldPos;
 
-            // Calculate minimap position
-            Vector2 minimapPos = CalculateMinimapPosition(relativePos, mapRadius);
+            // Counter-rotate the world by the player's angle so forward = up on the minimap
+            Vector3 rotatedPos = RotateAroundY(relativePos, -playerAngle);
 
-            // Clamp to minimap bounds
+            Vector2 minimapPos = CalculateMinimapPosition(rotatedPos, mapRadius);
             minimapPos = ClampToBounds(minimapPos);
 
-            // Set color based on open state
             Color color = entry.isOpen ? openChestColor : closedChestColor;
-
-            // Update icon
             chestIconPool[i].SetState(minimapPos, color, 0f);
             chestIconPool[i].Show();
         }
 
-        // Hide unused icons
+        // Hide unused chest icons
         for (int i = chestEntries.Count; i < chestIconPool.Count; i++)
-        {
             chestIconPool[i].Hide();
-        }
 
-        // Update player icon (always centered)
+        // Update shop icons
+        var shopEntries = manager.ShopEntries;
+        EnsureShopIconPool(shopEntries.Count);
+
+        for (int i = 0; i < shopEntries.Count && i < shopIconPool.Count; i++)
+        {
+            var entry = shopEntries[i];
+            Vector3 relativePos = entry.worldPos - playerWorldPos;
+            Vector3 rotatedPos  = RotateAroundY(relativePos, -playerAngle);
+            Vector2 minimapPos  = ClampToBounds(CalculateMinimapPosition(rotatedPos, mapRadius));
+
+            bool hasItems = entry.shop == null || entry.shop.HasAnyUnsoldItems();
+            shopIconPool[i].SetState(minimapPos, hasItems ? shopActiveColor : shopSoldOutColor, 0f);
+            shopIconPool[i].Show();
+        }
+        for (int i = shopEntries.Count; i < shopIconPool.Count; i++)
+            shopIconPool[i].Hide();
+
+        // Player arrow: always centered, always pointing up (rotation = 0)
+        // because the map itself rotates around the player
         if (playerIcon != null)
         {
-            float playerRotation = GetPlayerFacingDirection();
-            playerIcon.SetState(Vector2.zero, playerColor, playerRotation);
+            playerIcon.SetState(Vector2.zero, playerColor, 0f);
             playerIcon.Show();
         }
     }
 
+    private void RefreshMapSize()
+    {
+        if (minimapPanel == null) return;
+        const float padding = 10f;
+        minimapPanel.sizeDelta = new Vector2(mapSizePixels, mapSizePixels);
+        minimapPanel.anchoredPosition = new Vector2(padding + mapSizePixels * 0.5f, padding + mapSizePixels * 0.5f);
+    }
+
+    private void EnsureShopIconPool(int needed)
+    {
+        while (shopIconPool.Count < needed)
+            CreateShopIcon();
+    }
+
+    private MinimapIcon CreateShopIcon()
+    {
+        var iconGO = new GameObject($"ShopIcon_{shopIconPool.Count}");
+        iconGO.transform.SetParent(minimapPanel, false);
+
+        var rt = iconGO.AddComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(iconSizePixels, iconSizePixels);
+
+        var image = iconGO.AddComponent<Image>();
+        if (shopIcon != null)
+            image.sprite = shopIcon;
+        else
+            image.color = shopActiveColor;
+
+        var icon = iconGO.AddComponent<MinimapIcon>();
+        shopIconPool.Add(icon);
+        return icon;
+    }
+
     /// <summary>
-    /// Calculates the position on the minimap given a relative world position.
+    /// Calculates the minimap position from a (already rotated) relative world position.
     /// Formula: minimapPos = relativePos / mapRadius * mapSizePixels * 0.5
     /// </summary>
     private Vector2 CalculateMinimapPosition(Vector3 relativePos, float mapRadius)
     {
-        // Use only X and Z (horizontal plane)
-        float relX = relativePos.x;
-        float relZ = relativePos.z;
-
-        // Convert to minimap coordinates
-        float minimapX = (relX / mapRadius) * (mapSizePixels * 0.5f);
-        float minimapY = (relZ / mapRadius) * (mapSizePixels * 0.5f);
-
+        float minimapX = (relativePos.x / mapRadius) * (mapSizePixels * 0.5f);
+        float minimapY = (relativePos.z / mapRadius) * (mapSizePixels * 0.5f);
         return new Vector2(minimapX, minimapY);
     }
 
     /// <summary>
-    /// Clamps a minimap position to the minimap's circular bounds.
+    /// Clamps a minimap position to the circular minimap bounds.
     /// </summary>
     private Vector2 ClampToBounds(Vector2 pos)
     {
         float maxRadius = mapSizePixels * 0.5f;
         if (pos.magnitude > maxRadius)
-        {
             pos = pos.normalized * maxRadius;
-        }
         return pos;
     }
 
     /// <summary>
-    /// Gets the player's facing direction in degrees (0 = up/north).
+    /// Returns the player's facing angle in degrees.
+    /// 0 = facing +Z (world forward), increases clockwise (Unity convention).
     /// </summary>
-    private float GetPlayerFacingDirection()
+    private float GetPlayerFacingAngle()
     {
-        if (playerTransform == null)
-            return 0f;
+        Transform facing = _facingTransform != null ? _facingTransform : playerTransform;
+        if (facing == null) return 0f;
+        Vector3 forward = facing.forward;
+        return Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+    }
 
-        // Use forward direction of player
-        Vector3 forward = playerTransform.forward;
-        float angle = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
-        return angle;
+    /// <summary>
+    /// Rotates a vector in the XZ plane around the Y axis by the given degrees.
+    /// Positive degrees = clockwise when viewed from above (Unity convention).
+    /// </summary>
+    private Vector3 RotateAroundY(Vector3 v, float degrees)
+    {
+        float rad = degrees * Mathf.Deg2Rad;
+        float cos = Mathf.Cos(rad);
+        float sin = Mathf.Sin(rad);
+        return new Vector3(
+            cos * v.x + sin * v.z,
+            v.y,
+            -sin * v.x + cos * v.z
+        );
     }
 }

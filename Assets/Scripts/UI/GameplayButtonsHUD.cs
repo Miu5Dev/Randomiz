@@ -32,11 +32,14 @@ public class GameplayButtonsHUD : MonoBehaviour
     [SerializeField] private string labelWallhug   = "Wall hug";
     [SerializeField] private string labelInteract  = "Interact";
     [SerializeField] private string labelClimb     = "Climb";
+    [SerializeField] private string labelJump      = "Jump";
 
     [SerializeField] private Sprite ClimbSprite;
+    [SerializeField] private Sprite JumpSprite;
     [SerializeField] private Sprite WallHugSprite;
     [SerializeField] private Sprite InteractSprite;
     [SerializeField] private Sprite DashSprite;
+    [SerializeField] private Sprite StoreSprite;
     [SerializeField] private Sprite DefaultSprite;
     
     private string lastSouthLabel = "";
@@ -46,6 +49,10 @@ public class GameplayButtonsHUD : MonoBehaviour
     private bool _isLedgeGrabbing;
     private bool _nearWall;
     private bool _interactableNearby;
+    private bool _isGrounded;
+    private bool _itemEquipped;
+    private bool _hasMoveInput;
+    private bool _isTargeting;
 
     private void OnEnable()
     {
@@ -55,6 +62,7 @@ public class GameplayButtonsHUD : MonoBehaviour
         EventBus.Subscribe<OnPotionConsumeEvent>(OnPotionConsume);
         EventBus.Subscribe<OnPlayerLocomotionStateEvent>(OnPlayerLocomotionState);
         EventBus.Subscribe<OnInteractableProximityChangedEvent>(OnInteractableProximity);
+        EventBus.Subscribe<OnMoveInputEvent>(OnMoveInput);
     }
 
     private void OnDisable()
@@ -65,6 +73,7 @@ public class GameplayButtonsHUD : MonoBehaviour
         EventBus.Unsubscribe<OnPotionConsumeEvent>(OnPotionConsume);
         EventBus.Unsubscribe<OnPlayerLocomotionStateEvent>(OnPlayerLocomotionState);
         EventBus.Unsubscribe<OnInteractableProximityChangedEvent>(OnInteractableProximity);
+        EventBus.Unsubscribe<OnMoveInputEvent>(OnMoveInput);
     }
 
     private void Start()
@@ -76,9 +85,13 @@ public class GameplayButtonsHUD : MonoBehaviour
             _isWallhugging   = PlayerMovement.Instance.isWallhugging;
             _isLedgeGrabbing = PlayerMovement.Instance.isLedgeGrabbing;
             _nearWall        = PlayerMovement.Instance.nearWall;
+            _isGrounded      = PlayerMovement.Instance.IsGrounded;
+            _isTargeting     = PlayerMovement.Instance.IsTargeting;
         }
         if (Interactor.Instance != null)
             _interactableNearby = Interactor.Instance.onInteractArea;
+        if (EquipHandler.Instance != null)
+            _itemEquipped = EquipHandler.Instance.EquipedItem != null;
 
         RefreshAll();
     }
@@ -89,8 +102,22 @@ public class GameplayButtonsHUD : MonoBehaviour
     // the equipped item, both receive the correct label in the same refresh — and no
     // button is left with a stale label/icon from a partial update.
 
-    private void OnItemEquip(OnItemEquipEvent e)         => RefreshAllButtons();
-    private void OnItemUnequip(OnItemUnequipEvent e)     => RefreshAllButtons();
+    private void OnItemEquip(OnItemEquipEvent e)
+    {
+        bool wasItem = _itemEquipped;
+        _itemEquipped = e.item != null;
+        RefreshAllButtons();
+        if (_itemEquipped != wasItem) UpdateSouth();
+    }
+
+    private void OnItemUnequip(OnItemUnequipEvent e)
+    {
+        bool wasItem = _itemEquipped;
+        _itemEquipped = false;
+        RefreshAllButtons();
+        if (_itemEquipped != wasItem) UpdateSouth();
+    }
+
     private void OnPotionConsume(OnPotionConsumeEvent e) => RefreshAllButtons();
     private void OnQuickslotAssigned(OnQuickslotAssignedEvent e) => RefreshAllButtons();
 
@@ -99,12 +126,22 @@ public class GameplayButtonsHUD : MonoBehaviour
         _isWallhugging   = e.isWallhugging;
         _isLedgeGrabbing = e.isLedgeGrabbing;
         _nearWall        = e.nearWall;
+        _isGrounded      = e.isGrounded;
+        _isTargeting     = e.isTargeting;
         UpdateSouth();
     }
 
     private void OnInteractableProximity(OnInteractableProximityChangedEvent e)
     {
         _interactableNearby = e.nearby;
+        UpdateSouth();
+    }
+
+    private void OnMoveInput(OnMoveInputEvent e)
+    {
+        bool moving = e.Direction.sqrMagnitude > 0.04f;
+        if (moving == _hasMoveInput) return;
+        _hasMoveInput = moving;
         UpdateSouth();
     }
 
@@ -169,6 +206,10 @@ public class GameplayButtonsHUD : MonoBehaviour
         {
             spriteToUse = ClimbSprite;
         }
+        else if (label == labelJump)
+        {
+            spriteToUse = JumpSprite;
+        }
         else if (label == labelInteract)
         {
             spriteToUse = InteractSprite;
@@ -180,6 +221,10 @@ public class GameplayButtonsHUD : MonoBehaviour
         else if (label == labelWallhug)
         {
             spriteToUse = WallHugSprite;
+        }
+        else if (label == labelStore)
+        {
+            spriteToUse = StoreSprite;
         }
         
         southButton.SetIcon(spriteToUse);
@@ -205,7 +250,8 @@ public class GameplayButtonsHUD : MonoBehaviour
 
     /// <summary>
     /// Pure function over cached state — no component access, no polling.
-    /// State is kept up to date by OnPlayerLocomotionState / OnInteractableProximity.
+    /// State is kept up to date by OnPlayerLocomotionState / OnInteractableProximity /
+    /// OnItemEquip / OnMoveInput.
     /// </summary>
     private string GetSouthLabel()
     {
@@ -216,6 +262,9 @@ public class GameplayButtonsHUD : MonoBehaviour
         // Otherwise the button represents whichever action applies.
         if (_interactableNearby) return labelInteract;
         if (_nearWall)           return labelWallhug;
+        // Any item equipped + stationary + grounded → pressing dodge stores the item.
+        if (_itemEquipped && !_hasMoveInput && _isGrounded) return labelStore;
+        if (_isTargeting) return labelJump;
         return labelDash;
     }
 }

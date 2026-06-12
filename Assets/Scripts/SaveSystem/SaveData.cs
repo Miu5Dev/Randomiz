@@ -32,6 +32,7 @@ public class SaveData
 
     // ─── World progress ──────────────────────────────────────────────────────
     public List<string> openedChestIds = new();
+    public List<string> openedDoorIds = new();
     public List<string> defeatedBossIds = new();
     public List<ShopPurchase> shopPurchases = new();
 

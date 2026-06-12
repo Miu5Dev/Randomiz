@@ -100,10 +100,10 @@ TextureImporter:
       name: Interact_0
       rect:
         serializedVersion: 2
-        x: 152
-        y: 144
-        width: 185
-        height: 219
+        x: 0
+        y: 0
+        width: 278
+        height: 438
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}

@@ -1,5 +1,6 @@
-using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// A chest in the world. Its content is determined at runtime by the randomizer
@@ -22,16 +23,30 @@ public class ChestBehaviour : MonoBehaviour
     [Header("Pool — needed to resolve items from the saved state")]
     [SerializeField] private SOItemPool pool;
 
+    [Header("Lid animation — assign the Transform of the lid (the part that rotates)")]
+    [SerializeField] private Transform lidTransform;
+    [SerializeField] private Vector3 openEulerOffset = new(-105f, 0f, 0f);
+    [SerializeField] private float openDuration = 0.5f;
+    [SerializeField] private AnimationCurve openCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    private Quaternion _lidClosedRot;
+    private Quaternion _lidOpenRot;
+
     private RandomizerState State => pool != null ? pool.state : null;
     public bool IsOpened => pool?.state?.GetChest(locationId)?.opened ?? false;
 
     private void Awake()
     {
-        // Auto-fill locationId from the GameObject name if left blank.
         if (string.IsNullOrEmpty(locationId))
         {
             locationId = gameObject.name;
             Debug.Log($"[Chest:{locationId}] locationId auto-assigned from GameObject name.");
+        }
+
+        if (lidTransform != null)
+        {
+            _lidClosedRot = lidTransform.localRotation;
+            _lidOpenRot   = Quaternion.Euler(lidTransform.localEulerAngles + openEulerOffset);
         }
     }
 
@@ -120,7 +135,7 @@ public class ChestBehaviour : MonoBehaviour
         // chokepoint for all acquisitions) — not here, to avoid firing it twice.
         EventBus.Raise(new OnChestOpenedEvent(this));
         State.SetOpened(locationId);
-        SetVisualOpened();
+        StartCoroutine(AnimateOpen());
 
         Debug.Log($"[Chest:{locationId}] {opener.name} got: {addedItem.itemName}" +
                   (addedItem is SOWeapon w ? $" [Tier {w.tier}]" : ""));
@@ -196,7 +211,21 @@ public class ChestBehaviour : MonoBehaviour
 
     private void SetVisualOpened()
     {
-        // Hook for animation / sprite swap.
+        if (lidTransform != null)
+            lidTransform.localRotation = _lidOpenRot;
+    }
+
+    private IEnumerator AnimateOpen()
+    {
+        if (lidTransform == null) yield break;
+
+        float t = 0f;
+        while (t < 1f)
+        {
+            t = Mathf.Min(t + Time.deltaTime / openDuration, 1f);
+            lidTransform.localRotation = Quaternion.Lerp(_lidClosedRot, _lidOpenRot, openCurve.Evaluate(t));
+            yield return null;
+        }
     }
 
 #if UNITY_EDITOR

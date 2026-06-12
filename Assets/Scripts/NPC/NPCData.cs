@@ -13,6 +13,7 @@ public class NPCData : ScriptableObject
     public string npcName = "Unnamed";
 
     [Header("Personality")]
+    [Tooltip("FairMerchant=normal, Undervalues=cheap, Overcharges=expensive, RandomPerRun=one of the above determined by the run seed.")]
     public NPCPersonality personality = NPCPersonality.FairMerchant;
 
     [Header("Dialogue")]

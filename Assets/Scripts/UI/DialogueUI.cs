@@ -45,13 +45,19 @@ public class DialogueUI : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<OnDialogueStartEvent>(OnDialogueStart);
-        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteractInput);
+        // Priority 20: runs before Interactor (10) so we can cancel the press and
+        // prevent the NPC from restarting the conversation while dialogue is open.
+        EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteractInput, 20);
+        // Priority 20: above PauseMenuUI (10) so Esc while talking cancels the
+        // conversation and is consumed — the pause menu must NOT open.
+        EventBus.Subscribe<OnPauseInputEvent>(OnPauseInput, 20);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnDialogueStartEvent>(OnDialogueStart);
         EventBus.Unsubscribe<OnInteractDodgeInputEvent>(OnInteractInput);
+        EventBus.Unsubscribe<OnPauseInputEvent>(OnPauseInput);
     }
 
     // ─── UI construction ───────────────────────────────────────────────────
@@ -124,13 +130,18 @@ public class DialogueUI : MonoBehaviour
 
         StartTyping(_lines[_lineIndex]);
 
-        // Freeze the player while the dialogue is open.
+        // Freeze the player AND the camera while the dialogue is open (time isn't
+        // paused, so the mouse would otherwise still drive look).
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = false });
+        EventBus.Raise(new OnSetCameraEnabledEvent { enabled = false });
     }
 
     private void OnInteractInput(OnInteractDodgeInputEvent e)
     {
         if (!_isOpen || !e.pressed) return;
+
+        // Consume the press so Interactor can't re-trigger the NPC mid-dialogue.
+        EventBus.Cancel<OnInteractDodgeInputEvent>();
 
         if (_isTyping)
         {
@@ -148,15 +159,27 @@ public class DialogueUI : MonoBehaviour
         StartTyping(_lines[_lineIndex]);
     }
 
-    private void EndDialogue()
+    private void OnPauseInput(OnPauseInputEvent e)
+    {
+        if (!_isOpen || !e.pressed) return;
+        // Consume the press so PauseMenuUI (lower priority) doesn't also open.
+        EventBus.Cancel<OnPauseInputEvent>();
+        EndDialogue(cancelled: true);
+    }
+
+    private void EndDialogue(bool cancelled = false)
     {
         Hide();
+        // Restore movement + camera BEFORE raising the end event: a shopkeeper opens
+        // the shop in response, which will re-freeze both for the shop's duration.
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = true });
+        EventBus.Raise(new OnSetCameraEnabledEvent { enabled = true });
 
         var npc = _npc;
         _npc = null;
         _lines = null;
-        EventBus.Raise(new OnDialogueEndEvent { npc = npc });
+        // cancelled = backed out with Esc → NPCController skips opening the shop.
+        EventBus.Raise(new OnDialogueEndEvent { npc = npc, cancelled = cancelled });
     }
 
     // ─── Typewriter ────────────────────────────────────────────────────────

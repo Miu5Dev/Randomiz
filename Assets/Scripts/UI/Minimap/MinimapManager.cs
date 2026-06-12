@@ -16,9 +16,11 @@ public class MinimapManager : MonoBehaviour
     [SerializeField] private float mapRadius = 30f;
 
     private List<ChestMapEntry> chestEntries = new();
+    private List<ShopMapEntry>  shopEntries  = new();
     private HashSet<ChestBehaviour> openedChests = new();
 
     public IReadOnlyList<ChestMapEntry> ChestEntries => chestEntries.AsReadOnly();
+    public IReadOnlyList<ShopMapEntry>  ShopEntries  => shopEntries.AsReadOnly();
     public float MapRadius => mapRadius;
 
     private void Awake()
@@ -34,6 +36,7 @@ public class MinimapManager : MonoBehaviour
     private void Start()
     {
         DiscoverChests();
+        DiscoverShops();
         EventBus.Subscribe<OnChestOpenedEvent>(OnChestOpened);
     }
 
@@ -68,6 +71,20 @@ public class MinimapManager : MonoBehaviour
         }
 
         Debug.Log($"[MinimapManager] Discovered {chestEntries.Count} chests.");
+    }
+
+    private void DiscoverShops()
+    {
+        shopEntries.Clear();
+        var npcs = FindObjectsByType<NPCController>(FindObjectsSortMode.None);
+        foreach (var npc in npcs)
+        {
+            if (npc.Data == null || !npc.Data.isShopkeeper) continue;
+            var shop = npc.Shop;
+            if (shop == null) continue;
+            shopEntries.Add(new ShopMapEntry { worldPos = npc.transform.position, shop = shop });
+        }
+        Debug.Log($"[MinimapManager] Discovered {shopEntries.Count} shops.");
     }
 
     /// <summary>
@@ -109,4 +126,13 @@ public struct ChestMapEntry
     public Vector3 worldPos;
     public bool isOpen;
     public ChestBehaviour chest;
+}
+
+/// <summary>
+/// Data structure holding a shopkeeper's map position and a reference for state queries.
+/// </summary>
+public struct ShopMapEntry
+{
+    public Vector3 worldPos;
+    public ShopInventory shop;
 }

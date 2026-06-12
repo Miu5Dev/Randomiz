@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Randomiz.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -14,6 +16,8 @@ public class InventoryWheelUI : MonoBehaviour
     [SerializeField] private GameObject wheelRoot;
     [SerializeField] private InventoryWheelSlot slotPrefab;
     [SerializeField] private RectTransform slotsContainer;
+    [Tooltip("Container where the key list label is placed (e.g. [WheelContainer]).")]
+    [SerializeField] private RectTransform keyPanelContainer;
 
     [Header("Layout")]
     [Tooltip("Distance from the center to each slot, in Canvas units.")]
@@ -31,14 +35,106 @@ public class InventoryWheelUI : MonoBehaviour
     private int highlightedIndex = -1;
     private Vector2 virtualCursor;     // accumulated mouse delta while the wheel is open
 
+    // Code-built hint labels (no prefab wiring): center shows the highlighted item,
+    // the line below reminds the player which key assigns to which quickslot.
+    private TMP_Text _centerLabel;
+    private TMP_Text _hintLabel;
+    private TMP_Text _keyListLabel;
+
     private void Awake()
     {
         if (wheelRoot != null) wheelRoot.SetActive(false);
+        BuildHints();
+        BuildKeyPanel();
     }
+
+    /// <summary>
+    /// Builds the Q/E assignment hints in code, parented under the wheel so they
+    /// show and hide together with it. Centered on the radial pivot.
+    /// </summary>
+    private void BuildHints()
+    {
+        Transform parent = slotsContainer != null ? (Transform)slotsContainer
+                         : (wheelRoot != null ? wheelRoot.transform : null);
+        if (parent == null) return;
+
+        _centerLabel = UIFactory.CreateLabel(parent, "", 24, Color.white);
+        var cRt = _centerLabel.rectTransform;
+        cRt.anchorMin = cRt.anchorMax = new Vector2(0.5f, 0.5f);
+        cRt.pivot = new Vector2(0.5f, 0.5f);
+        cRt.sizeDelta = new Vector2(260f, 40f);
+        cRt.anchoredPosition = Vector2.zero;
+
+        _hintLabel = UIFactory.CreateLabel(parent, "[Q] Slot 1        [E] Slot 2", 22,
+            new Color(0.85f, 0.85f, 0.85f));
+        var hRt = _hintLabel.rectTransform;
+        hRt.anchorMin = hRt.anchorMax = new Vector2(0.5f, 0.5f);
+        hRt.pivot = new Vector2(0.5f, 0.5f);
+        hRt.sizeDelta = new Vector2(520f, 44f);
+        hRt.anchoredPosition = new Vector2(0f, -(radius + 64f));
+    }
+
+    /// <summary>
+    /// Builds a key-list label anchored to the left edge of the wheel root.
+    /// Shows the player which keys they hold and the count of each type.
+    /// </summary>
+    private void BuildKeyPanel()
+    {
+        Transform parent = keyPanelContainer != null ? (Transform)keyPanelContainer
+                         : (wheelRoot != null ? wheelRoot.transform : null);
+        if (parent == null) return;
+
+        _keyListLabel = UIFactory.CreateLabel(parent, "",
+            20, Color.white, TextAlignmentOptions.TopLeft);
+
+        var rt = _keyListLabel.rectTransform;
+        rt.anchorMin = new Vector2(0f, 0.5f);
+        rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot     = new Vector2(0f, 0.5f);
+        rt.sizeDelta = new Vector2(220f, 400f);
+        rt.anchoredPosition = new Vector2(30f, 0f);
+        _keyListLabel.enableWordWrapping = true;
+        _keyListLabel.overflowMode = TextOverflowModes.Overflow;
+    }
+
+    private void RefreshKeyPanel()
+    {
+        if (_keyListLabel == null) return;
+
+        if (KeyInventory.Instance == null || KeyInventory.Instance.Keys.Count == 0)
+        {
+            _keyListLabel.text = "";
+            return;
+        }
+
+        // Count each unique key id.
+        var counts = new Dictionary<string, (string name, int count)>();
+        foreach (var k in KeyInventory.Instance.Keys)
+        {
+            if (counts.TryGetValue(k.keyId, out var entry))
+                counts[k.keyId] = (entry.name, entry.count + 1);
+            else
+                counts[k.keyId] = (k.displayName, 1);
+        }
+
+        string text = "<b>Keys</b>";
+        foreach (var kv in counts)
+            text += kv.Value.count > 1
+                ? $"\n{kv.Value.name}  x{kv.Value.count}"
+                : $"\n{kv.Value.name}";
+
+        _keyListLabel.text = text;
+    }
+
+    private void OnKeyInventoryChanged(OnKeyInventoryChangedEvent _) => RefreshKeyPanel();
 
     private void OnEnable()
     {
         EventBus.Subscribe<OnInventoryInputEvent>(OnInventoryInput);
+        // Priority 20: above PauseMenuUI (10) so Esc closes the wheel and is consumed
+        // — the pause menu must NOT open on the same press.
+        EventBus.Subscribe<OnPauseInputEvent>(OnPauseInput, 20);
+        EventBus.Subscribe<OnKeyInventoryChangedEvent>(OnKeyInventoryChanged);
         // High priority — runs before QuickslotManager / movement / camera so we can intercept.
         EventBus.Subscribe<OnItemOneInputEvent>(OnItemOne, 10);
         EventBus.Subscribe<OnItemTwoInputEvent>(OnItemTwo, 10);
@@ -52,6 +148,8 @@ public class InventoryWheelUI : MonoBehaviour
     private void OnDisable()
     {
         EventBus.Unsubscribe<OnInventoryInputEvent>(OnInventoryInput);
+        EventBus.Unsubscribe<OnPauseInputEvent>(OnPauseInput);
+        EventBus.Unsubscribe<OnKeyInventoryChangedEvent>(OnKeyInventoryChanged);
         EventBus.Unsubscribe<OnItemOneInputEvent>(OnItemOne);
         EventBus.Unsubscribe<OnItemTwoInputEvent>(OnItemTwo);
         EventBus.Unsubscribe<OnMoveInputEvent>(OnMoveInput);
@@ -65,6 +163,14 @@ public class InventoryWheelUI : MonoBehaviour
     {
         if (!e.pressed) return;
         SetOpen(!isOpen);
+    }
+
+    private void OnPauseInput(OnPauseInputEvent e)
+    {
+        if (!e.pressed || !isOpen) return;
+        // Consume the press so PauseMenuUI (lower priority) doesn't also open.
+        EventBus.Cancel<OnPauseInputEvent>();
+        SetOpen(false);
     }
 
     private void SetOpen(bool open)
@@ -83,7 +189,7 @@ public class InventoryWheelUI : MonoBehaviour
         isOpen = open;
         if (wheelRoot != null) wheelRoot.SetActive(open);
 
-        if (open) BuildSlots();
+        if (open) { BuildSlots(); RefreshKeyPanel(); }
         else ClearHighlight();
 
         EventBus.Raise(new OnInventoryWheelStateEvent { open = open });
@@ -179,6 +285,14 @@ public class InventoryWheelUI : MonoBehaviour
 
         if (highlightedIndex >= 0 && highlightedIndex < slots.Count)
             slots[highlightedIndex].SetHighlighted(true);
+
+        // Surface the highlighted item's name so the player knows what Q/E will assign.
+        if (_centerLabel != null)
+        {
+            SOItem item = (highlightedIndex >= 0 && highlightedIndex < slots.Count)
+                ? slots[highlightedIndex].Item : null;
+            _centerLabel.text = item != null ? item.itemName : string.Empty;
+        }
     }
 
     private void ClearHighlight() => SetHighlight(-1);

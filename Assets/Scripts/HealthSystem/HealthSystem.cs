@@ -11,6 +11,7 @@ using UnityEngine;
 /// resolution). Set <see cref="maxHearts"/> in the inspector or change at runtime via
 /// <see cref="ChangeMaxHearts"/>.
 /// </summary>
+[DisallowMultipleComponent]
 public class HealthSystem : MonoBehaviour
 {
     [SerializeField] private int maxHearts;
@@ -36,6 +37,7 @@ public class HealthSystem : MonoBehaviour
     public void SetHealth(float value)
     {
         currentHealth = Mathf.Clamp(value, 0f, maxHealth);
+        _invincibleUntil = 0f;   // clear any lingering i-frames (e.g. after respawn)
         PublishHealthChanged();
     }
 
@@ -47,6 +49,17 @@ public class HealthSystem : MonoBehaviour
 
     private void Awake()
     {
+        // Guard against duplicate HealthSystem components on the same GameObject.
+        // [DisallowMultipleComponent] prevents adding new ones, but existing duplicates
+        // in saved scenes are destroyed here so they never subscribe to OnDamageDealtEvent.
+        HealthSystem[] siblings = GetComponents<HealthSystem>();
+        if (siblings.Length > 1 && siblings[0] != this)
+        {
+            Debug.LogWarning($"[HealthSystem] Duplicate on '{gameObject.name}' — destroying extra instance.", this);
+            Destroy(this);
+            return;
+        }
+
         if (maxHearts <= 0) maxHearts = 3;
         UpdateMaxHealth();
         // Only set to full when uninitialized; preserves values loaded from a save file.
@@ -77,6 +90,7 @@ public class HealthSystem : MonoBehaviour
     private void OnDamageEvent(OnDamageDealtEvent e)
     {
         if (e.Target != gameObject) return;
+        if (!IsAlive) return;                // dead entities ignore further damage
         if (IsInvincible) return;            // i-frames absorb the hit
         Damage(e.Damage, e.Attacker);
     }
@@ -95,16 +109,19 @@ public class HealthSystem : MonoBehaviour
     {
         if (amount <= 0f) return;
 
+        // Start i-frames immediately — before health reduction and before OnDie.
+        // This ensures that even a fatal hit grants i-frames so combo follow-ups
+        // are blocked while the death animation plays.
+        if (invincibilityDuration > 0f)
+            _invincibleUntil = Time.time + invincibilityDuration;
+
         currentHealth = Mathf.Max(0f, currentHealth - amount);
         PublishHealthChanged();
 
         // Always announce the hit (HitFlash on enemies, HitReaction on player all listen here).
         EventBus.Raise(new OnDamagedEvent { victim = gameObject, attacker = attacker, damage = amount });
 
-        if (currentHealth <= 0f) { OnDie(); return; }
-
-        // Survived: start i-frames if configured.
-        if (invincibilityDuration > 0f) _invincibleUntil = Time.time + invincibilityDuration;
+        if (currentHealth <= 0f) { OnDie(); }
     }
 
     public void Heal(float amount)

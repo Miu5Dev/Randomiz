@@ -1,0 +1,256 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8942635100837539722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fca2f7c2c444292409848dbbd77a8ded, type: 3}
+  m_Name: Stay In Combat
+  m_EditorClassIdentifier: 
+--- !u!114 &-4100724395831983788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85429bb6447d15a4b9f7d460bd03da85, type: 3}
+  m_Name: Goblin Patrol
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.5
+  reachDistance: 0.4
+  pingPong: 0
+--- !u!114 &-2789813707399321746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Close In
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1.1
+  stopDistance: 1.4
+--- !u!114 &-811762381836887516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb3cd80201f8974d9567e8508b692ad, type: 3}
+  m_Name: Charge From Range
+  m_EditorClassIdentifier: 
+  distance: 5
+  multiplier: 2.5
+--- !u!114 &-19782387935312677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01b9548c6ee1ae41a4ab67792c2c4f1, type: 3}
+  m_Name: Sword Swing
+  m_EditorClassIdentifier: 
+  attackRange: 1.8
+  cooldown: 2
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13b4067687b52824485cccb9838ddf0e, type: 3}
+  m_Name: GoblinWarrior_Data
+  m_EditorClassIdentifier: 
+  enemyName: GoblinWarrior
+  prefab: {fileID: 1965050638150887831, guid: ff2ed4fc16c7a814eb36b202ace2a7ca, type: 3}
+  parts:
+  - partName: Goblin Warrior
+    maxHearts: 8
+    moveSpeed: 3.5
+    turnSpeed: 14
+    canFly: 0
+    canClimb: 0
+    wallSteer: 1
+    weapon: {fileID: 11400000, guid: b0775c92f16106d49ba9ecde651c0a41, type: 2}
+    vision:
+      range: 9
+      angle: 140
+      alertRadius: 2.5
+      loseSightDelay: 3
+      blockMask:
+        serializedVersion: 2
+        m_Bits: 1
+    idleMovement: {fileID: -4100724395831983788}
+    phases:
+    - {fileID: 1073245089381394312}
+    dodgeReaction: {fileID: 6660452358851304266}
+    dodgeChance: 0.4
+    dodgeReactionTime: 0.35
+--- !u!114 &1073245089381394312
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ddc1f6115066b5c42ae8546e8a9cb7d4, type: 3}
+  m_Name: Combat
+  m_EditorClassIdentifier: 
+  label: Combat
+  decisionInterval: {x: 1, y: 2.2}
+  noise: 0.25
+  states:
+  - label: Orbit
+    movement: {fileID: 5918242018534043516}
+    attack: {fileID: -19782387935312677}
+    baseWeight: 40
+    duration: {x: 1, y: 2}
+    modifiers: []
+  - label: Chase
+    movement: {fileID: -2789813707399321746}
+    attack: {fileID: 3870157459979748875}
+    baseWeight: 35
+    duration: {x: 0.8, y: 1.8}
+    modifiers:
+    - {fileID: 8670422551862877541}
+  - label: Charge
+    movement: {fileID: 7532165217832533793}
+    attack: {fileID: 6503666890827451022}
+    baseWeight: 25
+    duration: {x: 1.5, y: 2.5}
+    modifiers:
+    - {fileID: -811762381836887516}
+    - {fileID: 7567548114009397147}
+  exitCondition: {fileID: -8942635100837539722}
+--- !u!114 &3870157459979748875
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c01b9548c6ee1ae41a4ab67792c2c4f1, type: 3}
+  m_Name: Sword Combo
+  m_EditorClassIdentifier: 
+  attackRange: 1.8
+  cooldown: 2
+--- !u!114 &5918242018534043516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ea4599f01d742342b5b5b9931a4ff75, type: 3}
+  m_Name: Orbit Player
+  m_EditorClassIdentifier: 
+  speedMultiplier: 1
+  radius: 3
+  direction: 1
+  radiusStiffness: 1.2
+--- !u!114 &6503666890827451022
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc51a1a9b2c049b4ebf45a5cea146fb7, type: 3}
+  m_Name: Dash Attack
+  m_EditorClassIdentifier: 
+  triggerRange: 8
+  windupTime: 0.55
+  chargeSpeed: 13
+  chargeDuration: 0.45
+  recoverTime: 0.5
+  cooldown: 4
+  damage: 15
+  hitRadius: 0.7
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+--- !u!114 &6660452358851304266
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72fb01770ebeee14996fff1399fcdec3, type: 3}
+  m_Name: Goblin Dodge
+  m_EditorClassIdentifier: 
+  direction: 1
+  dodgeSpeed: 9
+  burstTime: 0.28
+--- !u!114 &7532165217832533793
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7844257cbc37c54997dbc011723295c, type: 3}
+  m_Name: Pre-Charge
+  m_EditorClassIdentifier: 
+  speedMultiplier: 0.3
+  stopDistance: 1.2
+--- !u!114 &7567548114009397147
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12ad1073a2f0253498b4dd38c4bb7161, type: 3}
+  m_Name: Charge Cooldown
+  m_EditorClassIdentifier: 
+  cooldown: 5
+  minMultiplier: 0.05
+--- !u!114 &8670422551862877541
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cb3cd80201f8974d9567e8508b692ad, type: 3}
+  m_Name: Gap Close
+  m_EditorClassIdentifier: 
+  distance: 4
+  multiplier: 2

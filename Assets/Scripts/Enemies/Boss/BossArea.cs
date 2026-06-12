@@ -32,6 +32,13 @@ public class BossArea : MonoBehaviour
 
     private void Awake()
     {
+        // PhysicsController has no Rigidbody — kinematic Rigidbody on this volume
+        // is required for OnTriggerEnter to fire against the player's static collider.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+
         // Keep a pre-placed boss hidden until the player walks in.
         if (bossToActivate != null)
             bossToActivate.SetActive(false);

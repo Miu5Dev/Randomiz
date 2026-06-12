@@ -18,6 +18,13 @@ public class CheckpointTrigger : MonoBehaviour
 
     private void Awake()
     {
+        // PhysicsController has no Rigidbody — kinematic Rigidbody on this volume
+        // is required for OnTriggerEnter to fire against the player's static collider.
+        var rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity  = false;
+
         // Fall back to the GameObject name so designers can leave the id blank.
         if (string.IsNullOrEmpty(checkpointId))
             checkpointId = gameObject.name;

@@ -43,6 +43,12 @@ public class RandomizerSystem : MonoBehaviour
     // Cache of "what items each location requires", filled during generation/load.
     private Dictionary<string, List<SOItem>> _locationRequirements = new();
 
+    // Shop stock slots that must never receive coins as filler — you can't sell currency.
+    private readonly HashSet<string> _coinlessLocations = new();
+
+    // Shared empty requirement list for shop slots (always accessible). Never mutated.
+    private static readonly List<SOItem> EmptyReq = new();
+
     // ─────────────────────────────────────────────
     // PUBLIC ENTRY POINTS
     // ─────────────────────────────────────────────
@@ -73,10 +79,11 @@ public class RandomizerSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Convenience for test scenes: auto-discover all ChestBehaviour and generate.
-    /// Always produces a fresh seed; use LoadOrGenerate to honor saves.
+    /// Auto-discover all ChestBehaviour and generate. Pass <paramref name="overrideSeed"/>
+    /// (e.g. a saved run's seed) to reproduce that exact layout/shop deterministically;
+    /// otherwise a fresh seed is rolled (or the inspector seed, if set).
     /// </summary>
-    public void GenerateSeedFromScene()
+    public void GenerateSeedFromScene(int? overrideSeed = null)
     {
         // FindObjectsSortMode.None skips the sort step (fastest variant).
         // Build the lists directly from the array — no LINQ allocations.
@@ -91,16 +98,25 @@ public class RandomizerSystem : MonoBehaviour
             reqs.Add(chests[i].requiredItems);
         }
 
-        GenerateSeed(ids, reqs);
+        GenerateSeed(ids, reqs, overrideSeed);
     }
 
     // ─────────────────────────────────────────────
     // GENERATION
     // ─────────────────────────────────────────────
 
-    public void GenerateSeed(List<string> locationIds, List<List<SOItem>> requirements)
+    public void GenerateSeed(List<string> locationIds, List<List<SOItem>> requirements, int? overrideSeed = null)
     {
-        if (locationIds == null || locationIds.Count == 0)
+        locationIds  ??= new List<string>();
+        requirements ??= new List<List<SOItem>>();
+
+        // Shop stock slots are randomizer locations too: a progression item (e.g. a
+        // sword) can be placed in a chest OR in a shop. Append them before validation
+        // so EVERY entry point (LoadOrGenerate, NewGame, GenerateSeedFromScene) includes
+        // shops without each caller having to discover them.
+        AppendShopLocations(locationIds, requirements);
+
+        if (locationIds.Count == 0)
         {
             Debug.LogError("[Randomizer] Empty locationIds list.");
             return;
@@ -121,7 +137,7 @@ public class RandomizerSystem : MonoBehaviour
             return;
         }
 
-        int usedSeed = seed == -1 ? Random.Range(0, int.MaxValue) : seed;
+        int usedSeed = overrideSeed ?? (seed == -1 ? Random.Range(0, int.MaxValue) : seed);
         Random.InitState(usedSeed);
         State.SetSeed(usedSeed);
         Debug.Log($"[Randomizer] Generating seed {usedSeed} with {locationIds.Count} chests...");
@@ -250,8 +266,9 @@ public class RandomizerSystem : MonoBehaviour
         Debug.Log($"[Randomizer] ℹ {emptyChests.Count} empty chests — filling with random filler.");
         foreach (var chest in emptyChests)
         {
-            var filler = pool.fillerItems[Random.Range(0, pool.fillerItems.Count)];
-            State.SetItem(chest.locationId, filler);
+            // Shop slots get non-coin filler (a vendor can't sell currency).
+            var filler = PickFiller(_coinlessLocations.Contains(chest.locationId));
+            if (filler != null) State.SetItem(chest.locationId, filler);
         }
     }
 
@@ -267,7 +284,12 @@ public class RandomizerSystem : MonoBehaviour
 
         Shuffle(fillItems);
         for (int i = 0; i < empty.Count && i < fillItems.Count; i++)
+        {
+            // Never assign currency to a shop slot — leave it empty (shop skips it).
+            if (fillItems[i] is SOMoney && _coinlessLocations.Contains(empty[i].locationId))
+                continue;
             State.SetItem(empty[i].locationId, fillItems[i]);
+        }
     }
 
     // ─────────────────────────────────────────────
@@ -308,6 +330,58 @@ public class RandomizerSystem : MonoBehaviour
         _locationRequirements = new();
         for (int i = 0; i < ids.Count; i++)
             _locationRequirements[ids[i]] = reqs[i];
+    }
+
+    /// <summary>
+    /// Discovers every shop in the scene and appends one randomizer location per stock
+    /// slot, with no access requirements (shops are always reachable on foot). Slot ids
+    /// are sorted for a stable registration order, so the same seed reproduces the same
+    /// layout across loads regardless of FindObjectsByType ordering.
+    /// </summary>
+    private void AppendShopLocations(List<string> ids, List<List<SOItem>> reqs)
+    {
+        _coinlessLocations.Clear();
+
+        var shops = FindObjectsByType<ShopInventory>(FindObjectsSortMode.None);
+        if (shops.Length == 0) return;
+
+        var shopIds = new List<string>();
+        foreach (var shop in shops)
+            shop.CollectSlotLocationIds(shopIds);
+
+        shopIds.Sort(System.StringComparer.Ordinal);
+
+        foreach (var id in shopIds)
+        {
+            if (!_coinlessLocations.Add(id)) continue; // defensive dedupe
+            ids.Add(id);
+            reqs.Add(EmptyReq);
+        }
+    }
+
+    /// <summary>
+    /// Picks a random filler item. When <paramref name="excludeCoins"/> is true (shop
+    /// slot), currency items are skipped so vendors never list coins for sale. Returns
+    /// null if no suitable filler exists.
+    /// </summary>
+    private SOItem PickFiller(bool excludeCoins)
+    {
+        var fillers = pool.fillerItems;
+        if (fillers == null || fillers.Count == 0) return null;
+
+        if (!excludeCoins)
+            return fillers[Random.Range(0, fillers.Count)];
+
+        int nonCoin = 0;
+        foreach (var f in fillers)
+            if (f != null && f is not SOMoney) nonCoin++;
+        if (nonCoin == 0) return null;
+
+        int pick = Random.Range(0, nonCoin);
+        foreach (var f in fillers)
+            if (f != null && f is not SOMoney && pick-- == 0)
+                return f;
+        return null;
     }
 
     private int GetReachableTierSoFar(HashSet<string> assumed) =>

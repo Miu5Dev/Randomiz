@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 413254fdefae1ac48b7ebe7d580a5ed9, type: 3}
+  m_Name: Dialogue_Carlos
+  m_EditorClassIdentifier: 
+  lines:
+  - "Hey Mi, I don\u2019t know if you remember me..."
+  - "I\u2019m Carlos, we used to play together in the village."
+  - I came to check this chest I have next to me.
+  - "You\u2019re probably wondering why... well, from yesterday to today something
+    very strange happened!"
+  - All the containers in the world got mixed up with each other.
+  - "I used to have my slingshot in here, but I\u2019m scared to open it and find
+    something else..."
+  - "You know what? Why don\u2019t you open it with [Interact] and keep whatever
+    is inside."
+  - "That way I don\u2019t have to deal with the stress of opening it and finding
+    out my slingshot isn\u2019t there."
+  - "And if you see other chests, don\u2019t hesitate to open them\u2014they might
+    have something you need."
+  voiceClip: {fileID: 8300000, guid: 11bb55e3762683c4fa6b06128c3f1b2b, type: 3}

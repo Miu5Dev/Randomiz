@@ -1,38 +1,38 @@
 // CelShading.shader - URP
 // Cartoon / toon shading for enemies, props and environment.
-// Defaults: outline ON, rim ON, 2 shade steps.
-// Hit feedback via MaterialPropertyBlock (_HitFlashAmount, _HitAlpha).
-// Custom ShadowCaster / DepthOnly passes avoid URP/Lit keyword pollution.
-// Additional lights use LIGHT_LOOP macros so they work in Forward AND Forward+.
-// PURE ASCII in all comments - non-ASCII characters crash Unity's HLSL compiler.
+// Supports day/night cycle sun fade.
+// PURE ASCII in all comments.
 Shader "Custom/CelShading"
 {
     Properties
     {
         [Header(Base)]
-        _BaseMap        ("Texture",         2D)             = "white" {}
-        _BaseColor      ("Color",           Color)          = (1,1,1,1)
-        _ShadowColor    ("Shadow Color",    Color)          = (0.25,0.30,0.45,1)
+        _BaseMap         ("Texture",              2D)            = "white" {}
+        _BaseColor       ("Color",                Color)         = (1,1,1,1)
+        _ShadowColor     ("Shadow Color",         Color)         = (0.25,0.30,0.45,1)
 
         [Header(Cel Shading)]
-        _Steps          ("Shade Steps",     Range(1,8))     = 2
-        _StepSmooth     ("Band Softness",   Range(0,0.49))  = 0.06
-        _Threshold      ("Light Threshold", Range(0,1))     = 0.5
+        _Steps           ("Shade Steps",          Range(1,8))    = 2
+        _StepSmooth      ("Band Softness",        Range(0,0.49)) = 0.06
+        _Threshold       ("Light Threshold",      Range(0,1))    = 0.5
+
+        [Header(Ambient)]
+        _AmbientStrength ("Skybox Ambient",       Range(0,1))    = 0.25
 
         [Header(Rim)]
-        _RimPower       ("Rim Power",       Range(0,16))    = 4
-        _RimColor       ("Rim Color",       Color)          = (0.55,0.6,1,1)
+        _RimPower        ("Rim Power",            Range(0,16))   = 4
+        _RimColor        ("Rim Color",            Color)         = (0.55,0.6,1,1)
 
         [Header(Outline)]
         [Toggle(_OUTLINE_ON)]
-        _OutlineOn      ("Enable Outline", Float) = 1
-        _OutlineWidth   ("Outline Width (world units)", Range(0,0.1)) = 0.02
-        _OutlineColor   ("Outline Color",   Color)          = (0,0,0,1)
+        _OutlineOn       ("Enable Outline",       Float)         = 1
+        _OutlineWidth    ("Outline Width",        Range(0,0.1))  = 0.02
+        _OutlineColor    ("Outline Color",        Color)         = (0,0,0,1)
 
         [Header(Hit Feedback MPB Only)]
-        _HitFlashColor  ("Hit Flash Color", Color)          = (1,0.1,0.1,1)
-        _HitFlashAmount ("Flash Amount",    Range(0,1))     = 0
-        _HitAlpha       ("Hit Alpha",       Range(0,1))     = 1
+        _HitFlashColor   ("Hit Flash Color",      Color)         = (1,0.1,0.1,1)
+        _HitFlashAmount  ("Flash Amount",         Range(0,1))    = 0
+        _HitAlpha        ("Hit Alpha",            Range(0,1))    = 1
     }
 
     SubShader
@@ -45,11 +45,7 @@ Shader "Custom/CelShading"
         }
 
         // -----------------------------------------------------------------
-        // Pass 0 - Outline (inverted hull). ZTest LEqual + ZWrite so the inflated
-        // back-face hull is OCCLUDED wherever closer solid geometry exists. That
-        // hides the seams between touching/stacked objects (the hull pushed toward
-        // a neighbour fails the depth test against that neighbour's solid surface),
-        // leaving only the outer silhouette - from the camera's point of view.
+        // Pass 0 - Outline
         // -----------------------------------------------------------------
         Pass
         {
@@ -70,28 +66,21 @@ Shader "Custom/CelShading"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
-                float4 _BaseColor;
-                float4 _ShadowColor;
-                float4 _RimColor;
-                float4 _OutlineColor;
-                float4 _HitFlashColor;
-                float  _Steps;
-                float  _StepSmooth;
-                float  _Threshold;
-                float  _RimPower;
-                float  _OutlineWidth;
-                float  _HitFlashAmount;
-                float  _HitAlpha;
+                float4 _BaseColor; float4 _ShadowColor; float4 _RimColor;
+                float4 _OutlineColor; float4 _HitFlashColor;
+                float  _Steps; float _StepSmooth; float _Threshold;
+                float  _AmbientStrength;
+                float  _RimPower; float _OutlineWidth;
+                float  _HitFlashAmount; float _HitAlpha;
             CBUFFER_END
 
             struct Attributes
             {
                 float4 posOS       : POSITION;
                 float3 normalOS    : NORMAL;
-                float3 smoothNrmOS : TEXCOORD3;  // smooth normal auto-baked into UV3
+                float3 smoothNrmOS : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
-
             struct Varyings
             {
                 float4 posCS : SV_POSITION;
@@ -104,10 +93,6 @@ Shader "Custom/CelShading"
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 #ifdef _OUTLINE_ON
-                    // Inverted hull, constant WORLD-space width (toon-shader standard).
-                    // Direction = baked smooth normal in UV3 when present (closes gaps
-                    // on hard-edge meshes / cubes), else the vertex normal (already
-                    // seamless on smooth meshes: spheres, capsules, characters).
                     float3 nOS = (dot(IN.smoothNrmOS, IN.smoothNrmOS) > 1e-4)
                                  ? IN.smoothNrmOS : IN.normalOS;
                     float3 posWS  = TransformObjectToWorld(IN.posOS.xyz);
@@ -155,23 +140,16 @@ Shader "Custom/CelShading"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "CelShadingCore.hlsl"
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
-                float4 _BaseColor;
-                float4 _ShadowColor;
-                float4 _RimColor;
-                float4 _OutlineColor;
-                float4 _HitFlashColor;
-                float  _Steps;
-                float  _StepSmooth;
-                float  _Threshold;
-                float  _RimPower;
-                float  _OutlineWidth;
-                float  _HitFlashAmount;
-                float  _HitAlpha;
+                float4 _BaseColor; float4 _ShadowColor; float4 _RimColor;
+                float4 _OutlineColor; float4 _HitFlashColor;
+                float  _Steps; float _StepSmooth; float _Threshold;
+                float  _AmbientStrength;
+                float  _RimPower; float _OutlineWidth;
+                float  _HitFlashAmount; float _HitAlpha;
             CBUFFER_END
 
             struct Attributes
@@ -181,7 +159,6 @@ Shader "Custom/CelShading"
                 float2 uv       : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
-
             struct Varyings
             {
                 float4 posCS     : SV_POSITION;
@@ -198,10 +175,8 @@ Shader "Custom/CelShading"
                 Varyings OUT;
                 UNITY_SETUP_INSTANCE_ID(IN);
                 UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
-
                 VertexPositionInputs vpi = GetVertexPositionInputs(IN.posOS.xyz);
                 VertexNormalInputs   vni = GetVertexNormalInputs(IN.normalOS);
-
                 OUT.posCS     = vpi.positionCS;
                 OUT.posWS     = vpi.positionWS;
                 OUT.normalWS  = vni.normalWS;
@@ -222,28 +197,30 @@ Shader "Custom/CelShading"
                 float3 normal = normalize(IN.normalWS);
                 float3 view   = normalize(IN.viewDirWS);
 
-                // Main light. Use the FULL GetMainLight overload (shadowCoord +
-                // positionWS + shadowMask): it applies URP's shadow distance fade
-                // internally (MixRealtimeAndBakedShadows), so cast shadows fade
-                // smoothly to "lit" past the shadow Max Distance. The simple
-                // GetMainLight(shadowCoord) overload does NOT fade, which made a hard
-                // dark disc follow the camera at the shadow-distance boundary.
                 float4 shadowCoord = TransformWorldToShadowCoord(IN.posWS);
                 Light  main = GetMainLight(shadowCoord, IN.posWS, half4(1,1,1,1));
 
-                // Combine cast shadow INTO the lambert term BEFORE the cel step, so
-                // form shadow + cast shadow are a single quantised band. Multiplying
-                // the shadow AFTER the step (the old way) made the cascade-boundary
-                // jump in shadowAttenuation show up as a second hard edge - the disc
-                // that followed the camera. As one ramp, the cascade seam only ever
-                // matters right at the terminator, so it disappears in practice.
-                float NdotL = dot(normal, main.direction);
-                float ndl   = saturate(NdotL * 0.5 + 0.5);
-                float ramp  = saturate(ndl * main.shadowAttenuation + (0.5 - _Threshold));
-                float cel   = CelStep(ramp, _Steps, _StepSmooth);
-                float3 col  = lerp(_ShadowColor.rgb * tex.rgb, tex.rgb, cel) * main.color;
+                // Ciclo dia/noche: ignorar luz cuando viene desde abajo
+                float sunHeight  = saturate(main.direction.y * 2.0 + 0.1);
+                float sunFade    = smoothstep(0.0, 0.25, sunHeight);
+                float3 mainColor = main.color * sunFade;
+                float  mainShadow = main.shadowAttenuation * sunFade;
 
-                // Additional lights - LIGHT_LOOP works in Forward AND Forward+.
+                float NdotL = dot(normal, main.direction);
+                float ndl   = saturate(NdotL);
+                float ramp  = saturate(ndl * mainShadow + (0.5 - _Threshold));
+                float cel   = CelStep(ramp, _Steps, _StepSmooth);
+
+                float3 litColor    = tex.rgb * mainColor;
+                float3 shadowColor = tex.rgb * _ShadowColor.rgb;
+                float3 col         = lerp(shadowColor, litColor, cel);
+
+                // Ambient escalado por orientacion Y sombra
+                float ambientOcclusion = saturate(ndl * 0.5 + 0.5) * mainShadow;
+                float3 ambient = SampleSH(normal) * ambientOcclusion * _AmbientStrength;
+                col += tex.rgb * ambient;
+
+                // Additional lights
                 #if defined(_ADDITIONAL_LIGHTS) || defined(_FORWARD_PLUS)
                 InputData inputData = (InputData)0;
                 inputData.positionWS = IN.posWS;
@@ -257,15 +234,13 @@ Shader "Custom/CelShading"
                 LIGHT_LOOP_END
                 #endif
 
-                // Rim
+                // Rim solo en zonas iluminadas
                 if (_RimPower > 0.001)
                 {
                     float rim = 1.0 - saturate(dot(view, normal));
-                    rim       = pow(rim, _RimPower);
-                    col      += _RimColor.rgb * rim;
+                    col      += _RimColor.rgb * pow(rim, _RimPower) * cel;
                 }
 
-                // Hit flash tint
                 col = lerp(col, _HitFlashColor.rgb, _HitFlashAmount);
                 col = MixFog(col, IN.fogFactor);
                 return half4(col, 1.0);
@@ -280,10 +255,7 @@ Shader "Custom/CelShading"
         {
             Name "ShadowCaster"
             Tags { "LightMode" = "ShadowCaster" }
-            ZWrite    On
-            ZTest     LEqual
-            ColorMask 0
-            Cull      Back
+            ZWrite On ZTest LEqual ColorMask 0 Cull Back
 
             HLSLPROGRAM
             #pragma vertex   ShadowVert
@@ -292,54 +264,36 @@ Shader "Custom/CelShading"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
-                float4 _BaseColor;
-                float4 _ShadowColor;
-                float4 _RimColor;
-                float4 _OutlineColor;
-                float4 _HitFlashColor;
-                float  _Steps;
-                float  _StepSmooth;
-                float  _Threshold;
-                float  _RimPower;
-                float  _OutlineWidth;
-                float  _HitFlashAmount;
-                float  _HitAlpha;
+                float4 _BaseColor; float4 _ShadowColor; float4 _RimColor;
+                float4 _OutlineColor; float4 _HitFlashColor;
+                float  _Steps; float _StepSmooth; float _Threshold; float _AmbientStrength;
+                float  _RimPower; float _OutlineWidth; float _HitFlashAmount; float _HitAlpha;
             CBUFFER_END
 
-            float3 _LightDirection;
-
-            struct Attributes
-            {
-                float4 posOS    : POSITION;
-                float3 normalOS : NORMAL;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
-            };
-
-            struct Varyings
-            {
-                float4 posCS : SV_POSITION;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
-            };
+            struct Attributes { float4 posOS : POSITION; float3 normalOS : NORMAL; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings   { float4 posCS : SV_POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
 
             Varyings ShadowVert(Attributes IN)
             {
                 Varyings OUT;
-                UNITY_SETUP_INSTANCE_ID(IN);
-                UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
-                float3 posWS  = TransformObjectToWorld(IN.posOS.xyz);
-                float3 normWS = TransformObjectToWorldNormal(IN.normalOS);
-                OUT.posCS = TransformWorldToHClip(ApplyShadowBias(posWS, normWS, _LightDirection));
+                UNITY_SETUP_INSTANCE_ID(IN); UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
+                float3 posWS    = TransformObjectToWorld(IN.posOS.xyz);
+                float3 normWS   = TransformObjectToWorldNormal(IN.normalOS);
+                float3 lightDir = normalize(_MainLightPosition.xyz);
+                float4 posCS    = TransformWorldToHClip(ApplyShadowBias(posWS, normWS, lightDir));
+                #if UNITY_REVERSED_Z
+                    posCS.z = min(posCS.z, posCS.w * UNITY_NEAR_CLIP_VALUE);
+                #else
+                    posCS.z = max(posCS.z, posCS.w * UNITY_NEAR_CLIP_VALUE);
+                #endif
+                OUT.posCS = posCS;
                 return OUT;
             }
-
-            half4 ShadowFrag(Varyings IN) : SV_Target
-            {
-                return 0;
-            }
+            half4 ShadowFrag(Varyings IN) : SV_Target { return 0; }
             ENDHLSL
         }
 
@@ -350,9 +304,7 @@ Shader "Custom/CelShading"
         {
             Name "DepthOnly"
             Tags { "LightMode" = "DepthOnly" }
-            ZWrite    On
-            ColorMask R
-            Cull      Back
+            ZWrite On ColorMask R Cull Back
 
             HLSLPROGRAM
             #pragma vertex   DepthVert
@@ -363,45 +315,23 @@ Shader "Custom/CelShading"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
-                float4 _BaseColor;
-                float4 _ShadowColor;
-                float4 _RimColor;
-                float4 _OutlineColor;
-                float4 _HitFlashColor;
-                float  _Steps;
-                float  _StepSmooth;
-                float  _Threshold;
-                float  _RimPower;
-                float  _OutlineWidth;
-                float  _HitFlashAmount;
-                float  _HitAlpha;
+                float4 _BaseColor; float4 _ShadowColor; float4 _RimColor;
+                float4 _OutlineColor; float4 _HitFlashColor;
+                float  _Steps; float _StepSmooth; float _Threshold; float _AmbientStrength;
+                float  _RimPower; float _OutlineWidth; float _HitFlashAmount; float _HitAlpha;
             CBUFFER_END
 
-            struct Attributes
-            {
-                float4 posOS : POSITION;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
-            };
-
-            struct Varyings
-            {
-                float4 posCS : SV_POSITION;
-                UNITY_VERTEX_INPUT_INSTANCE_ID
-            };
+            struct Attributes { float4 posOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
+            struct Varyings   { float4 posCS : SV_POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
 
             Varyings DepthVert(Attributes IN)
             {
                 Varyings OUT;
-                UNITY_SETUP_INSTANCE_ID(IN);
-                UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
+                UNITY_SETUP_INSTANCE_ID(IN); UNITY_TRANSFER_INSTANCE_ID(IN, OUT);
                 OUT.posCS = TransformObjectToHClip(IN.posOS.xyz);
                 return OUT;
             }
-
-            half4 DepthFrag(Varyings IN) : SV_Target
-            {
-                return 0;
-            }
+            half4 DepthFrag(Varyings IN) : SV_Target { return 0; }
             ENDHLSL
         }
     }

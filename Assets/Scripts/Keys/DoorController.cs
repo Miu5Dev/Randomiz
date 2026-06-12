@@ -1,16 +1,15 @@
 using System.Collections;
-using System.IO;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Sliding door that opens upward when the player has the required key.
 /// Attach to the door mesh/wall GameObject.
 ///
-/// Interaction is handled by requiring an <see cref="Interactable"/> on the
-/// same GameObject — the player presses the interact button when nearby.
-/// If no key is held, a log warning is emitted (replace with your HUD message
-/// event if available). If the key is held, the door slides up smoothly and the
-/// open state is persisted to a dedicated JSON save file.
+/// Door open state is managed by <see cref="SaveManager"/> as part of the main
+/// save slot — it is not persisted independently. This means door state is always
+/// in sync with the active seed: a new game or loading a different slot always
+/// starts with all doors closed unless they were opened in that specific run.
 /// </summary>
 [RequireComponent(typeof(Interactable))]
 public class DoorController : MonoBehaviour
@@ -32,14 +31,32 @@ public class DoorController : MonoBehaviour
     private Vector3 _closedPosition;
     private Vector3 _openPosition;
 
-    // ─── Persistence ───────────────────────────────────────────────────────────
+    // Stable per-door id: name + instance id (instance id is fixed for scene objects).
+    private string DoorId => $"{gameObject.name}_{GetInstanceID()}";
 
-    [System.Serializable]
-    private class SaveData { public bool isOpen; }
+    // ─── Static registry (session-scoped) ──────────────────────────────────────
+    // Populated by SaveManager before Start() runs (via sceneLoaded callback),
+    // so DoorController.Start() can query it for the correct initial state.
 
-    // Use the GameObject's instance ID so each door has its own save file.
-    private string SavePath =>
-        Path.Combine(Application.persistentDataPath, $"door_{gameObject.name}_{GetInstanceID()}.json");
+    private static readonly HashSet<string> s_openedDoors = new();
+
+    /// <summary>
+    /// Called by SaveManager.ApplyRestore before any DoorController.Start() runs.
+    /// Populates the registry so doors know which ones were open in the loaded save.
+    /// </summary>
+    public static void RestoreOpenedDoors(List<string> ids)
+    {
+        s_openedDoors.Clear();
+        if (ids != null)
+            foreach (var id in ids)
+                s_openedDoors.Add(id);
+    }
+
+    /// <summary>Called by SaveManager.SaveGame to collect door state for the save file.</summary>
+    public static List<string> GetOpenedDoorIds() => new List<string>(s_openedDoors);
+
+    /// <summary>Called by SaveManager.NewGame to reset all door state for a fresh run.</summary>
+    public static void ClearAll() => s_openedDoors.Clear();
 
     // ─── Unity lifecycle ───────────────────────────────────────────────────────
 
@@ -51,12 +68,12 @@ public class DoorController : MonoBehaviour
 
     private void Start()
     {
-        // Wire the Interactable so player interaction calls TryOpen.
         var interactable = GetComponent<Interactable>();
         interactable.OnUse.AddListener(TryOpen);
 
-        // Restore saved state (snap instantly, no animation on load).
-        if (File.Exists(SavePath)) LoadState();
+        // Restore open state from the session registry (populated by SaveManager
+        // before this Start() call via the sceneLoaded callback).
+        _isOpen = s_openedDoors.Contains(DoorId);
         if (_isOpen) transform.position = _openPosition;
     }
 
@@ -78,12 +95,8 @@ public class DoorController : MonoBehaviour
 
         if (!KeyInventory.Instance.HasKey(requiredKeyId))
         {
-            // Resolve display name for the message.
             string name = RequiredKeyDisplayName();
             Debug.Log($"[DoorController] Requires: {name}");
-
-            // Replace with your HUD notification event if available, e.g.:
-            // EventBus.Raise(new OnHUDMessageEvent { message = $"Requires: {name}" });
             return;
         }
 
@@ -103,9 +116,9 @@ public class DoorController : MonoBehaviour
 
         while (elapsed < openDuration)
         {
-            elapsed             += Time.deltaTime;
-            float t              = Mathf.SmoothStep(0f, 1f, elapsed / openDuration);
-            transform.position   = Vector3.Lerp(from, _openPosition, t);
+            elapsed           += Time.deltaTime;
+            float t            = Mathf.SmoothStep(0f, 1f, elapsed / openDuration);
+            transform.position = Vector3.Lerp(from, _openPosition, t);
             yield return null;
         }
 
@@ -113,37 +126,8 @@ public class DoorController : MonoBehaviour
         _isOpen            = true;
         _isAnimating       = false;
 
-        SaveState();
-    }
-
-    // ─── Persistence ───────────────────────────────────────────────────────────
-
-    private void SaveState()
-    {
-        var data = new SaveData { isOpen = _isOpen };
-#if UNITY_EDITOR
-        File.WriteAllText(SavePath, JsonUtility.ToJson(data, prettyPrint: true));
-#else
-        File.WriteAllText(SavePath, JsonUtility.ToJson(data));
-#endif
-    }
-
-    private void LoadState()
-    {
-        try
-        {
-            var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(SavePath));
-            if (data != null) _isOpen = data.isOpen;
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[DoorController] Load failed: {ex.Message}");
-        }
-    }
-
-    public static void DeleteSave(DoorController door)
-    {
-        if (door != null && File.Exists(door.SavePath)) File.Delete(door.SavePath);
+        s_openedDoors.Add(DoorId);
+        SaveManager.Instance?.SaveGame(SaveManager.Instance.CurrentSlot);
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -151,10 +135,6 @@ public class DoorController : MonoBehaviour
     private string RequiredKeyDisplayName()
     {
         if (KeyInventory.Instance == null) return requiredKeyId;
-
-        // Look for a held key with this ID to get its display name, or fall
-        // back to the raw keyId.  We search all held keys (the player might
-        // not hold it, but a scene peer KeyPickup could provide the name).
         var held = KeyInventory.Instance.Keys.Find(k => k.keyId == requiredKeyId);
         return held != null ? held.displayName : requiredKeyId;
     }
