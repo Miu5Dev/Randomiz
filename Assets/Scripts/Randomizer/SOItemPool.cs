@@ -57,6 +57,27 @@ public class SOItemPool : ScriptableObject
         return item;
     }
 
+    /// <summary>
+    /// Resolves a held key back to its <see cref="SOKey"/> asset by keyId. The save
+    /// system only stores keyIds, so a loaded game uses this to recover each key's
+    /// display name and icon. Searches run items then fillers; returns null if no
+    /// SOKey with that id exists (e.g. a world KeyPickup with no pool asset).
+    /// </summary>
+    public SOKey FindKeyById(string keyId)
+    {
+        if (string.IsNullOrEmpty(keyId)) return null;
+
+        foreach (var e in items)
+            if (e.item is SOKey k && k.keyId == keyId)
+                return k;
+
+        foreach (var f in fillerItems)
+            if (f is SOKey k && k.keyId == keyId)
+                return k;
+
+        return null;
+    }
+
     private void OnValidate()
     {
         // Invalidate cache so changes in the inspector take effect.

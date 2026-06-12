@@ -402,10 +402,20 @@ public class SaveManager : MonoBehaviour
         if (KeyInventory.Instance != null && data.heldKeyIds != null)
         {
             KeyInventory.Instance.Clear();
-            // persist:false — we are mid-restore; let AddKey rebuild memory only and
-            // avoid a re-entrant SaveGame writing a half-applied slot.
+            // The slot stores only keyIds (the stable identity). Resolve each back to its
+            // SOKey asset via the pool to recover the display name + icon — otherwise the
+            // list would show the raw keyId. World KeyPickups with no pool asset fall back
+            // to the id as the name. persist:false — we are mid-restore; rebuild memory
+            // only and avoid a re-entrant SaveGame writing a half-applied slot.
+            var keyPool = rnd != null ? rnd.Pool : null;
             foreach (string kid in data.heldKeyIds)
-                KeyInventory.Instance.AddKey(kid, persist: false);
+            {
+                var soKey = keyPool != null ? keyPool.FindKeyById(kid) : null;
+                if (soKey != null)
+                    KeyInventory.Instance.AddKey(kid, soKey.itemName, soKey.itemSprite, persist: false);
+                else
+                    KeyInventory.Instance.AddKey(kid, persist: false);
+            }
         }
 
         // ─ Checkpoint ─

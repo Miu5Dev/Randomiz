@@ -20,6 +20,9 @@ public class RandomizerSystem : MonoBehaviour
 
     private RandomizerState State => pool.state;
 
+    /// <summary>The shared item pool (exposed so the save system can resolve key assets by id).</summary>
+    public SOItemPool Pool => pool;
+
     /// <summary>The seed of the current run (exposed for the save system).</summary>
     public int CurrentSeed => State.currentSeed;
 
