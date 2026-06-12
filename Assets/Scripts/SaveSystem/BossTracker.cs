@@ -19,7 +19,10 @@ public class BossTracker : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // Destroy only the duplicate component — this shares the "GameSystems"
+            // object with SaveManager (DontDestroyOnLoad) & co. Destroy(gameObject)
+            // would take the whole shared object down. See SaveManager.Awake.
+            Destroy(this);
             return;
         }
         Instance = this;

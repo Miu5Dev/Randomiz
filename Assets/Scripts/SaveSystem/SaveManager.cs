@@ -44,7 +44,13 @@ public class SaveManager : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // Destroy only THIS component, never the GameObject. SaveManager shares the
+            // "GameSystems" object with KeyInventory / CheckpointManager / BossTracker /
+            // RunTracker. Because this instance is DontDestroyOnLoad, a second one rides
+            // in on the gameplay scene every load; Destroy(gameObject) here would wipe the
+            // whole GameSystems object — taking those other singletons (KeyInventory!)
+            // with it and leaving their Instance null for the rest of the run.
+            Destroy(this);
             return;
         }
         Instance = this;
@@ -396,8 +402,10 @@ public class SaveManager : MonoBehaviour
         if (KeyInventory.Instance != null && data.heldKeyIds != null)
         {
             KeyInventory.Instance.Clear();
+            // persist:false — we are mid-restore; let AddKey rebuild memory only and
+            // avoid a re-entrant SaveGame writing a half-applied slot.
             foreach (string kid in data.heldKeyIds)
-                KeyInventory.Instance.AddKey(kid);
+                KeyInventory.Instance.AddKey(kid, persist: false);
         }
 
         // ─ Checkpoint ─

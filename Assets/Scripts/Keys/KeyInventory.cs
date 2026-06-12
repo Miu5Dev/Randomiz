@@ -36,7 +36,10 @@ public class KeyInventory : MonoBehaviour
     {
         if (Instance != null && Instance != this)
         {
-            Destroy(gameObject);
+            // Destroy only the duplicate component — this shares the "GameSystems"
+            // object with SaveManager (DontDestroyOnLoad) & co. Destroy(gameObject)
+            // would take the whole shared object down. See SaveManager.Awake.
+            Destroy(this);
             return;
         }
         Instance = this;
@@ -50,10 +53,15 @@ public class KeyInventory : MonoBehaviour
     // ─── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Adds a key with the given ID to the inventory, then raises
-    /// <see cref="OnKeyInventoryChangedEvent"/>.
+    /// Adds a key with the given ID to the inventory, raises
+    /// <see cref="OnKeyInventoryChangedEvent"/>, and persists immediately.
     /// </summary>
-    public void AddKey(string keyId, string displayName = "", Sprite icon = null)
+    /// <param name="persist">
+    /// When true (the default for live pickups), writes the active save slot right
+    /// away. The SaveManager restore path passes false to avoid a re-entrant save
+    /// while it is still re-applying the slot.
+    /// </param>
+    public void AddKey(string keyId, string displayName = "", Sprite icon = null, bool persist = true)
     {
         keys.Add(new KeyData
         {
@@ -63,6 +71,16 @@ public class KeyInventory : MonoBehaviour
         });
 
         EventBus.Raise(new OnKeyInventoryChangedEvent());
+
+        // Persist immediately so a freshly-collected key survives a reload. Keys live
+        // only in the SaveManager slot (SaveData.heldKeyIds); picking one up does not
+        // otherwise trigger a save, so a key grabbed between two save points
+        // (checkpoint / door) would be lost on reload — even though the chest that
+        // gave it already auto-saved itself as opened (RandomizerState.SetOpened),
+        // leaving an opened-but-empty chest and no key. Mirrors how DoorController
+        // persists the moment a door changes state.
+        if (persist)
+            SaveManager.Instance?.SaveGame(SaveManager.Instance.CurrentSlot);
     }
 
     /// <summary>Returns true if the player holds at least one key with the given ID.</summary>
