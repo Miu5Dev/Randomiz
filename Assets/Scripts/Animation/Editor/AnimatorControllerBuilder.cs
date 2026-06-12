@@ -13,6 +13,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
 
+/// <summary>Editor tool (Tools -> Animation -> Build Player Animator Controller) that generates the player's AnimatorController from code: parameters, a locomotion blend tree, jump/roll/hit states and a masked upper-body action layer.</summary>
 public static class AnimatorControllerBuilder
 {
     private const string OutputPath = "Assets/Resources/Animation/PlayerController.controller";

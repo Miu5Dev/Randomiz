@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Sword weapon definition; supports an instant OverlapBox hit or a moving-hitbox window (driven by animation events or a timer) with configurable hitbox size, reach and target layers.</summary>
 [CreateAssetMenu(fileName = "Weapon", menuName = "Items/Sword")]
 public class SOSword : SOWeapon
 {

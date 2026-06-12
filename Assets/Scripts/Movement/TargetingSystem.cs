@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>Zelda-style Z-targeting: finds the nearest enemy, aligns the camera and player to it, supports vertical pitch control and cycling targets via look input.</summary>
 [DisallowMultipleComponent]
 public class TargetingSystem : MonoBehaviour
 {

@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+/// <summary>Editor tool (Tools -> Animation -> Fix Player Animation Clips) that configures the player's Mixamo clips to loop where needed and stay in place, since movement is driven by code rather than root motion.</summary>
 public static class AnimationClipImporter
 {
     private const string AnimFolder = "Assets/Resources/FBX/Player/Animations";

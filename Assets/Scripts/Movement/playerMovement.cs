@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Central player locomotion controller and singleton. Owns the shared movement state and orchestrates the sub-components (dash, wallhug, ledge grab); reads input from the EventBus and moves the body through <see cref="PhysicsController"/>.</summary>
 [RequireComponent(typeof(PhysicsController))]
 public class PlayerMovement : MonoBehaviour
 {

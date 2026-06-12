@@ -13,6 +13,7 @@ using UnityEngine;
 // Full visual inspector: event picker, method bindings,
 // per-param source mapping, condition editor.
 // =========================================================
+/// <summary>Custom inspector for EventBusListener: event picker, method bindings, per-parameter source mapping and condition editor.</summary>
 [CustomEditor(typeof(EventBusListener))]
 public class EventBusListenerEditor : Editor
 {

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Player sub-component handling the dash/roll and the targeting jump/backflip; ticks its own cooldown. Driven by <see cref="PlayerMovement"/>.</summary>
 [RequireComponent(typeof(PlayerMovement))]
 [RequireComponent(typeof(PhysicsController))]
 public class PlayerDash : MonoBehaviour

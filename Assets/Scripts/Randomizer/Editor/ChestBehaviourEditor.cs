@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 
+/// <summary>Custom inspector for ChestBehaviour: location id, item pool, required items (with drag-and-drop) and live runtime state in Play mode.</summary>
 [CustomEditor(typeof(ChestBehaviour))]
 public class ChestBehaviourEditor : Editor
 {

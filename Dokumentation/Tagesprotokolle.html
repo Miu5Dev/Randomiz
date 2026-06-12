@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Randomiz – Tagesprotokolle</title>
+<style>
+:root{
+  --primary:#1f3a5f; --accent:#2f6db5; --accent2:#3b8a6e;
+  --light:#eef3f9; --light2:#f5f8fc; --ink:#1d2228; --muted:#5a6573;
+  --rule:#c9d6e5; --warn:#9a6a00; --warnbg:#fff6e5;
+}
+@page{ size:A4; margin:22mm 19mm 24mm 19mm; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{ font-family:"Segoe UI","Calibri",Arial,sans-serif; color:var(--ink);
+  font-size:10.6pt; line-height:1.48; }
+p{ margin:.4em 0; }
+code{ font-family:"Consolas","Courier New",monospace; font-size:.9em;
+  background:#eef1f4; color:#143; padding:.05em .35em; border-radius:3px; }
+strong{ color:var(--primary); }
+a{ color:var(--accent); text-decoration:none; }
+
+/* COVER */
+.cover{ height:247mm; display:flex; flex-direction:column; page-break-after:always; }
+.cover .band{ background:linear-gradient(135deg,var(--primary),var(--accent));
+  color:#fff; padding:26mm 16mm 16mm; border-radius:0 0 4mm 4mm; }
+.cover .kicker{ letter-spacing:.32em; text-transform:uppercase; font-size:10pt; opacity:.85; }
+.cover h1{ font-size:34pt; margin:6mm 0 2mm; line-height:1.08; }
+.cover .sub{ font-size:14pt; opacity:.95; }
+.cover .mid{ flex:1; padding:14mm 16mm 0; }
+.cover .foot{ padding:0 16mm 4mm; color:var(--muted); font-size:9.5pt; }
+.steckbrief{ width:100%; border-collapse:collapse; font-size:10.5pt; }
+.steckbrief td{ padding:3.1mm 3mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+.steckbrief td.k{ width:46mm; color:var(--muted); font-weight:600; }
+
+/* INTRO + SUMMARY */
+h2.sec{ color:var(--primary); font-size:17pt; margin:0 0 4mm; padding-bottom:2mm;
+  border-bottom:2.5px solid var(--accent); }
+.lead{ font-size:11pt; color:var(--muted); }
+.box{ background:var(--light); border-left:4px solid var(--accent); border-radius:0 4px 4px 0;
+  padding:3mm 4mm; margin:3mm 0; font-size:10pt; }
+.box .bt{ font-weight:700; color:var(--primary); display:block; margin-bottom:1mm; }
+table.sum{ width:100%; border-collapse:collapse; margin:3mm 0; font-size:9.7pt; }
+table.sum th{ background:var(--primary); color:#fff; text-align:left; padding:2.2mm 2.6mm; }
+table.sum td{ padding:1.9mm 2.6mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.sum tr:nth-child(even) td{ background:var(--light2); }
+table.sum td.d{ white-space:nowrap; font-weight:600; color:var(--primary); }
+table.sum td.h{ text-align:center; white-space:nowrap; }
+table.sum tr.wk td{ background:var(--accent); color:#fff; font-weight:700;
+  letter-spacing:.03em; text-transform:uppercase; font-size:9pt; }
+table.sum tfoot td{ font-weight:700; background:#dde8f4; color:var(--primary); }
+
+/* WEEK + DAY CARDS */
+.week{ page-break-before:always; }
+.week h2.wk{ color:var(--accent); font-size:14pt; margin:0 0 3mm;
+  letter-spacing:.04em; }
+.daycard{ border:1px solid var(--rule); border-radius:6px; margin:0 0 4.5mm;
+  overflow:hidden; break-inside:avoid; }
+.dayhead{ background:var(--primary); color:#fff; padding:2.4mm 4mm;
+  display:flex; justify-content:space-between; align-items:baseline; }
+.dayhead .dt{ font-weight:700; font-size:11pt; }
+.dayhead .dt .wd{ opacity:.8; font-weight:400; font-size:9.5pt; margin-left:2mm; }
+.dayhead .hrs{ font-size:9pt; background:rgba(255,255,255,.18); padding:.6mm 2.4mm;
+  border-radius:10px; white-space:nowrap; }
+.dayhead .topic{ display:block; font-size:9pt; opacity:.9; font-weight:400; margin-top:.4mm; }
+.daybody{ padding:3mm 4mm 3.5mm; }
+.lbl{ display:block; font-weight:700; color:var(--accent); font-size:8.6pt;
+  text-transform:uppercase; letter-spacing:.06em; margin:2.4mm 0 .6mm; }
+.lbl:first-child{ margin-top:0; }
+.daybody ul{ margin:.2em 0 .2em; padding-left:5.5mm; }
+.daybody li{ margin:.16em 0; }
+.tools{ font-size:9.4pt; color:var(--muted); }
+.result{ font-size:10pt; }
+.result.prob{ color:#7a4a00; }
+.pill{ display:inline-block; font-size:8pt; padding:.3mm 2mm; border-radius:3px;
+  background:#eaf2fb; color:var(--accent); border:1px solid #cfe0f2; margin-right:1mm; }
+.small{ font-size:9pt; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="band">
+    <div class="kicker">Tagesprotokolle &nbsp;·&nbsp; Arbeitsabläufe</div>
+    <h1>Randomiz</h1>
+    <div class="sub">Projekt-Tagesberichte · 18. Mai – 12. Juni 2026</div>
+  </div>
+  <div class="mid">
+    <table class="steckbrief">
+      <tr><td class="k">Projekt</td><td>Randomiz – 3D-Action-Adventure mit Item-Randomizer (Unity 6 / URP)</td></tr>
+      <tr><td class="k">Dokumentart</td><td>Tagesprotokolle der Arbeitsabläufe</td></tr>
+      <tr><td class="k">Zeitraum</td><td>18.&nbsp;Mai&nbsp;2026 &ndash; 12.&nbsp;Juni&nbsp;2026 (Arbeitstage Mo&ndash;Fr)</td></tr>
+      <tr><td class="k">Anzahl Arbeitstage</td><td>20</td></tr>
+      <tr><td class="k">Erfasste Arbeitszeit</td><td>ca. 164,5 Stunden (Richtwerte)</td></tr>
+      <tr><td class="k">Entwickler</td><td>Miguel Weinhold</td></tr>
+    </table>
+  </div>
+  <div class="foot">
+    Ergänzend zur Projektdokumentation und zum Benutzerhandbuch. Die Protokolle dokumentieren den
+    täglichen Arbeitsfortschritt am Projekt.
+  </div>
+</section>
+
+<!-- INTRO + SUMMARY -->
+<section>
+  <h2 class="sec">Hinweise zur Protokollführung</h2>
+  <p class="lead">Die folgenden Tagesprotokolle dokumentieren die Arbeitsabläufe am Projekt
+  <strong>Randomiz</strong> im Zeitraum vom 18.&nbsp;Mai bis 12.&nbsp;Juni&nbsp;2026.</p>
+  <div class="box"><span class="bt">Aufbau eines Protokolls</span>
+  Jeder Arbeitstag enthält die Abschnitte <em>Tätigkeiten</em> (durchgeführte Arbeitsschritte),
+  <em>Werkzeuge</em> (eingesetzte Programme und Techniken) und <em>Ergebnis</em> (erreichter
+  Stand bzw. Erkenntnis). Sofern Probleme auftraten, werden diese gesondert ausgewiesen.
+  Grundlage der Protokolle sind die Versionshistorie des Projekts (Git) und die begleitenden
+  Entwicklungsnotizen. Die angegebenen Arbeitszeiten sind Richtwerte.</p></div>
+
+  <h2 class="sec" style="margin-top:7mm">Wochenübersicht</h2>
+  <table class="sum">
+    <thead><tr><th style="width:26mm">Datum</th><th style="width:20mm">Wochentag</th><th>Schwerpunkt</th><th style="width:16mm">Std.</th></tr></thead>
+    <tbody>
+      <tr class="wk"><td colspan="4">Woche 1 · 18.–22. Mai 2026</td></tr>
+      <tr><td class="d">18.05.2026</td><td>Montag</td><td>Projektstart, Einarbeitung, Projektplanung</td><td class="h">8,0</td></tr>
+      <tr><td class="d">19.05.2026</td><td>Dienstag</td><td>Randomizer-Grundlagen, Item-Pool, Truhen</td><td class="h">8,0</td></tr>
+      <tr><td class="d">20.05.2026</td><td>Mittwoch</td><td>Randomizer stabilisiert, Ereignis-Abbruch (Cancellation)</td><td class="h">8,5</td></tr>
+      <tr><td class="d">21.05.2026</td><td>Donnerstag</td><td>Prototyp fortgeschrittene Bewegung (Rückschlag)</td><td class="h">7,5</td></tr>
+      <tr><td class="d">22.05.2026</td><td>Freitag</td><td>Zielerfassung (Z-Targeting), PR&nbsp;#1</td><td class="h">8,0</td></tr>
+      <tr class="wk"><td colspan="4">Woche 2 · 25.–29. Mai 2026</td></tr>
+      <tr><td class="d">25.05.2026</td><td>Montag</td><td>Wandklettern &amp; Vorsprung-Greifen, PR&nbsp;#2</td><td class="h">8,5</td></tr>
+      <tr><td class="d">26.05.2026</td><td>Dienstag</td><td>Bewegungs-Feinschliff, Gesundheits- &amp; Münzsystem</td><td class="h">8,5</td></tr>
+      <tr><td class="d">27.05.2026</td><td>Mittwoch</td><td>Optimierung, Übersetzung (EN), Dokumentation</td><td class="h">8,0</td></tr>
+      <tr><td class="d">28.05.2026</td><td>Donnerstag</td><td>Big Patch: Animationssystem geplant</td><td class="h">8,0</td></tr>
+      <tr><td class="d">29.05.2026</td><td>Freitag</td><td>Prozedurales Animationsfundament (Fuß-/Blick-IK)</td><td class="h">8,0</td></tr>
+      <tr class="wk"><td colspan="4">Woche 3 · 1.–5. Juni 2026</td></tr>
+      <tr><td class="d">01.06.2026</td><td>Montag</td><td>IK-Module für Klettern, Treffer-Reaktion</td><td class="h">8,0</td></tr>
+      <tr><td class="d">02.06.2026</td><td>Dienstag</td><td>Animator-Aufbau, Zustände, Todesanimation</td><td class="h">8,0</td></tr>
+      <tr><td class="d">03.06.2026</td><td>Mittwoch</td><td>Waffen sichtbar in der Hand, Integration</td><td class="h">8,5</td></tr>
+      <tr><td class="d">04.06.2026</td><td>Donnerstag</td><td>„Big Patch“ gesichert, Integrationstest</td><td class="h">8,0</td></tr>
+      <tr><td class="d">05.06.2026</td><td>Freitag</td><td>Stabilisierung des Animationssystems</td><td class="h">7,5</td></tr>
+      <tr class="wk"><td colspan="4">Woche 4 · 8.–12. Juni 2026</td></tr>
+      <tr><td class="d">08.06.2026</td><td>Montag</td><td>Große Code-Aktualisierung, kritischer Fehler entdeckt</td><td class="h">8,5</td></tr>
+      <tr><td class="d">09.06.2026</td><td>Dienstag</td><td>Kritische Fehler behoben (Figur, Schatten, Kollider)</td><td class="h">8,5</td></tr>
+      <tr><td class="d">10.06.2026</td><td>Mittwoch</td><td>Leistung, HUD &amp; Interaktion, Truhen, Waffen-Rework</td><td class="h">9,0</td></tr>
+      <tr><td class="d">11.06.2026</td><td>Donnerstag</td><td>Audio-System, Shop-Integration, Kampf-Bugfixes</td><td class="h">9,0</td></tr>
+      <tr><td class="d">12.06.2026</td><td>Freitag</td><td>Lauf-Timer &amp; Siegbildschirm, Hauptmenü, Abschluss</td><td class="h">8,5</td></tr>
+    </tbody>
+    <tfoot><tr><td colspan="3">Summe (Richtwert)</td><td class="h">164,5</td></tr></tfoot>
+  </table>
+</section>
+
+<!-- ============ WOCHE 1 ============ -->
+<section class="week">
+  <h2 class="wk">Woche 1 · 18.–22. Mai 2026</h2>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Montag, 18.05.2026<span class="wd">· Projektstart</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Arbeitsumgebung eingerichtet und das bestehende Basisprojekt (Unity&nbsp;6, URP) gesichtet.</li>
+        <li>Vorhandenes Event-Bus-System analysiert und dessen Aufbau nachvollzogen.</li>
+        <li>Entwicklungs-Roadmap geplant: Randomizer, fortgeschrittene Bewegung, Kampfsystem.</li>
+        <li>Git-Repository und Branch-Vorgehen für die kommende Projektphase festgelegt.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity&nbsp;6 · C# · Git/GitHub · IDE (Visual Studio / Rider)</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Arbeitsumgebung lauffähig, Projektüberblick und Plan stehen.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Dienstag, 19.05.2026<span class="wd">· Randomizer-Grundlagen</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Einarbeitung in das Randomizer-Konzept: Seed, Item-Pool und Fundorte.</li>
+        <li>Datenstrukturen gesichtet: Item-Pool (<code>SOItemPool</code>), Zustand (<code>RandomizerState</code>), Truhen (<code>ChestBehaviour</code>).</li>
+        <li>Erste Tests der Seed-Erzeugung und der Item-Zuweisung an Truhen.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · JSON (Persistenz)</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Initialisierungsreihenfolge verstanden (Aufbau im <code>Awake</code> vor dem Lesen der Truhen). Erste Truhen liefern korrekt Items.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Mittwoch, 20.05.2026<span class="wd">· Randomizer &amp; Cancellation</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Mehrere Fehler im Randomizer-System behoben (Seed-Erzeugung, Auflösung des Truhen-Inhalts).</li>
+        <li>Ereignis-Abbruch (Cancellation) im Event-Bus implementiert bzw. repariert.</li>
+        <li>Allgemeine Fehlerbehebungen in der Spiellogik.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Randomizer verteilt Items zuverlässig; die Cancellation verhindert, dass dieselbe Eingabe mehrere Systeme gleichzeitig auslöst.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Donnerstag, 21.05.2026<span class="wd">· Bewegung (Rückschlag)</span></span><span class="hrs">ca. 7,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Recherche und Prototyp für ein fortgeschrittenes Bewegungssystem (Wandklettern).</li>
+        <li>Verschiedene Ansätze ausprobiert; die Einbindung in den eigenen <code>PhysicsController</code> erwies sich als schwierig.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C#</div>
+      <span class="lbl">Problem / Erkenntnis</span>
+      <div class="result prob">Der Prototyp funktionierte noch nicht zufriedenstellend (negatives Ergebnis dokumentiert). Erkenntnis: Das Bewegungsmodell muss eingabe- und kameraunabhängig aufgebaut werden – diese Erkenntnis floss in die spätere, erfolgreiche Umsetzung ein.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Freitag, 22.05.2026<span class="wd">· Zielerfassung</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Zielerfassung (Z-Targeting) nach Vorbild bekannter Action-Adventures implementiert.</li>
+        <li>Zielwechsel über die Blickeingabe (links/rechts).</li>
+        <li>Kamera: weiches Zoomen, Third-Person-Bewegung im Zielmodus, prozedurale Letterbox-Balken.</li>
+        <li>Sprung im Zielmodus folgt der Eingaberichtung; kein Luft-Dash im Zielsprung.</li>
+        <li>Pull&nbsp;Request&nbsp;#1 (Targeting-System) in den Hauptzweig zusammengeführt.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Cinemachine · Git/GitHub (Pull&nbsp;Request)</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Funktionsfähige Zielerfassung, sauber per Pull&nbsp;Request integriert.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WOCHE 2 ============ -->
+<section class="week">
+  <h2 class="wk">Woche 2 · 25.–29. Mai 2026</h2>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Montag, 25.05.2026<span class="wd">· Wandklettern &amp; Kanten</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Bewegungszustand „Wandklettern“ (Wallhug) umgesetzt – nun eingabe- und kameraunabhängig.</li>
+        <li>Modell dreht sich zur Wand; Sprung erfolgt rein vertikal ohne seitlichen Schwung.</li>
+        <li>„Vorsprung-Greifen“ (Ledge Grab) hinzugefügt: Anhängen, Hochzieh-Position, Eck-Erkennung.</li>
+        <li>Automatisches, animiertes Übersteigen kleiner Stufen (Step-Up).</li>
+        <li>Pull&nbsp;Request&nbsp;#2 zusammengeführt.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git/GitHub</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Grundlegende Kletter-Mechaniken funktionieren; der am 21.05. begonnene Ansatz ist damit erfolgreich gelöst.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Dienstag, 26.05.2026<span class="wd">· Feinschliff, Gesundheit, Münzen</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Wandklettern auf „Interagieren-Taste halten“ umgestellt; Sprung von der Wand zur Kante.</li>
+        <li>Geschwindigkeits-Multiplikator für die seitliche Bewegung; Zustandsfeld <code>nearWall</code> öffentlich für das HUD bereitgestellt.</li>
+        <li>Gesundheitssystem (<code>HealthSystem</code>) implementiert.</li>
+        <li>Münzsystem (Money System) implementiert.</li>
+        <li>Komponenten-Referenzen aktualisiert und verdrahtet.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Bewegung deutlich runder; Grundlage für Kampf (Gesundheit) und Wirtschaft (Münzen) steht.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Mittwoch, 27.05.2026<span class="wd">· Optimierung &amp; Übersetzung</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Leistungsoptimierungen umgesetzt (zwischengespeicherte Ereignis-Instanzen, quadrierte Distanzvergleiche).</li>
+        <li>Gesamten Quellcode von Spanisch auf Englisch übersetzt (Kommentare, Log-Ausgaben, UI-Texte).</li>
+        <li>Code-Dokumentation (Doc-Kommentare) ergänzt und Stand vor dem „Big Patch“ aufgeräumt.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Einheitlich englische, dokumentierte und optimierte Codebasis; sauberer Ausgangspunkt gesichert.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Donnerstag, 28.05.2026<span class="wd">· Big Patch: Planung</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Konzept für ein neues Animations- und IK-System (Inverse Kinematik) erarbeitet.</li>
+        <li>Animationen importiert und gesichtet (Great-Sword-Animationspaket); Animator-Struktur geplant.</li>
+        <li>Grundgerüst des Spieler-Animators (<code>PlayerAnimator</code>) begonnen.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity (Animator/Mecanim) · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Plan und Datenbasis für das neue Animationssystem liegen vor.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Freitag, 29.05.2026<span class="wd">· Animationsfundament</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Spieler-Animator und automatischen Controller-Aufbau (<code>AnimatorControllerBuilder</code>) umgesetzt.</li>
+        <li>Fuß-IK (<code>FootIK</code>) für Bodenanpassung und Blick-IK (<code>LookAtIK</code>) implementiert.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity (IK / Animation) · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Füße passen sich dem Untergrund an, der Kopf blickt zum Ziel – spürbar lebendigere Figur.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WOCHE 3 ============ -->
+<section class="week">
+  <h2 class="wk">Woche 3 · 1.–5. Juni 2026</h2>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Montag, 01.06.2026<span class="wd">· IK-Module Klettern</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>IK-Module für Wandklettern (<code>WallhugIK</code>) und Hangeln (<code>LedgeHangIK</code>) umgesetzt.</li>
+        <li>Treffer-Reaktion per IK (<code>HitReactIK</code>) ergänzt.</li>
+        <li>Hand- und Fußziele für die Kletterzustände definiert.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity (IK) · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Hände greifen sichtbar nach Wand und Kante; Treffer wirken körperlich nachvollziehbar.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Dienstag, 02.06.2026<span class="wd">· Animator-Aufbau</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Controller-Aufbau erweitert (Blend Trees, Zustandsübergänge).</li>
+        <li>Todesanimation in den Controller eingebunden.</li>
+        <li>Animationen an die Lokomotions-Zustände (Laufen, Klettern usw.) gekoppelt.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity (Animator) · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Der Animator-Controller wird automatisch und reproduzierbar erzeugt.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Mittwoch, 03.06.2026<span class="wd">· Waffen in der Hand</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Waffen werden nun sichtbar in der Hand der Figur dargestellt (<code>WeaponVisual</code>, Pivot am Hand-Knochen).</li>
+        <li>Animationen mit den Bewegungs-Ereignissen verknüpft.</li>
+        <li>Tests und Fehlersuche an der Darstellung.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Ausgerüstete Waffen erscheinen korrekt positioniert in der Hand.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Donnerstag, 04.06.2026<span class="wd">· Big Patch gesichert</span></span><span class="hrs">ca. 8,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Großen Patch (neue Animationen + IK + Waffenanzeige) in Git gesichert.</li>
+        <li>Integrationstest des neuen Animations-/IK-Systems durchgeführt.</li>
+        <li>Fehlerbehebung an Animationsübergängen.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">„Big Patch“ als Work-in-Progress eingecheckt; Grundsystem läuft, Feinschliff folgt.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Freitag, 05.06.2026<span class="wd">· Stabilisierung</span></span><span class="hrs">ca. 7,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Fehlersuche und Stabilisierung nach dem großen Patch.</li>
+        <li>Feinschliff an IK-Gewichten und Übergängen.</li>
+        <li>Vorbereitung der anstehenden Leistungs-Optimierungsrunde.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C#</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Animationssystem spürbar stabiler; verbleibende Punkte für die Folgewoche notiert.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WOCHE 4 ============ -->
+<section class="week">
+  <h2 class="wk">Woche 4 · 8.–12. Juni 2026</h2>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Montag, 08.06.2026<span class="wd">· Code-Update &amp; Fehlerfund</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Umfangreiche Code-Aktualisierung über viele Systeme hinweg.</li>
+        <li>Schwerwiegendes Problem entdeckt: Die Spielfigur wird beim Start („Play“) ohne Konsolenfehler entfernt.</li>
+        <li>Erste Ursachenanalyse begonnen.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Problem</span>
+      <div class="result prob">Der Fehler wurde reproduziert und eingegrenzt; die eigentliche Behebung erfolgte am Folgetag.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Dienstag, 09.06.2026<span class="wd">· Kritische Fehler behoben</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Ursache der Figur-Zerstörung gefunden (doppelt vorhandene Verwaltungs-Komponente) und behoben – der Schutzmechanismus entfernt jetzt nur noch die überzählige Komponente.</li>
+        <li>Schatten wiederhergestellt (Licht-/Schatten-Einstellungen; Shader auf per-Fragment-Schattenkoordinaten umgestellt).</li>
+        <li>Gelände-Bäume mit Kollidern versehen (eigenes Editor-Werkzeug <code>TreeColliderTool</code>).</li>
+        <li>„Verkantete“ Figur nach dem Wandklettern behoben (IK darf die Körperdrehung nicht überschreiben).</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · eigene Editor-Tools · URP-Shader</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Spielfigur startet wieder stabil; Schatten und Kollisionen korrekt.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Mittwoch, 10.06.2026<span class="wd">· Leistung, HUD, Truhen</span></span><span class="hrs">ca. 9,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Leistungsoptimierung: Schattendistanz reduziert, GPU&nbsp;Resident&nbsp;Drawer und Occlusion&nbsp;Culling aktiviert, kleine Schattenwerfer deaktiviert.</li>
+        <li>Gelände-Shader um GPU-Instanzierung erweitert (eigenes Tool <code>TerrainPerfTool</code>).</li>
+        <li>HUD &amp; Interaktion überarbeitet: anklickbarer Shop mit Kaufbestätigung, Mauszeiger-Handling, Dialog, Minikarte (Truhen/Händler, Drehung), Münz-Anzeige, Inventarrad-Hinweise.</li>
+        <li>Waffen-Rework: Steinschleuder- und Enterhaken-Physik, Ego-Ansicht mit Fadenkreuz, Start mit leerer Hand.</li>
+        <li>Truhen: Öffnungs-Animation und Truhen-Ersteller im GameSetupWizard.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · URP · HLSL-Shader · C# · eigene Editor-Tools</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Spürbar bessere Bildrate (weniger Zeichenaufrufe) und deutlich rundere Bedienung.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Donnerstag, 11.06.2026<span class="wd">· Audio, Shop, Kampf</span></span><span class="hrs">ca. 9,0 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Hintergrundmusik-System mit weichen Übergängen (Crossfade): Musik-Manager, Musik- und Umgebungszonen, Boss-Musikprofile.</li>
+        <li>Shop vollständig in den Randomizer integriert: Händler-Plätze sind nun gleichwertige Fundorte aus demselben Item-Pool.</li>
+        <li>Kampf-Fehler behoben: Mehrfachschaden (Unverwundbarkeit/Schutz) und Gegner-Spawnzone, die mit noch lebenden Gegnern erneut auslöste.</li>
+        <li>Weitere Korrekturen: Todesanimation, zufällige Händler-Persönlichkeit pro Durchlauf, Sofort-Tod-Zonen (Lava/Wasser), Bilddarstellung im Shop.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Stimmige Audiokulisse; Shop und Randomizer aus einer Quelle; Kampf spürbar fairer.</div>
+    </div>
+  </div>
+
+  <div class="daycard">
+    <div class="dayhead"><span class="dt">Freitag, 12.06.2026<span class="wd">· Timer, Sieg, Menü, Abschluss</span></span><span class="hrs">ca. 8,5 Std.</span></div>
+    <div class="daybody">
+      <span class="lbl">Tätigkeiten</span>
+      <ul>
+        <li>Lauf-Timer (<code>RunTracker</code>) und Siegbildschirm mit Zeit und Anzahl der Tode sowie Schaltfläche „Play Again“.</li>
+        <li>Hauptmenü vollständig im Inspector konfigurierbar gemacht (Logo, Titel, Hintergrund, Schaltflächen).</li>
+        <li>Hintergrundmusik auch im Menü; Türen und Schlüssel fest an den Seed gebunden.</li>
+        <li>Enterhaken-Fehler behoben (Figur kämpfte beim Einholen gegen die Schwerkraft).</li>
+        <li>Abschluss und Sicherung des dokumentierten Entwicklungsstands.</li>
+      </ul>
+      <span class="lbl">Werkzeuge</span>
+      <div class="tools">Unity · C# · Git</div>
+      <span class="lbl">Ergebnis</span>
+      <div class="result">Vollständiger Spielablauf vom Hauptmenü bis zum Siegbildschirm – ein wichtiger Meilenstein ist erreicht.</div>
+    </div>
+  </div>
+</section>
+
+<div style="margin-top:8mm" class="small">© 2026 · Randomiz – Tagesprotokolle (18.&nbsp;Mai&nbsp;–&nbsp;12.&nbsp;Juni&nbsp;2026) ·
+Miguel Weinhold. Grundlage: Git-Versionshistorie und Entwicklungsnotizen.</div>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
+/// <summary>Renders the minimap: pooled chest and shop icons (coloured by state), the player arrow and rotation toward the player's facing; the panel size can be changed at runtime.</summary>
 public class MinimapUI : MonoBehaviour
 {
     [Header("Icons")]

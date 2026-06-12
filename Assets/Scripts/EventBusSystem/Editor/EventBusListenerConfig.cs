@@ -9,6 +9,7 @@ using UnityEngine;
 // Stores the events folder path used by the custom editor.
 // Place one instance in Assets/Resources/ (auto-created).
 // =========================================================
+/// <summary>ScriptableObject storing the events-folder path used by the EventBus inspector tooling; auto-created in Resources and accessed via <see cref="Instance"/>.</summary>
 [CreateAssetMenu(fileName = "EventBusListenerConfig", menuName = "EventBus/Listener Config")]
 public class EventBusListenerConfig : ScriptableObject
 {

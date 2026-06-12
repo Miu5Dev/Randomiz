@@ -12,6 +12,7 @@ using UnityEngine;
 // DATA MODEL
 // =========================================================
 
+/// <summary>One parameter (name + type) of a generated event; part of an <see cref="EventDefinitionAsset"/>.</summary>
 [Serializable]
 public class EventParamDefinition
 {
@@ -21,6 +22,7 @@ public class EventParamDefinition
     public string customEnumName = "";
 }
 
+/// <summary>Supported field types for a generated event parameter.</summary>
 public enum EventParamType
 {
     Int,
@@ -33,6 +35,7 @@ public enum EventParamType
     Enum
 }
 
+/// <summary>A new enum (name + values) to code-generate alongside an event definition.</summary>
 [Serializable]
 public class CustomEnumDefinition
 {
@@ -45,6 +48,7 @@ public class CustomEnumDefinition
 // SCRIPTABLE OBJECT
 // =========================================================
 
+/// <summary>ScriptableObject describing an event to code-generate (base name, parameters, custom enums); the editor produces the matching On...Event class.</summary>
 [CreateAssetMenu(fileName = "NewEventDefinition", menuName = "EventBus/Event Definition")]
 public class EventDefinitionAsset : ScriptableObject
 {
@@ -71,6 +75,7 @@ public class EventDefinitionAsset : ScriptableObject
 // PROJECT ENUM SCANNER
 // Finds ALL user-defined enums via Reflection + source scan
 // =========================================================
+/// <summary>Finds all user-defined enums in the project (reflection + source scan) so they can be picked as event parameter types.</summary>
 public static class ProjectEnumScanner
 {
     private static string[] _cachedNames;
@@ -137,6 +142,7 @@ public static class ProjectEnumScanner
 // CUSTOM EDITOR
 // =========================================================
 
+/// <summary>Custom inspector for <see cref="EventDefinitionAsset"/>: edits parameters and enums and generates the event source file.</summary>
 [CustomEditor(typeof(EventDefinitionAsset))]
 public class EventDefinitionAssetEditor : Editor
 {
@@ -498,7 +504,7 @@ public class EventDefinitionAssetEditor : Editor
     }
 }
 
-// Invalidate enum cache whenever any .cs file changes in the project
+/// <summary>Asset post-processor that invalidates the <see cref="ProjectEnumScanner"/> cache whenever a script changes.</summary>
 public class ProjectEnumScannerWatcher : AssetPostprocessor
 {
     static void OnPostprocessAllAssets(

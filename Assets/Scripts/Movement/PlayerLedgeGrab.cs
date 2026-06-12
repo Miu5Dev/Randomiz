@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Player sub-component for ledge grabbing: edge detection, shimmying, climbing up and auto-grab when falling off a ledge. Driven by <see cref="PlayerMovement"/>.</summary>
 [RequireComponent(typeof(PlayerMovement))]
 [RequireComponent(typeof(PhysicsController))]
 public class PlayerLedgeGrab : MonoBehaviour

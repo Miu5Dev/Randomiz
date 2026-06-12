@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Randomiz – Projektdokumentation & Benutzerhandbuch</title>
+<style>
+:root{
+  --primary:#1f3a5f;
+  --accent:#2f6db5;
+  --accent2:#3b8a6e;
+  --light:#eef3f9;
+  --light2:#f5f8fc;
+  --ink:#1d2228;
+  --muted:#5a6573;
+  --rule:#c9d6e5;
+  --warn:#9a6a00;
+  --warnbg:#fff6e5;
+}
+@page{ size:A4; margin:22mm 19mm 24mm 19mm; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  font-family:"Segoe UI","Calibri",Arial,sans-serif;
+  color:var(--ink); font-size:10.7pt; line-height:1.5;
+}
+p{ margin:.45em 0; text-align:justify; }
+code{ font-family:"Consolas","Courier New",monospace; font-size:.92em;
+  background:#eef1f4; color:#143; padding:.05em .35em; border-radius:3px; }
+strong{ color:var(--primary); }
+a{ color:var(--accent); text-decoration:none; }
+
+/* ---------- COVER ---------- */
+.cover{ height:247mm; display:flex; flex-direction:column; page-break-after:always; }
+.cover .band{ background:linear-gradient(135deg,var(--primary),var(--accent));
+  color:#fff; padding:26mm 16mm 16mm; border-radius:0 0 4mm 4mm; }
+.cover .kicker{ letter-spacing:.32em; text-transform:uppercase; font-size:10pt; opacity:.85; }
+.cover h1{ font-size:34pt; margin:6mm 0 2mm; line-height:1.08; font-weight:700; }
+.cover .sub{ font-size:14pt; opacity:.95; font-weight:400; }
+.cover .mid{ flex:1; padding:14mm 16mm 0; }
+.cover .foot{ padding:0 16mm 4mm; color:var(--muted); font-size:9.5pt; }
+.steckbrief{ width:100%; border-collapse:collapse; font-size:10.5pt; }
+.steckbrief td{ padding:3.1mm 3mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+.steckbrief td.k{ width:42mm; color:var(--muted); font-weight:600; }
+.cover .logo{ font-weight:800; letter-spacing:.02em; }
+
+/* ---------- TOC ---------- */
+.toc{ page-break-after:always; }
+.toc h2{ color:var(--primary); border:0; font-size:19pt; margin:0 0 6mm; padding:0; }
+.toc .part{ font-weight:700; color:var(--accent); margin:5mm 0 1.5mm; font-size:11.5pt;
+  letter-spacing:.04em; text-transform:uppercase; }
+.toc ol{ list-style:none; margin:0; padding:0; }
+.toc li{ padding:1.4mm 0; border-bottom:1px dotted var(--rule); display:flex; }
+.toc li .n{ width:11mm; color:var(--accent); font-weight:700; }
+.toc li.sub{ padding-left:11mm; font-size:9.8pt; color:var(--muted); border-bottom:0; }
+.toc li.sub .n{ width:13mm; color:var(--muted); font-weight:600; }
+
+/* ---------- PART DIVIDER ---------- */
+.part-divider{ page-break-before:always; height:225mm; display:flex; flex-direction:column;
+  justify-content:center; }
+.part-divider .pd-kicker{ letter-spacing:.3em; text-transform:uppercase; color:var(--accent);
+  font-size:12pt; font-weight:700; }
+.part-divider h1{ font-size:30pt; color:var(--primary); margin:3mm 0 4mm; border:0; }
+.part-divider .pd-line{ height:3px; width:60mm; background:var(--accent); margin-bottom:6mm; }
+.part-divider p{ color:var(--muted); max-width:130mm; font-size:11pt; }
+
+/* ---------- HEADINGS ---------- */
+h1.chapter{ page-break-before:always; color:var(--primary); font-size:18.5pt;
+  margin:0 0 4mm; padding:0 0 2.5mm; border-bottom:2.5px solid var(--accent); }
+h1.chapter .cn{ color:var(--accent); }
+h2{ color:var(--primary); font-size:13pt; margin:7mm 0 2mm;
+  padding-left:3mm; border-left:4px solid var(--accent); }
+h3{ color:#2a3340; font-size:11pt; margin:4.5mm 0 1mm; }
+h1.chapter:first-of-type{ page-break-before:avoid; }
+
+/* ---------- BOXES / TABLES ---------- */
+ul,ol{ margin:.4em 0 .6em; padding-left:6mm; }
+li{ margin:.18em 0; }
+.lead{ font-size:11.4pt; color:var(--muted); margin-bottom:4mm; }
+.box{ background:var(--light); border-left:4px solid var(--accent); border-radius:0 4px 4px 0;
+  padding:3mm 4mm; margin:3mm 0; font-size:10.2pt; }
+.box.tech{ border-left-color:var(--accent2); background:#eef6f1; }
+.box.warn{ border-left-color:var(--warn); background:var(--warnbg); }
+.box .bt{ font-weight:700; color:var(--primary); display:block; margin-bottom:1mm; }
+.box.tech .bt{ color:var(--accent2); }
+.box.warn .bt{ color:var(--warn); }
+table.data{ width:100%; border-collapse:collapse; margin:3mm 0; font-size:10pt; }
+table.data th{ background:var(--primary); color:#fff; text-align:left; padding:2.3mm 3mm;
+  font-weight:600; }
+table.data td{ padding:2.1mm 3mm; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.data tr:nth-child(even) td{ background:var(--light2); }
+table.data td.k{ font-weight:600; color:var(--primary); white-space:nowrap; }
+.keycap{ display:inline-block; border:1px solid #b6c2d2; border-bottom-width:2px;
+  border-radius:4px; background:#fbfdff; padding:.3mm 2mm; font-family:"Consolas",monospace;
+  font-size:9pt; color:#243; white-space:nowrap; }
+.tag{ display:inline-block; background:var(--accent); color:#fff; font-size:8pt;
+  padding:.4mm 2mm; border-radius:3px; vertical-align:middle; letter-spacing:.03em; }
+
+/* ---------- ARCH DIAGRAM ---------- */
+.arch{ border:1px solid var(--rule); border-radius:6px; padding:5mm; margin:4mm 0;
+  background:var(--light2); }
+.arch .row{ display:flex; gap:4mm; justify-content:center; margin:2mm 0; flex-wrap:wrap; }
+.node{ border:1.5px solid var(--accent); border-radius:5px; background:#fff; padding:2.4mm 3mm;
+  font-size:9pt; text-align:center; min-width:30mm; }
+.node.bus{ background:var(--primary); color:#fff; border-color:var(--primary); font-weight:700;
+  min-width:130mm; }
+.node.src{ background:#eaf2fb; }
+.node.sub{ background:#eef6f1; border-color:var(--accent2); }
+.arch .arrow{ text-align:center; color:var(--accent); font-size:12pt; line-height:1; }
+.small{ font-size:9pt; color:var(--muted); }
+.footer-spacer{ height:2mm; }
+hr.soft{ border:0; border-top:1px solid var(--rule); margin:5mm 0; }
+.twocol{ column-count:2; column-gap:7mm; }
+.nobreak{ break-inside:avoid; }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="cover">
+  <div class="band">
+    <div class="kicker">Projektdokumentation &nbsp;·&nbsp; Benutzerhandbuch</div>
+    <h1>Randomiz</h1>
+    <div class="sub">3D-Action-Adventure mit prozeduralem Item-Randomizer</div>
+  </div>
+  <div class="mid">
+    <table class="steckbrief">
+      <tr><td class="k">Projektname</td><td><span class="logo">Randomiz</span> &nbsp;<span class="small">(Arbeitstitel)</span></td></tr>
+      <tr><td class="k">Genre</td><td>3D-Action-Adventure / Item-Randomizer (Einzelspieler)</td></tr>
+      <tr><td class="k">Game-Engine</td><td>Unity 6 mit Universal Render Pipeline (URP 17)</td></tr>
+      <tr><td class="k">Programmiersprache</td><td>C# (.NET) &nbsp;·&nbsp; neues Unity&nbsp;Input&nbsp;System &nbsp;·&nbsp; TextMeshPro</td></tr>
+      <tr><td class="k">Zielplattform</td><td>PC (Windows); zusätzliches Render-Profil für Mobilgeräte vorbereitet</td></tr>
+      <tr><td class="k">Dokumentierter Zeitraum</td><td>18.&nbsp;Mai&nbsp;2026 &ndash; 12.&nbsp;Juni&nbsp;2026</td></tr>
+      <tr><td class="k">Entwickler</td><td>Miguel Weinhold</td></tr>
+      <tr><td class="k">Dokumentversion</td><td>1.0 &nbsp;·&nbsp; Entwicklungsstand Juni 2026 (Work in Progress)</td></tr>
+    </table>
+  </div>
+  <div class="foot">
+    Dieses Dokument umfasst die technische Projektdokumentation (Teil&nbsp;A) sowie das
+    Benutzerhandbuch für Spielerinnen und Spieler (Teil&nbsp;B).
+  </div>
+</section>
+
+<!-- ================= TOC ================= -->
+<section class="toc">
+  <h2>Inhaltsverzeichnis</h2>
+
+  <div class="part">Teil A · Projektdokumentation</div>
+  <ol>
+    <li><span class="n">1</span><a href="#c1">Einleitung und Projektübersicht</a></li>
+    <li><span class="n">2</span><a href="#c2">Systemarchitektur</a></li>
+    <li><span class="n">3</span><a href="#c3">Kernsysteme im Detail</a></li>
+    <li class="sub"><span class="n">3.1</span><a href="#c3-1">Bewegungssystem</a></li>
+    <li class="sub"><span class="n">3.2</span><a href="#c3-2">Kampf- und Gesundheitssystem</a></li>
+    <li class="sub"><span class="n">3.3</span><a href="#c3-3">Zielerfassung (Z-Targeting)</a></li>
+    <li class="sub"><span class="n">3.4</span><a href="#c3-4">Randomizer-System</a></li>
+    <li class="sub"><span class="n">3.5</span><a href="#c3-5">Inventar und Ausrüstung</a></li>
+    <li class="sub"><span class="n">3.6</span><a href="#c3-6">Speichersystem, Checkpoints und Respawn</a></li>
+    <li class="sub"><span class="n">3.7</span><a href="#c3-7">NPCs, Dialog und Handel (Shop)</a></li>
+    <li class="sub"><span class="n">3.8</span><a href="#c3-8">Schlüssel und Türen</a></li>
+    <li class="sub"><span class="n">3.9</span><a href="#c3-9">Boss-Begegnung (Kristall-Boss)</a></li>
+    <li class="sub"><span class="n">3.10</span><a href="#c3-10">Audiosystem (Musik und Umgebung)</a></li>
+    <li class="sub"><span class="n">3.11</span><a href="#c3-11">Benutzeroberfläche (HUD und Menüs)</a></li>
+    <li class="sub"><span class="n">3.12</span><a href="#c3-12">Animation und prozedurales IK</a></li>
+    <li class="sub"><span class="n">3.13</span><a href="#c3-13">Spielwelt, Gefahrenzonen und Gegner</a></li>
+    <li class="sub"><span class="n">3.14</span><a href="#c3-14">Rendering und Shader</a></li>
+    <li><span class="n">4</span><a href="#c4">Technische Muster und Designentscheidungen</a></li>
+    <li><span class="n">5</span><a href="#c5">Editor-Werkzeuge und Workflow</a></li>
+    <li><span class="n">6</span><a href="#c6">Projektverlauf und Meilensteine</a></li>
+    <li><span class="n">7</span><a href="#c7">Bekannte Einschränkungen und Ausblick</a></li>
+    <li><span class="n">8</span><a href="#c8">Glossar</a></li>
+  </ol>
+
+  <div class="part">Teil B · Benutzerhandbuch</div>
+  <ol>
+    <li><span class="n">9</span><a href="#c9">Einführung für Spieler</a></li>
+    <li><span class="n">10</span><a href="#c10">Installation und Spielstart</a></li>
+    <li><span class="n">11</span><a href="#c11">Steuerung</a></li>
+    <li><span class="n">12</span><a href="#c12">Spielmechaniken Schritt für Schritt</a></li>
+    <li><span class="n">13</span><a href="#c13">Hauptmenü, Speichern und Spielende</a></li>
+    <li><span class="n">14</span><a href="#c14">Tipps, Hinweise und Fehlerbehebung</a></li>
+  </ol>
+</section>
+
+<!-- ================= TEIL A ================= -->
+<section class="part-divider">
+  <div class="pd-kicker">Teil A</div>
+  <h1>Projektdokumentation</h1>
+  <div class="pd-line"></div>
+  <p>Der erste Teil beschreibt das Projekt aus technischer Sicht: Ziel und Konzept,
+  die Software-Architektur, die einzelnen Spielsysteme, die zugrunde liegenden
+  Entwurfsmuster sowie die eingesetzten Werkzeuge und der zeitliche Projektverlauf.</p>
+</section>
+
+<!-- ===== Kapitel 1 ===== -->
+<h1 class="chapter" id="c1"><span class="cn">1</span> &nbsp;Einleitung und Projektübersicht</h1>
+
+<p class="lead">Randomiz ist ein in Unity entwickeltes 3D-Action-Adventure für den PC, dessen
+zentrales Merkmal ein <strong>Item-Randomizer</strong> ist: Die Fundorte aller Gegenstände
+werden zu Spielbeginn anhand eines Zufallswertes (Seed) neu verteilt, ohne dass das Spiel
+dadurch unlösbar wird.</p>
+
+<h2>1.1 &nbsp;Projektziel</h2>
+<p>Ziel des Projekts ist die Entwicklung eines spielbaren Prototyps, der ein klassisches
+Action-Adventure (Bewegung, Erkundung, Kampf, Ausrüstung) mit der Wiederspielbarkeit eines
+Randomizers verbindet. Jeder Durchlauf (engl. <em>Run</em>) verteilt Waffen, Tränke,
+Schlüssel und Münzen neu auf Truhen und Händler. Eine Validierung stellt sicher, dass jeder
+Seed tatsächlich durchspielbar bleibt – benötigte Fortschritts-Items liegen niemals hinter
+einer Tür, deren Schlüssel sie selbst enthalten.</p>
+
+<h2>1.2 &nbsp;Spielkonzept</h2>
+<p>Die Spielerin bzw. der Spieler steuert eine Figur durch eine zusammenhängende 3D-Welt,
+bekämpft Gegner mit Nah- und Fernwaffen, überwindet mithilfe fortgeschrittener
+Bewegungstechniken (Wandklettern, Vorsprung-Greifen, Enterhaken) Hindernisse, sammelt
+Ausrüstung aus Truhen und kauft bei Händlern ein. Ziel eines Durchlaufs ist es, den
+<strong>Kristall-Boss</strong> zu besiegen. Beim Sieg werden die benötigte Zeit und die Anzahl
+der Tode angezeigt – ein Anreiz für schnellere, sauberere Durchläufe.</p>
+
+<h2>1.3 &nbsp;Eingesetzte Technologien</h2>
+<table class="data">
+  <tr><th>Bereich</th><th>Technologie / Werkzeug</th><th>Verwendung im Projekt</th></tr>
+  <tr><td class="k">Engine</td><td>Unity 6</td><td>Laufzeitumgebung, Szenen, Komponenten</td></tr>
+  <tr><td class="k">Rendering</td><td>Universal Render Pipeline (URP 17)</td><td>Beleuchtung, Schatten, eigene Shader</td></tr>
+  <tr><td class="k">Sprache</td><td>C#</td><td>gesamte Spiellogik</td></tr>
+  <tr><td class="k">Eingabe</td><td>Unity Input System (neu)</td><td>Tastatur, Maus, Gamepad – ausschließlich</td></tr>
+  <tr><td class="k">UI-Text</td><td>TextMeshPro (TMP)</td><td>alle Texte im HUD und in den Menüs</td></tr>
+  <tr><td class="k">Versionsverwaltung</td><td>Git / GitHub</td><td>Quellcode-Historie, Branches, Pull&nbsp;Requests</td></tr>
+  <tr><td class="k">Persistenz</td><td>JSON</td><td>Spielstände und Randomizer-Zustand</td></tr>
+</table>
+
+<div class="box tech"><span class="bt">Architektur-Leitlinie</span>
+Das Projekt folgt durchgehend zwei Prinzipien: <strong>Entkopplung</strong> (Systeme
+kommunizieren über einen zentralen Event-Bus statt über direkte Referenzen) und
+<strong>Performance-Bewusstsein</strong> (keine Speicherzuweisungen in Schleifen, die jeden
+Frame laufen). Beide Leitlinien ziehen sich durch alle nachfolgenden Kapitel.</div>
+
+<!-- ===== Kapitel 2 ===== -->
+<h1 class="chapter" id="c2"><span class="cn">2</span> &nbsp;Systemarchitektur</h1>
+
+<p class="lead">Die Spielsysteme sind bewusst lose gekoppelt. Statt dass z.&nbsp;B. die
+Bewegungssteuerung die Benutzeroberfläche direkt aufruft, melden sich alle Komponenten
+selbst beim Event-Bus an und reagieren auf Ereignisse. Dadurch lassen sich einzelne Systeme
+unabhängig austauschen, testen und erweitern.</p>
+
+<h2>2.1 &nbsp;Überblick</h2>
+<p>Den Kern bildet ein eigener, leichtgewichtiger <strong>Event-Bus</strong>
+(<code>MiuEventBusSystem</code>). Eingaben werden von genau einer zentralen Stelle
+(<code>InputSystem.cs</code>) eingelesen und als typisierte Ereignisse verschickt. Jedes
+interessierte System – Bewegung, Ausrüstung, HUD, Kamera – abonniert nur die Ereignisse, die
+es benötigt.</p>
+
+<div class="arch nobreak">
+  <div class="row"><div class="node src">Eingabe<br><span class="small">Tastatur · Maus · Gamepad</span></div></div>
+  <div class="arrow">▼</div>
+  <div class="row"><div class="node src" style="min-width:50mm">InputSystem.cs<br><span class="small">liest Eingaben, erzeugt Ereignisse</span></div></div>
+  <div class="arrow">▼</div>
+  <div class="row"><div class="node bus">EventBus &nbsp;·&nbsp; Raise / Subscribe &nbsp;·&nbsp; Prioritäten &amp; Cancellation</div></div>
+  <div class="arrow">▼ &nbsp;&nbsp; ▼ &nbsp;&nbsp; ▼</div>
+  <div class="row">
+    <div class="node sub">PlayerMovement</div>
+    <div class="node sub">EquipHandler</div>
+    <div class="node sub">QuickslotManager</div>
+    <div class="node sub">HUD / Kamera</div>
+  </div>
+  <div class="small" style="text-align:center;margin-top:3mm">Jeder Abonnent verarbeitet das
+  Ereignis nach Priorität; ein Abonnent kann ein Ereignis abbrechen (Cancellation), sodass
+  nachgelagerte Systeme es nicht mehr erhalten.</div>
+</div>
+
+<h2>2.2 &nbsp;Der Event-Bus</h2>
+<p>Der Event-Bus ist das Rückgrat der Kommunikation. Wichtige Eigenschaften:</p>
+<ul>
+  <li><strong>Prioritätsstufen</strong> – Abonnenten mit höherer Priorität werden zuerst
+  ausgeführt. Bewährte Stufen:
+  <code>100</code> (Zielerfassung fängt Blickeingaben zuerst ab),
+  <code>10</code> (abfangende Systeme wie das geöffnete Inventarrad),
+  <code>0</code> (Standard-Spiellogik) und
+  <code>−10</code> (Nachbearbeitung, die erst nach einem anderen Abonnenten laufen muss).</li>
+  <li><strong>Cancellation</strong> – <code>EventBus.Cancel&lt;T&gt;()</code> markiert ein
+  Ereignis als „verbraucht“. So verhindert etwa das geöffnete Inventarrad, dass dieselbe
+  Taste gleichzeitig eine Bewegung oder einen Angriff auslöst.</li>
+  <li><strong>Selbst-Anmeldung</strong> – Jedes Skript abonniert in <code>OnEnable</code> und
+  meldet sich in <code>OnDisable</code> wieder ab. Ein separates „Listener“-Objekt in der
+  Szene ist dadurch überflüssig.</li>
+</ul>
+
+<div class="box tech"><span class="bt">Performance: keine Zuweisungen pro Frame</span>
+Eingabe-Ereignisse (Blicken, Bewegen) treten in jedem Frame auf. Statt für jedes Ereignis
+ein neues Objekt zu erzeugen, wird pro Ereignistyp <em>eine</em> Instanz angelegt und
+wiederverwendet. Zusätzlich nutzt der Bus einen Puffer-Pool für die Abonnentenliste jeder
+Auslösung. Beides verhindert Müll für den Garbage Collector und damit Mikroruckler.</div>
+
+<h2>2.3 &nbsp;Singletons (zentrale Zugriffspunkte)</h2>
+<p>Für sehr häufig benötigte Komponenten existiert je ein global erreichbarer Zugriffspunkt
+(Singleton). Das spart teure Suchaufrufe zur Laufzeit.</p>
+<table class="data">
+  <tr><th>Komponente</th><th>Aufgabe</th></tr>
+  <tr><td class="k">PlayerMovement</td><td>gesamte Fortbewegung der Spielfigur</td></tr>
+  <tr><td class="k">InventoryHandler</td><td>Inventar, Münzen, Item-Aufnahme</td></tr>
+  <tr><td class="k">EquipHandler</td><td>aktuell ausgerüstetes Item / Waffe</td></tr>
+  <tr><td class="k">QuickslotManager</td><td>Schnellplätze und Inventarrad-Zuweisung</td></tr>
+  <tr><td class="k">Interactor</td><td>Erkennung und Auslösung interagierbarer Objekte</td></tr>
+</table>
+
+<h2>2.4 &nbsp;Eingabesystem</h2>
+<p>Das Projekt verwendet <strong>ausschließlich</strong> das neue Unity Input System. Es gibt
+genau eine <code>InputSystem</code>-Komponente in der Szene; sie liest alle Aktionen aus der
+Datei <code>myInputs.inputactions</code> und verschickt sie als Bus-Ereignisse. Klassische
+Direktabfragen (altes Eingabesystem) werden bewusst nicht eingesetzt – sie würden zur
+Laufzeit Fehler auslösen, da das Projekt rein auf das neue System eingestellt ist.</p>
+
+<h2>2.5 &nbsp;Ordnerstruktur (Auszug)</h2>
+<p>Der gesamte Spielcode liegt unter <code>Assets/Scripts/</code> und ist nach Themengebieten
+gegliedert:</p>
+<div class="twocol small">
+<code>Movement/</code> – Bewegung &amp; Physik<br>
+<code>Inventory/</code> – Inventar, Ausrüstung, Items<br>
+<code>HealthSystem/</code> – Gesundheit &amp; Schaden<br>
+<code>Randomizer/</code> – Seed, Truhen, Item-Pool<br>
+<code>SaveSystem/</code> – Speichern, Checkpoints<br>
+<code>NPC/</code> – Händler, Dialog<br>
+<code>Keys/</code> – Schlüssel &amp; Türen<br>
+<code>Enemies/</code> – Gegner, Spawning, Boss<br>
+<code>VFX/</code> – Audio &amp; Effekte<br>
+<code>UI/</code> – HUD, Menüs, Minimap<br>
+<code>Animation/</code> – Animator &amp; IK<br>
+<code>Combat/</code> – Gefahrenzonen<br>
+<code>Events/</code> – Ereignisdefinitionen<br>
+<code>EventBusSystem/</code> – Bus-Kern<br>
+<code>Inputs/</code> – Eingabedefinition<br>
+<code>Editor/</code> – Werkzeuge im Editor<br>
+<code>Shaders/</code> – eigene URP-Shader
+</div>
+
+<!-- ===== Kapitel 3 ===== -->
+<h1 class="chapter" id="c3"><span class="cn">3</span> &nbsp;Kernsysteme im Detail</h1>
+<p class="lead">Dieses Kapitel beschreibt die einzelnen Spielsysteme. Jeder Abschnitt nennt
+Zweck, wichtigste Bausteine und Besonderheiten der Umsetzung.</p>
+
+<h2 id="c3-1">3.1 &nbsp;Bewegungssystem</h2>
+<p>Die Fortbewegung wird von <code>PlayerMovement</code> gesteuert und von einem eigenen
+<code>PhysicsController</code> ausgeführt. <strong>Wichtige Besonderheit:</strong> Die
+Spielfigur besitzt keinen Unity-Rigidbody. Stattdessen bewegt der PhysicsController die Figur
+manuell und prüft Kollisionen über Kapsel-Abtastungen (Capsule-/Sphere-Cast) gegen alle
+Ebenen. Das ergibt eine sehr präzise, vorhersehbare Steuerung.</p>
+<p>Verfügbare Bewegungstechniken:</p>
+<table class="data">
+  <tr><th>Technik</th><th>Beschreibung</th></tr>
+  <tr><td class="k">Laufen</td><td>Standardbewegung relativ zur Kamera</td></tr>
+  <tr><td class="k">Dash / Ausweichen</td><td>kurzer Schub; bei stehendem, geerdetem Spieler mit Schwert wird die Waffe weggesteckt</td></tr>
+  <tr><td class="k">Wandklettern (Wallhug)</td><td>Anheften an eine Wand durch <em>Halten</em> der Interagieren-Taste; seitliches Bewegen entlang der Wand</td></tr>
+  <tr><td class="k">Vorsprung greifen (Ledge Grab)</td><td>Festhalten an Kanten, seitliches Hangeln, Hochziehen</td></tr>
+  <tr><td class="k">Auto-Stufe (Step-Up)</td><td>kleine Absätze werden automatisch und animiert überstiegen</td></tr>
+  <tr><td class="k">Enterhaken (Grapple)</td><td>Pendel-Physik: Schwung per Eingabe, Einholen an die Zielposition</td></tr>
+</table>
+<div class="box"><span class="bt">Wer dreht die Spielfigur?</span>
+Die Blickrichtung des Modells wird immer von der Bewegungsschicht bestimmt (beim Wandklettern
+z.&nbsp;B. zur Wand hin). Das prozedurale IK-System darf die Modell-Drehung niemals
+überschreiben – andernfalls bleibt die Figur sichtbar „verkantet“ stehen. Diese strikte
+Trennung wurde nach einem entsprechenden Fehler als feste Regel etabliert.</div>
+
+<h2 id="c3-2">3.2 &nbsp;Kampf- und Gesundheitssystem</h2>
+<p>Jede verwundbare Einheit besitzt ein <code>HealthSystem</code>. Es reagiert auf
+Schadens- und Heilungs-Ereignisse, verwaltet die Lebenspunkte und löst bei 0&nbsp;HP den Tod
+aus. Zentrale Mechaniken:</p>
+<ul>
+  <li><strong>Unverwundbarkeitsfenster (i-frames)</strong> – nach einem Treffer ist die
+  Einheit kurz immun. Das verhindert, dass ein mehrstufiger Kombo-Angriff einen einzelnen
+  Treffer mehrfach zählt.</li>
+  <li><strong>Schutz vor Mehrfachschaden</strong> – pro Objekt ist nur ein HealthSystem
+  erlaubt; tote Einheiten verarbeiten keinen weiteren Schaden mehr.</li>
+  <li><strong>Waffen</strong> – Schwerter (<code>SOSword</code>) treffen nur Ziele auf
+  definierten Ebenen und schließen den Angreifer selbst zuverlässig aus. Die Steinschleuder
+  (<code>SlingshotStone</code>) verschießt physikalisch simulierte Geschosse.</li>
+</ul>
+
+<h2 id="c3-3">3.3 &nbsp;Zielerfassung (Z-Targeting)</h2>
+<p>Nach Vorbild bekannter Action-Adventures gibt es eine <strong>Zielerfassung</strong>
+(<code>TargetingSystem</code>): Per Tastendruck fixiert die Kamera einen Gegner, die Figur
+bewegt sich seitlich um ihn herum. Mit der Blickeingabe lässt sich zwischen Zielen wechseln.
+Ist eine Fernwaffe (Steinschleuder oder Enterhaken) ausgerüstet, wechselt die Kamera in eine
+<strong>Ego-Perspektive mit Fadenkreuz</strong> zum freien Zielen; schwarze Balken
+(Letterbox) rahmen das Bild.</p>
+
+<h2 id="c3-4">3.4 &nbsp;Randomizer-System</h2>
+<p>Das Randomizer-System ist das Alleinstellungsmerkmal des Spiels. Es entscheidet, welches
+Item an welchem Fundort liegt.</p>
+<h3>Funktionsweise</h3>
+<ul>
+  <li>Ein <strong>Seed</strong> (Zufallszahl) bestimmt die gesamte Verteilung. Gleicher Seed
+  ⇒ gleiche Verteilung – das macht Durchläufe reproduzierbar und teilbar.</li>
+  <li><strong>Truhen und Händler-Plätze sind gleichwertige Fundorte.</strong> Ein Item liegt
+  immer an genau einem Ort – entweder in einer Truhe oder im Sortiment eines Händlers, nie
+  doppelt.</li>
+  <li>Ein <strong>Füll-Algorithmus</strong> („Assumed Fill“) platziert zuerst die wichtigen
+  Fortschritts-Items so, dass das Spiel lösbar bleibt, und füllt den Rest mit Münzen und
+  Verbrauchsgütern auf. Händler-Plätze erhalten dabei nie Münzen.</li>
+  <li>Eine <strong>Lösbarkeitsprüfung</strong> (<code>ValidateSeed</code>) stellt sicher, dass
+  alle Pflicht-Items erreichbar sind, bevor ein Seed akzeptiert wird.</li>
+</ul>
+<div class="box tech"><span class="bt">Initialisierungsreihenfolge</span>
+Der Randomizer-Zustand wird in einem <code>Awake</code> mit fester, früher
+Ausführungsreihenfolge aufgebaut, bevor irgendeine Truhe ihren Inhalt liest. Unity garantiert,
+dass alle <code>Awake</code>-Aufrufe vor allen <code>Start</code>-Aufrufen laufen – darauf baut
+die Reihenfolge auf.</div>
+
+<h2 id="c3-5">3.5 &nbsp;Inventar und Ausrüstung</h2>
+<p>Das Inventar (<code>InventoryHandler</code>) verwaltet aufgenommene Gegenstände und die
+Münzen. Die Ausrüstung (<code>EquipHandler</code>) bestimmt die aktive Waffe und zeigt deren
+3D-Modell in der Hand der Figur an. Schnellplätze (<code>QuickslotManager</code>) erlauben den
+raschen Wechsel zwischen zwei zugewiesenen Items.</p>
+<ul>
+  <li>Die Figur startet mit <strong>leerer Hand</strong>. Der erste Angriffsdruck zieht das
+  Schwert, erst der zweite greift an.</li>
+  <li>Über das <strong>Inventarrad</strong> werden Items angesehen und den Schnellplätzen
+  1&nbsp;(<span class="keycap">Q</span>) bzw. 2&nbsp;(<span class="keycap">E</span>) zugewiesen.</li>
+  <li>Höherwertige Schwerter ersetzen automatisch das schwächere auf demselben Platz.</li>
+</ul>
+
+<h2 id="c3-6">3.6 &nbsp;Speichersystem, Checkpoints und Respawn</h2>
+<p>Der <code>SaveManager</code> ist die einzige Quelle der Wahrheit für den Spielstand. In
+einem Speicherstand (Slot) werden u.&nbsp;a. abgelegt: der Seed, geöffnete Truhen, geöffnete
+Türen, gehaltene Schlüssel, getätigte Käufe und die Münzen. Bei „Neues Spiel“ wird alles
+zurückgesetzt, beim Laden exakt wiederhergestellt.</p>
+<ul>
+  <li><strong>Checkpoints</strong> merken sich die letzte sichere Position; nach dem Tod
+  erscheint die Figur dort wieder.</li>
+  <li><strong>Seed-Treue beim Laden</strong> – beim Laden wird der gespeicherte Seed
+  verwendet und nicht neu gewürfelt, damit Truhen- und Shop-Inhalte konstant bleiben.</li>
+</ul>
+
+<h2 id="c3-7">3.7 &nbsp;NPCs, Dialog und Handel (Shop)</h2>
+<p>Nicht-Spieler-Figuren (<code>NPCController</code>) können Dialoge führen und als Händler
+auftreten. Das Händler-Sortiment (<code>ShopInventory</code>) wird – wie die Truhen – aus dem
+gemeinsamen Item-Pool des Randomizers bestückt. Die Bedienoberfläche (<code>ShopUI</code>)
+bietet anklickbare Felder mit einer Kaufbestätigung („Buy X for N coins?“).</p>
+<ul>
+  <li>Beim Öffnen des Shops wird der Mauszeiger freigegeben und die Spielsteuerung
+  (Bewegung, Kamera, Angriff) blockiert; beim Schließen wird alles wiederhergestellt.</li>
+  <li>Die <strong>Händler-Persönlichkeit</strong> beeinflusst die Preise und kann pro
+  Durchlauf zufällig, aber für einen gegebenen Seed reproduzierbar sein.</li>
+</ul>
+
+<h2 id="c3-8">3.8 &nbsp;Schlüssel und Türen</h2>
+<p>Schlüssel (<code>KeyInventory</code>) und Türen (<code>DoorController</code>) sind fest an
+den aktuellen Spielstand und Seed gebunden. Es ist dadurch unmöglich, mit Schlüsseln aus einem
+früheren Durchlauf zu starten oder eine Tür ohne den passenden Schlüssel zu öffnen. Der Status
+geöffneter Türen wird zentral im Spielstand gespeichert.</p>
+
+<h2 id="c3-9">3.9 &nbsp;Boss-Begegnung (Kristall-Boss)</h2>
+<p>Der <code>CrystalBossController</code> bildet den Höhepunkt eines Durchlaufs. Der Kampf
+verläuft in Phasen: Der Boss ruft Gegnerwellen, ist zwischenzeitlich unverwundbar, wird nach
+Ablauf einer Zeit kurz verwundbar (geschwächt) und ruft danach neue Wellen. Eine
+<strong>Boss-Arena</strong> (<code>BossArea</code>) startet die Begegnung beim Betreten, ein
+zentrales Namens-Popup kündigt den Boss an, und eine eigene Boss-Lebensanzeige zeigt den
+Fortschritt. Eine Schockwelle stößt die Figur zurück.</p>
+
+<h2 id="c3-10">3.10 &nbsp;Audiosystem (Musik und Umgebung)</h2>
+<p>Der <code>MusicManager</code> spielt Hintergrundmusik mit weichen Übergängen (Crossfade)
+über zwei Audioquellen. <strong>Musikzonen</strong> (<code>MusicZone</code>) wechseln die
+Musik beim Betreten von Bereichen; bei Konflikten entscheidet eine Priorität. Davon getrennt
+mischen <strong>Umgebungszonen</strong> (<code>AmbientSoundZone</code>) mehrere
+Geräuschebenen (Wind, Wasser) gleichzeitig. Für Boss-Kämpfe gibt es eigene Musikprofile.</p>
+<div class="box warn"><span class="bt">Wichtiges Muster: kinematischer Rigidbody an Trigger-Zonen</span>
+Da die Spielfigur keinen Rigidbody besitzt, lösen Trigger-Zonen ohne Zutun nicht aus. Jede
+Welt-Trigger-Zone (Musik-, Umgebungs-, Boss-, Spawn-, Checkpoint-Zone u.&nbsp;a.) ergänzt
+deshalb beim Start automatisch einen kinematischen Rigidbody. Ohne diesen Kniff würden die
+Zonen-Übergänge stillschweigend nie ausgelöst.</div>
+
+<h2 id="c3-11">3.11 &nbsp;Benutzeroberfläche (HUD und Menüs)</h2>
+<p>Das HUD ist vollständig ereignisgesteuert und fragt nichts pro Frame ab. Es reagiert nur
+auf Zustandswechsel (Ausrüstung gewechselt, Wand in der Nähe, Münzen geändert &hellip;).
+Bestandteile:</p>
+<table class="data">
+  <tr><th>Element</th><th>Funktion</th></tr>
+  <tr><td class="k">GameplayButtonsHUD</td><td>kontextabhängige Tastenhinweise (z.&nbsp;B. „Jump“, „Interact“, „Dash“)</td></tr>
+  <tr><td class="k">HeartsDisplay</td><td>Lebensanzeige (Herzen)</td></tr>
+  <tr><td class="k">CoinHUD</td><td>Münzanzeige unten rechts</td></tr>
+  <tr><td class="k">MinimapUI</td><td>Minikarte mit Truhen, Händlern und Drehung zur Blickrichtung</td></tr>
+  <tr><td class="k">InventoryWheelUI</td><td>Inventarrad inkl. Schlüsselübersicht</td></tr>
+  <tr><td class="k">MainMenuUI</td><td>vollständig im Editor konfigurierbares Hauptmenü</td></tr>
+  <tr><td class="k">DeathScreenUI</td><td>Bildschirm beim Tod der Figur</td></tr>
+  <tr><td class="k">VictoryScreenUI</td><td>Siegbildschirm mit Zeit und Anzahl der Tode</td></tr>
+  <tr><td class="k">RunTracker</td><td>misst die Durchlaufzeit und zählt die Tode</td></tr>
+</table>
+
+<h2 id="c3-12">3.12 &nbsp;Animation und prozedurales IK</h2>
+<p>Die Figur wird von einem Animator gesteuert, dessen Controller per Editor-Werkzeug
+automatisch aufgebaut wird. Ergänzend sorgt ein <strong>prozedurales IK-System</strong>
+(Inverse Kinematik) für glaubwürdige Details: Füße passen sich dem Boden an
+(<code>FootIK</code>), der Kopf blickt zum Ziel (<code>LookAtIK</code>), Treffer lösen
+Zuckungen aus (<code>HitReactIK</code>), und Hände greifen beim Wandklettern bzw. Hangeln
+nach Wand und Kante (<code>WallhugIK</code>, <code>LedgeHangIK</code>). Diese IK-Module
+verändern nur Gliedmaßen, nie die Körperdrehung (siehe Hinweis in 3.1).</p>
+
+<h2 id="c3-13">3.13 &nbsp;Spielwelt, Gefahrenzonen und Gegner</h2>
+<ul>
+  <li><strong>Sofort-Tod-Zonen</strong> (<code>InstakillZone</code>) für Lava oder Wasser –
+  töten oder schaden Einheiten, die sie betreten.</li>
+  <li><strong>Gegner-Spawnzonen</strong> (<code>EnemySpawnZone</code>) – erzeugen Gegnerwellen
+  und können bei erneutem Betreten optional respawnen.</li>
+  <li><strong>Checkpoints</strong> und <strong>Cinematic-Zonen</strong> für Speicherpunkte und
+  inszenierte Momente.</li>
+</ul>
+
+<h2 id="c3-14">3.14 &nbsp;Rendering und Shader</h2>
+<p>Die Optik basiert auf URP mit einem Cel-/Toon-Stil. Eigene Shader (<code>CelShading</code>,
+<code>CelTree</code>, <code>TerrainLayered</code>) erzeugen den Look und werfen bzw. empfangen
+Schatten korrekt. Der Gelände-Shader unterstützt zusätzlich GPU-Instanzierung des Geländes für
+mehr Leistung. Für den PC und für Mobilgeräte existieren getrennte Render-Profile.</p>
+
+<!-- ===== Kapitel 4 ===== -->
+<h1 class="chapter" id="c4"><span class="cn">4</span> &nbsp;Technische Muster und Designentscheidungen</h1>
+
+<h2>4.1 &nbsp;Trigger ohne Rigidbody</h2>
+<p>Weil die Figur keinen Rigidbody hat, erhalten alle Welt-Trigger einen kinematischen
+Rigidbody, damit Unity die Ein-/Austritts-Ereignisse überhaupt auslöst (vgl. 3.10). Das ist
+ein durchgängiges, projektweites Muster.</p>
+
+<h2>4.2 &nbsp;Performance-Optimierungen</h2>
+<table class="data">
+  <tr><th>Maßnahme</th><th>Nutzen</th></tr>
+  <tr><td class="k">Zwischengespeicherte Ereignis-Instanzen</td><td>kein Müll für den Garbage Collector bei Frame-Ereignissen</td></tr>
+  <tr><td class="k">Quadrierte Abstände (sqrMagnitude)</td><td>spart teure Wurzelberechnungen bei Distanzvergleichen</td></tr>
+  <tr><td class="k">GPU Resident Drawer + Occlusion Culling</td><td>weniger Zeichenaufrufe auf der CPU</td></tr>
+  <tr><td class="k">Reduzierte Schattendistanz &amp; kleine Schattenwerfer aus</td><td>deutlich weniger Schatten-Last</td></tr>
+  <tr><td class="k">Gelände-Instanzierung</td><td>günstigeres Rendern mehrerer Gelände-Kacheln</td></tr>
+  <tr><td class="k">Gehashte Animator-Parameter, TryGetComponent, Pools</td><td>schnellere, müllfreie Standardpfade</td></tr>
+</table>
+
+<h2>4.3 &nbsp;Entkopplung durch Selbst-Anmeldung</h2>
+<p>Auf ausdrücklichen Wunsch wurde jede Komponente so umgebaut, dass sie ihre Ereignisse
+selbst abonniert. Dadurch konnte das früher nötige „Listener“-Objekt in der Szene vollständig
+entfallen – ein Gewinn an Klarheit und Wartbarkeit.</p>
+
+<h2>4.4 &nbsp;Determinismus</h2>
+<p>Alle zufallsabhängigen Entscheidungen (Item-Verteilung, Händler-Persönlichkeit) leiten sich
+deterministisch aus dem Seed ab und werden – wo nötig – über sortierte, stabile Bezeichner
+abgesichert. Gleicher Seed führt zuverlässig zum gleichen Ergebnis.</p>
+
+<!-- ===== Kapitel 5 ===== -->
+<h1 class="chapter" id="c5"><span class="cn">5</span> &nbsp;Editor-Werkzeuge und Workflow</h1>
+<p class="lead">Um wiederkehrende Aufgaben zu beschleunigen und Fehler zu vermeiden, wurden
+mehrere eigene Editor-Werkzeuge entwickelt.</p>
+<table class="data">
+  <tr><th>Werkzeug</th><th>Zweck</th></tr>
+  <tr><td class="k">GameSetupWizard</td><td>Assistent zum Einrichten kompletter Szenen: Spielsysteme hinzufügen, Item-/Waffen-/Truhen-Ersteller, Audio-Setup, UI-Design-Editor, Charakter-SFX/-VFX, Validierung</td></tr>
+  <tr><td class="k">AnimatorControllerBuilder</td><td>baut den Animator-Controller der Spielfigur automatisch auf (inkl. Todesanimation)</td></tr>
+  <tr><td class="k">TerrainPerfTool</td><td>prüft und optimiert Gelände-Leistung (Instanzierung, Sichtweiten)</td></tr>
+  <tr><td class="k">ShadowCasterOptimizer</td><td>deaktiviert Schattenwurf an kleinen Objekten</td></tr>
+  <tr><td class="k">TreeColliderTool</td><td>versieht Gelände-Bäume mit Kollidern</td></tr>
+  <tr><td class="k">EnemyCreatorWindow</td><td>schnelles Anlegen neuer Gegner</td></tr>
+</table>
+<div class="box"><span class="bt">Nutzen</span>
+Der GameSetupWizard ist das Herzstück des Workflows: Per Knopfdruck lassen sich neue Szenen
+korrekt verdrahten, ohne Komponenten von Hand zu suchen und zu verbinden. Eine
+Prüf-Funktion meldet fehlende oder falsch konfigurierte Bausteine.</div>
+
+<!-- ===== Kapitel 6 ===== -->
+<h1 class="chapter" id="c6"><span class="cn">6</span> &nbsp;Projektverlauf und Meilensteine</h1>
+<p class="lead">Die folgende Übersicht fasst die Entwicklung im dokumentierten Zeitraum
+zusammen. Die ausführliche tägliche Aufstellung befindet sich im separaten Dokument
+„Tagesprotokolle“.</p>
+<table class="data">
+  <tr><th>Zeitraum</th><th>Schwerpunkt</th></tr>
+  <tr><td class="k">April 2026</td><td>Projektgrundlage: Repository, Engine-Setup, erste Fassung des Event-Bus-Systems</td></tr>
+  <tr><td class="k">18.–22. Mai</td><td>Randomizer-System stabilisiert, Ereignis-Abbruch (Cancellation), Zielerfassung (Z-Targeting)</td></tr>
+  <tr><td class="k">25.–27. Mai</td><td>fortgeschrittene Bewegung (Wandklettern, Vorsprung-Greifen), Gesundheits- und Münzsystem, Optimierungen, Übersetzung des Codes ins Englische</td></tr>
+  <tr><td class="k">28. Mai – 4. Juni</td><td>„Big Patch“: neues Animations- und IK-System, Waffen sichtbar in der Hand</td></tr>
+  <tr><td class="k">8.–9. Juni</td><td>umfangreiche Code-Aktualisierung, kritische Fehlerbehebungen (u.&nbsp;a. Spielfigur-Zerstörung beim Start), Schatten und Kollider</td></tr>
+  <tr><td class="k">10.–12. Juni</td><td>Leistungsoptimierung, HUD- und Interaktions-Überarbeitung, Audio-System, Shop-Integration, Lauf-Timer und Siegbildschirm, Hauptmenü</td></tr>
+</table>
+
+<!-- ===== Kapitel 7 ===== -->
+<h1 class="chapter" id="c7"><span class="cn">7</span> &nbsp;Bekannte Einschränkungen und Ausblick</h1>
+<ul>
+  <li><strong>Work in Progress.</strong> Mehrere Systeme (Boss, Audio, neues Animationssystem)
+  sind implementiert, müssen aber noch in der Szene final eingerichtet und getestet werden.</li>
+  <li><strong>Enterhaken.</strong> Aktuell ohne Schwerkraft beim Einholen; ein realistischeres
+  Pendelverhalten (Schwerkraft nur auf der Tangentialkomponente) ist als spätere Verbesserung
+  vorgemerkt.</li>
+  <li><strong>Truhen-Reihenfolge.</strong> Die Reihenfolge der Truhen-Erkennung ist nicht
+  garantiert stabil; die Item-Zuordnung könnte zwischen Ladevorgängen leicht variieren. Die
+  Händler sind davon nicht betroffen.</li>
+  <li><strong>Mögliche Erweiterungen.</strong> Weitere Bosse und Biome, mehr Waffenklassen,
+  Optionsmenü (Lautstärke, Tastenbelegung), Controller-Feinschliff.</li>
+</ul>
+
+<!-- ===== Kapitel 8 ===== -->
+<h1 class="chapter" id="c8"><span class="cn">8</span> &nbsp;Glossar</h1>
+<table class="data">
+  <tr><th>Begriff</th><th>Bedeutung</th></tr>
+  <tr><td class="k">Seed</td><td>Zufalls-Startwert, der die gesamte Item-Verteilung eines Durchlaufs festlegt</td></tr>
+  <tr><td class="k">Randomizer</td><td>System, das Fundorte von Gegenständen neu mischt, ohne die Lösbarkeit zu verlieren</td></tr>
+  <tr><td class="k">Filler</td><td>Auffüll-Gegenstände (Münzen, Verbrauchsgüter) für Fundorte ohne Pflicht-Item</td></tr>
+  <tr><td class="k">Event-Bus</td><td>zentrale Vermittlungsstelle, über die Systeme per Ereignis kommunizieren</td></tr>
+  <tr><td class="k">Singleton</td><td>global erreichbarer, einmaliger Zugriffspunkt auf eine Komponente</td></tr>
+  <tr><td class="k">i-frames</td><td>kurze Unverwundbarkeit nach einem Treffer</td></tr>
+  <tr><td class="k">Wallhug</td><td>Anheften und seitliches Bewegen an einer Wand</td></tr>
+  <tr><td class="k">Ledge Grab</td><td>Festhalten und Hangeln an einer Kante</td></tr>
+  <tr><td class="k">IK</td><td>Inverse Kinematik – berechnet Gliedmaßenstellungen aus Zielpunkten</td></tr>
+  <tr><td class="k">HUD</td><td>Head-up-Display – die Bildschirmanzeige während des Spiels</td></tr>
+  <tr><td class="k">URP</td><td>Universal Render Pipeline – die verwendete Render-Technik von Unity</td></tr>
+  <tr><td class="k">Crossfade</td><td>weicher Überblendübergang zwischen zwei Musikstücken</td></tr>
+</table>
+
+<!-- ================= TEIL B ================= -->
+<section class="part-divider">
+  <div class="pd-kicker">Teil B</div>
+  <h1>Benutzerhandbuch</h1>
+  <div class="pd-line"></div>
+  <p>Der zweite Teil richtet sich an Spielerinnen und Spieler. Er erklärt Installation und
+  Start, die vollständige Steuerung sowie alle Spielmechaniken in verständlicher Form und gibt
+  Tipps zur Fehlerbehebung.</p>
+</section>
+
+<!-- ===== Kapitel 9 ===== -->
+<h1 class="chapter" id="c9"><span class="cn">9</span> &nbsp;Einführung für Spieler</h1>
+<p class="lead">Willkommen bei <strong>Randomiz</strong>! Dein Ziel ist es, die Spielwelt zu
+erkunden, Ausrüstung zu finden und schließlich den Kristall-Boss zu besiegen – möglichst
+schnell und mit möglichst wenigen Toden.</p>
+<p>Das Besondere: Bei jedem neuen Spiel werden alle Gegenstände neu verteilt. Wo beim letzten
+Mal ein mächtiges Schwert lag, findest du jetzt vielleicht Münzen – und umgekehrt. Kein
+Durchlauf gleicht dem anderen, und doch ist jeder lösbar.</p>
+
+<!-- ===== Kapitel 10 ===== -->
+<h1 class="chapter" id="c10"><span class="cn">10</span> &nbsp;Installation und Spielstart</h1>
+<h2>10.1 &nbsp;Systemvoraussetzungen</h2>
+<ul>
+  <li>Betriebssystem: Windows 10/11 (64-Bit)</li>
+  <li>Grafik: DirectX-11-fähige GPU</li>
+  <li>Eingabe: Tastatur und Maus <em>oder</em> ein Gamepad (z.&nbsp;B. Xbox-Controller)</li>
+</ul>
+<h2>10.2 &nbsp;Starten des Spiels</h2>
+<ol>
+  <li>Die ausführbare Datei des Spiels-Builds starten (bzw. im Unity-Editor auf „Play“).</li>
+  <li>Im Hauptmenü <strong>Play</strong> wählen, um einen neuen Durchlauf zu beginnen.</li>
+  <li>Die Steuerung aus Kapitel&nbsp;11 nutzen, um die Welt zu erkunden.</li>
+</ol>
+
+<!-- ===== Kapitel 11 ===== -->
+<h1 class="chapter" id="c11"><span class="cn">11</span> &nbsp;Steuerung</h1>
+<p class="lead">Randomiz unterstützt Tastatur&amp;Maus sowie Gamepad gleichzeitig. Die folgende
+Tabelle entspricht der tatsächlichen Tastenbelegung des Projekts.</p>
+<table class="data">
+  <tr><th>Aktion</th><th>Tastatur &amp; Maus</th><th>Gamepad</th></tr>
+  <tr><td class="k">Bewegen</td><td><span class="keycap">W</span> <span class="keycap">A</span> <span class="keycap">S</span> <span class="keycap">D</span> / Pfeiltasten</td><td>Linker Stick / Steuerkreuz</td></tr>
+  <tr><td class="k">Umsehen (Kamera)</td><td>Maus bewegen</td><td>Rechter Stick</td></tr>
+  <tr><td class="k">Angreifen</td><td>Linke Maustaste</td><td>X / &#9633; (West)</td></tr>
+  <tr><td class="k">Interagieren / Ausweichen / Wandklettern</td><td><span class="keycap">Leertaste</span></td><td>A / &#10005; (Süd)</td></tr>
+  <tr><td class="k">Zielerfassung</td><td>Rechte Maustaste</td><td>Rechter/Linker Trigger</td></tr>
+  <tr><td class="k">Inventarrad öffnen</td><td><span class="keycap">Tab</span></td><td>Steuerkreuz unten / Select</td></tr>
+  <tr><td class="k">Schnellplatz 1</td><td><span class="keycap">Q</span></td><td>Y / &#9651; (Nord) / LB</td></tr>
+  <tr><td class="k">Schnellplatz 2</td><td><span class="keycap">E</span></td><td>B / &#9711; (Ost) / RB</td></tr>
+  <tr><td class="k">Pause</td><td><span class="keycap">Esc</span></td><td>Start</td></tr>
+</table>
+<div class="box"><span class="bt">Eine Taste, mehrere Funktionen</span>
+Die <span class="keycap">Leertaste</span> (bzw. Süd-Taste) ist die wichtigste Taste:
+Kurz <em>tippen</em> löst je nach Situation ein Ausweichen, ein Interagieren (z.&nbsp;B. Truhe
+öffnen) oder im Zielmodus einen Sprung aus. <em>Gedrückt halten</em> an einer Wand aktiviert
+das Wandklettern. Das HUD zeigt dir jeweils an, welche Aktion gerade möglich ist.</div>
+
+<!-- ===== Kapitel 12 ===== -->
+<h1 class="chapter" id="c12"><span class="cn">12</span> &nbsp;Spielmechaniken Schritt für Schritt</h1>
+
+<h2>12.1 &nbsp;Bewegen und Klettern</h2>
+<ul>
+  <li><strong>Laufen:</strong> Bewege dich mit <span class="keycap">W A S D</span> relativ zur
+  Kamerablickrichtung.</li>
+  <li><strong>Ausweichen/Dash:</strong> Tippe die <span class="keycap">Leertaste</span> im
+  freien Gelände für einen schnellen Schub.</li>
+  <li><strong>Wandklettern:</strong> Halte an einer geeigneten Wand die
+  <span class="keycap">Leertaste</span> gedrückt – die Figur heftet sich an und du kannst dich
+  seitlich bewegen.</li>
+  <li><strong>Kante greifen:</strong> An Vorsprüngen hält sich die Figur fest; du kannst
+  hangeln und dich hochziehen.</li>
+  <li><strong>Enterhaken:</strong> Mit ausgerüstetem Enterhaken schwingst du dich zu
+  Ankerpunkten und überwindest große Lücken.</li>
+</ul>
+
+<h2>12.2 &nbsp;Kämpfen</h2>
+<ul>
+  <li><strong>Schwert:</strong> Greife mit der linken Maustaste an. Bei leerer Hand zieht der
+  erste Druck zunächst die Waffe.</li>
+  <li><strong>Fernwaffen:</strong> Mit Steinschleuder oder Enterhaken wechselt die
+  Zielerfassung in die Ego-Ansicht mit Fadenkreuz zum freien Zielen.</li>
+  <li><strong>Unverwundbarkeit:</strong> Nach einem Treffer bist du kurz immun – nutze das,
+  um aus Kombos der Gegner zu entkommen.</li>
+</ul>
+
+<h2>12.3 &nbsp;Zielerfassung</h2>
+<p>Halte/aktiviere die Zielerfassung, um einen Gegner zu fixieren. Die Kamera bleibt auf ihm,
+deine Bewegungen umkreisen ihn. Mit der Blickeingabe wechselst du das Ziel.</p>
+
+<h2>12.4 &nbsp;Inventar, Truhen und Händler</h2>
+<ul>
+  <li><strong>Inventarrad</strong> (<span class="keycap">Tab</span>): Items ansehen und den
+  Plätzen <span class="keycap">Q</span> / <span class="keycap">E</span> zuweisen.</li>
+  <li><strong>Truhen:</strong> Mit der <span class="keycap">Leertaste</span> öffnen. Welcher
+  Gegenstand erscheint, hängt vom Seed des Durchlaufs ab.</li>
+  <li><strong>Händler:</strong> Sprich einen Händler an, klicke einen Gegenstand an und
+  bestätige den Kauf. Achte auf deine Münzen (Anzeige unten rechts).</li>
+</ul>
+
+<h2>12.5 &nbsp;Schlüssel, Türen und Münzen</h2>
+<p>Verschlossene Türen benötigen den passenden Schlüssel; gehaltene Schlüssel siehst du im
+Inventarrad. Münzen sammelst du in der Welt und gibst sie bei Händlern aus.</p>
+
+<!-- ===== Kapitel 13 ===== -->
+<h1 class="chapter" id="c13"><span class="cn">13</span> &nbsp;Hauptmenü, Speichern und Spielende</h1>
+<ul>
+  <li><strong>Hauptmenü:</strong> Startpunkt mit Titel/Logo und Schaltflächen zum Spielen.</li>
+  <li><strong>Speichern/Laden:</strong> Der Fortschritt (Seed, Truhen, Türen, Schlüssel, Käufe,
+  Münzen) wird in einem Spielstand gesichert und beim Laden exakt wiederhergestellt.</li>
+  <li><strong>Tod &amp; Respawn:</strong> Stirbst du, erscheinst du am letzten Checkpoint.</li>
+  <li><strong>Sieg:</strong> Besiegst du den Kristall-Boss, erscheint der Siegbildschirm mit
+  deiner <em>Zeit</em> und der <em>Anzahl deiner Tode</em>. Du kannst direkt erneut spielen
+  („Play Again“) oder ins Hauptmenü zurückkehren.</li>
+</ul>
+
+<!-- ===== Kapitel 14 ===== -->
+<h1 class="chapter" id="c14"><span class="cn">14</span> &nbsp;Tipps, Hinweise und Fehlerbehebung</h1>
+<h2>14.1 &nbsp;Tipps für den Einstieg</h2>
+<ul>
+  <li>Erkunde gründlich – im Randomizer kann das wichtige Item überall liegen, auch beim
+  Händler.</li>
+  <li>Spare Münzen für Schlüssel und stärkere Waffen.</li>
+  <li>Nutze die Unverwundbarkeit nach Treffern aktiv, um Schadensketten zu durchbrechen.</li>
+  <li>Achte auf das HUD: Es zeigt dir die jeweils mögliche Kontext-Aktion an.</li>
+</ul>
+<h2>14.2 &nbsp;Häufige Fragen (FAQ)</h2>
+<table class="data">
+  <tr><th>Problem</th><th>Lösung</th></tr>
+  <tr><td class="k">Die Figur reagiert nicht auf Eingaben</td><td>Prüfen, ob ein Menü (Pause, Shop, Inventarrad) geöffnet ist – diese blockieren bewusst die Spielsteuerung.</td></tr>
+  <tr><td class="k">Eine Tür lässt sich nicht öffnen</td><td>Der passende Schlüssel fehlt – im Inventarrad die gehaltenen Schlüssel prüfen.</td></tr>
+  <tr><td class="k">Der Händler zeigt nichts an</td><td>Das Sortiment hängt vom Seed ab; ggf. wurde bereits alles gekauft.</td></tr>
+  <tr><td class="k">Maus dreht die Kamera im Menü</td><td>Menüs geben den Mauszeiger frei; beim Schließen wird die Spielsteuerung wiederhergestellt.</td></tr>
+  <tr><td class="k">Ich finde das benötigte Item nicht</td><td>Jeder Seed ist lösbar – auch Händler-Plätze und Bereiche hinter Türen einbeziehen.</td></tr>
+</table>
+
+<div style="margin-top:10mm" class="small">© 2026 · Randomiz – Projektdokumentation &amp; Benutzerhandbuch · Miguel Weinhold ·
+Entwicklungsstand Juni 2026. Erstellt im Rahmen der Projektdokumentation.</div>
+
+</body>
+</html>

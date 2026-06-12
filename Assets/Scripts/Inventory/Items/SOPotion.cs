@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Consumable potion item; <see cref="Use"/> raises a heal event for <c>healAmount</c> hit points.</summary>
 [CreateAssetMenu(fileName = "Potion", menuName = "Items/Potion")]
 public class SOPotion : SOItem
 {

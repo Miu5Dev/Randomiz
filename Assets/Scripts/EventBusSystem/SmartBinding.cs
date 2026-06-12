@@ -9,6 +9,7 @@ using UnityEngine;
 // Maps N event fields → a component method with N params,
 // with optional per-binding condition logic (If/ElseIf/Else).
 // =========================================================
+/// <summary>Where a SmartBinding parameter takes its value from (event field, fixed value, component field, whole event, toggle, object reference or the caller).</summary>
 [Serializable]
 public enum ParamSourceMode
 {
@@ -22,6 +23,7 @@ public enum ParamSourceMode
     CallerRoot      // the caller's transform.root.gameObject
 }
 
+/// <summary>One parameter mapping for a <see cref="SmartBinding"/>: its source mode plus the field, value or reference it reads from.</summary>
 [Serializable]
 public class ParamSource
 {
@@ -32,8 +34,10 @@ public class ParamSource
     public string          componentMember = "";
 }
 
+/// <summary>If / ElseIf / Else role of a <see cref="SmartBinding"/> within a conditional chain.</summary>
 public enum BindingLogic { If, ElseIf, Else }
 
+/// <summary>Maps N event fields to a component method with N parameters, with optional per-binding condition logic (If/ElseIf/Else).</summary>
 [Serializable]
 public class SmartBinding
 {

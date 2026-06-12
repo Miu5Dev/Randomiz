@@ -11,6 +11,7 @@ using UnityEngine;
 // Common inspector helpers shared by EventBusListenerEditor
 // and InteractableEditor. Do NOT modify per-editor code here.
 // =========================================================
+/// <summary>Shared inspector helpers (member resolution, type filtering) used by both EventBusListenerEditor and InteractableEditor.</summary>
 public static class EventBusEditorUtils
 {
     // Unity base types excluded from component member pickers

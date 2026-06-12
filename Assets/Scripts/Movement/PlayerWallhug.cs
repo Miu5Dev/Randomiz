@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Player sub-component for the wallhug state: wall detection, wall-facing, the vertical wall jump and the cardinal-up jump to a ledge. Driven by <see cref="PlayerMovement"/>.</summary>
 [RequireComponent(typeof(PlayerMovement))]
 [RequireComponent(typeof(PhysicsController))]
 public class PlayerWallhug : MonoBehaviour

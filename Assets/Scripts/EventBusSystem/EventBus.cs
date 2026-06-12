@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>Central static publish/subscribe hub. Handlers run by priority (higher first) and may cancel an event for the rest of a raise. Uses a pooled buffer per raise to avoid allocations and supports nested raises.</summary>
 public static class EventBus
 {
     // ── Estructura interna con prioridad ──────────────────────────────────

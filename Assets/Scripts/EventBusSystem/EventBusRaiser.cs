@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 // ─────────────────────────────────────────────────────────────────────────────
 // RaiserParam — stores the serialized value for one event field
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Serialized value for one event field used by <see cref="EventBusRaiser"/> (a literal value or an object reference).</summary>
 [Serializable]
 public class RaiserParam
 {
@@ -24,6 +25,7 @@ public class RaiserParam
 // ─────────────────────────────────────────────────────────────────────────────
 // EventBusRaiser
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Component that raises a chosen EventBus event (configured in the inspector) on selected lifecycle callbacks (Awake/Start/Enable/Disable).</summary>
 public class EventBusRaiser : MonoBehaviour
 {
     [HideInInspector] public string eventsFolder           = "Scripts/EventBusSystem/Events";
@@ -92,6 +94,7 @@ public class EventBusRaiser : MonoBehaviour
 // ─────────────────────────────────────────────────────────────────────────────
 #if UNITY_EDITOR
 
+/// <summary>Custom inspector for <see cref="EventBusRaiser"/>: event picker and per-field value editor.</summary>
 [CustomEditor(typeof(EventBusRaiser))]
 public class EventBusRaiserEditor : Editor
 {

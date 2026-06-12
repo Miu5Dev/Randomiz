@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEngine;
 
 // Lives in Editor/ — can freely access EventBusEditorUtils and all editor APIs.
+/// <summary>Custom inspector for Interactable; builds method bindings whose parameters come from fixed values, component fields or the caller (no event payload).</summary>
 [CustomEditor(typeof(Interactable))]
 public class InteractableEditor : Editor
 {

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+/// <summary>Raised when an <c>Attacker</c> deals <c>Damage</c> to a <c>Target</c>; consumed by HealthSystem.</summary>
 public class OnDamageDealtEvent
 {
     public GameObject Attacker { get; }

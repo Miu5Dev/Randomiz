@@ -6,6 +6,7 @@ using UnityEngine;
 // Converts between string storage and Unity/C# types for
 // conditions and fixed-value parameters
 // =========================================================
+/// <summary>Serialization helper that converts between string storage and Unity/C# types for EventBus conditions and fixed-value parameters.</summary>
 public static class TypeHelper
 {
     private static readonly System.Globalization.CultureInfo IC =

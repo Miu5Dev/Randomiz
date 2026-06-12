@@ -7,11 +7,13 @@ using UnityEngine;
 // Defines the condition types and evaluation logic used
 // by SmartBinding to gate method execution.
 // =========================================================
+/// <summary>Comparison operators available to a <see cref="BindingCondition"/>.</summary>
 public enum ConditionOperator
 {
     Equals, NotEquals, GreaterThan, LessThan, GreaterOrEqual, LessOrEqual
 }
 
+/// <summary>What a <see cref="BindingCondition"/> compares against: an event field, a component field, an external object or a literal.</summary>
 public enum ConditionSource
 {
     EventField,                  // event field vs literal value
@@ -21,6 +23,7 @@ public enum ConditionSource
     EventFieldVsExternalObject   // event field vs external object field
 }
 
+/// <summary>A single condition that gates a SmartBinding method call; <see cref="Compile"/> turns it into a fast predicate.</summary>
 [Serializable]
 public class BindingCondition
 {
