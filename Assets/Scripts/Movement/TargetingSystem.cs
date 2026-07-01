@@ -238,7 +238,7 @@ public class TargetingSystem : MonoBehaviour
             Collider c = _overlapBuffer[i];
             if (c == null || c.transform == transform || c.transform.IsChildOf(transform)) continue;
             if (!c.CompareTag(enemyTag)) continue;
-            if (requireLineOfSight && Physics.Linecast(origin + Vector3.up, c.transform.position + Vector3.up, out _, searchMask, QueryTriggerInteraction.Ignore)) continue;
+            if (requireLineOfSight && IsLineOfSightBlocked(origin, c.transform)) continue;
             Vector3 d = c.transform.position - origin;
             d.y = 0f;
             if (d.sqrMagnitude < 0.0001f) continue;
@@ -268,7 +268,7 @@ public class TargetingSystem : MonoBehaviour
             if (!c.CompareTag(enemyTag)) continue;
             Transform candidate = c.transform;
             if (excluding != null && candidate == excluding) continue;
-            if (requireLineOfSight && Physics.Linecast(origin + Vector3.up * 1f, candidate.position + Vector3.up * 1f, out _, searchMask, QueryTriggerInteraction.Ignore)) continue;
+            if (requireLineOfSight && IsLineOfSightBlocked(origin, candidate)) continue;
             // sqrMagnitude avoids the sqrt of Vector3.Distance; ordering is preserved.
             float dist = (candidate.position - origin).sqrMagnitude;
             if (dist < bestScore)
@@ -279,6 +279,26 @@ public class TargetingSystem : MonoBehaviour
         }
         if (best == null && excluding != null) best = FindBestCandidate(null);
         return best;
+    }
+
+    /// <summary>
+    /// True when something OTHER than the candidate obstructs the straight line from the player to it.
+    /// A linecast aimed at a target always enters the target's own collider first when the path is clear,
+    /// so a hit on the candidate (or the player) is NOT an obstruction — otherwise every candidate would
+    /// filter itself out and lock-on could never acquire anything while Require Line Of Sight is enabled.
+    /// </summary>
+    private bool IsLineOfSightBlocked(Vector3 origin, Transform candidate)
+    {
+        Vector3 from = origin + Vector3.up;
+        Vector3 to = candidate.position + Vector3.up;
+        if (!Physics.Linecast(from, to, out RaycastHit hit, searchMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        Transform hitT = hit.collider.transform;
+        // Hitting the target itself (or the player) means the view to it is clear, not blocked.
+        if (hitT == candidate || hitT.IsChildOf(candidate)) return false;
+        if (hitT == transform || hitT.IsChildOf(transform)) return false;
+        return true;
     }
 
     private void Update()

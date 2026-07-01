@@ -673,8 +673,9 @@ public class GameSetupWizard : EditorWindow
     {
         var go = SceneGO("CrystalBoss");
 
-        // Damage collider on the ROOT — the player's melee targets transform.root, so the
-        // hit must resolve here (where the HealthSystem lives). Kinematic Rigidbody keeps
+        // Damage collider on the ROOT, alongside the HealthSystem. Melee/projectiles resolve
+        // the victim via GetComponentInParent<HealthSystem>() from the hit collider, so the
+        // collider just needs the HealthSystem at or above it. Kinematic Rigidbody keeps
         // moving the collider cheap (no static-collider churn).
         var col = go.AddComponent<BoxCollider>();
         col.size   = new Vector3(1.4f, 2.4f, 1.4f);

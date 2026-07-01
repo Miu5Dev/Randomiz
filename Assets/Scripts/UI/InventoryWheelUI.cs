@@ -32,6 +32,7 @@ public class InventoryWheelUI : MonoBehaviour
     private readonly List<InventoryWheelSlot> slots = new();
     private int activeSlotCount;       // visible slots this open (pool may hold more)
     private bool isOpen;
+    private bool actionsEnabled = true;
     private int highlightedIndex = -1;
     private Vector2 virtualCursor;     // accumulated mouse delta while the wheel is open
 
@@ -143,6 +144,10 @@ public class InventoryWheelUI : MonoBehaviour
         EventBus.Subscribe<OnAttackInputEvent>(OnAttackInput, 10);
         EventBus.Subscribe<OnInteractDodgeInputEvent>(OnInteractInput, 10);
         EventBus.Subscribe<OnTargetInputEvent>(OnTargetInput, 10);
+        // While the player is dead/dying, opening the wheel could re-equip/unequip
+        // through AssignToSlot, the same class of bug the death/respawn flow guards
+        // against elsewhere (see DeathScreenUI, QuickslotManager).
+        EventBus.Subscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
 
     private void OnDisable()
@@ -157,11 +162,14 @@ public class InventoryWheelUI : MonoBehaviour
         EventBus.Unsubscribe<OnAttackInputEvent>(OnAttackInput);
         EventBus.Unsubscribe<OnInteractDodgeInputEvent>(OnInteractInput);
         EventBus.Unsubscribe<OnTargetInputEvent>(OnTargetInput);
+        EventBus.Unsubscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
+
+    private void OnSetAttackEnabled(OnSetAttackEnabledEvent e) => actionsEnabled = e.enabled;
 
     private void OnInventoryInput(OnInventoryInputEvent e)
     {
-        if (!e.pressed) return;
+        if (!e.pressed || !actionsEnabled) return;
         SetOpen(!isOpen);
     }
 

@@ -129,9 +129,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cb95bd67b5600e043817a2b60fa746a1, type: 3}
   m_Name: Flee When Close
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   distance: 2.2
-  multiplier: 2.5
+  multiplier: 1.5
 --- !u!114 &-327296584297303116
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -181,7 +181,7 @@ MonoBehaviour:
     phases:
     - {fileID: -5963178850723579860}
     dodgeReaction: {fileID: 5619202764740942297}
-    dodgeChance: 0.6
+    dodgeChance: 0.3
     dodgeReactionTime: 0.4
 --- !u!114 &1642192011687609395
 MonoBehaviour:

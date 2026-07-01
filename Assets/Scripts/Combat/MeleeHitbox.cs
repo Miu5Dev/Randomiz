@@ -101,13 +101,18 @@ public class MeleeHitbox : MonoBehaviour
     {
         if (hitCollider == null) return;
 
+        // Resolve targets by their HealthSystem (not transform.root) so enemies parented
+        // under a shared scene object (e.g. the Terrain) still take the hit.
+        HealthSystem attackerHealth = _attacker != null ? _attacker.GetComponentInParent<HealthSystem>() : null;
+
         int n = OverlapSelf();
         for (int i = 0; i < n; i++)
         {
-            GameObject root = _buffer[i].transform.root.gameObject;
-            if (root == _attacker) continue;
-            if (!_hitThisWindow.Add(root)) continue;       // already hit this swing
-            EventBus.Raise(new OnDamageDealtEvent(_attacker, root, _damage));
+            HealthSystem victim = _buffer[i].GetComponentInParent<HealthSystem>();
+            if (victim == null) continue;
+            if (victim == attackerHealth) continue;                 // never hit the wielder
+            if (!_hitThisWindow.Add(victim.gameObject)) continue;   // already hit this swing
+            EventBus.Raise(new OnDamageDealtEvent(_attacker, victim.gameObject, _damage));
         }
     }
 

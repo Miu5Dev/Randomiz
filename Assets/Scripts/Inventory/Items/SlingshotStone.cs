@@ -142,10 +142,13 @@ public class SlingshotStone : MonoBehaviour
     {
         if (_hasHit) return;
 
-        GameObject hit = other.root.gameObject;
+        // Resolve the victim by HealthSystem, not transform.root — a target nested under a
+        // shared scene object (e.g. the Terrain) would otherwise resolve to that parent.
+        HealthSystem victim      = other.GetComponentInParent<HealthSystem>();
+        HealthSystem ownerHealth = _owner != null ? _owner.GetComponentInParent<HealthSystem>() : null;
 
         // Ignore the player who fired the stone.
-        if (_owner != null && hit == _owner.transform.root.gameObject) return;
+        if (victim != null && victim == ownerHealth) return;
 
         _hasHit = true;
 
@@ -153,7 +156,8 @@ public class SlingshotStone : MonoBehaviour
         if (_trail != null) _trail.emitting = false;
 
         // Deal damage via the EventBus so HealthSystem and other listeners react.
-        EventBus.Raise(new OnDamageDealtEvent(_owner, hit, _damage));
+        if (victim != null)
+            EventBus.Raise(new OnDamageDealtEvent(_owner, victim.gameObject, _damage));
 
         // Freeze the stone in place on impact (visually lands on the surface).
         if (_rb != null)

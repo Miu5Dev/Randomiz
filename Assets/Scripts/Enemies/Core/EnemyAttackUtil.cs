@@ -31,12 +31,16 @@ public static class EnemyAttackUtil
     private static void DispatchHits(GameObject attacker, int count, float damage)
     {
         _hitRoots.Clear();
+        // Resolve victims by their HealthSystem (not transform.root): scene-placed entities
+        // are often nested under a shared parent, which a .root lookup would resolve to.
+        HealthSystem attackerHealth = attacker != null ? attacker.GetComponentInParent<HealthSystem>() : null;
         for (int i = 0; i < count; i++)
         {
-            GameObject root = _buffer[i].transform.root.gameObject;
-            if (root == attacker) continue;
-            if (!_hitRoots.Add(root)) continue;       // already damaged this swing
-            EventBus.Raise(new OnDamageDealtEvent(attacker, root, damage));
+            HealthSystem victim = _buffer[i].GetComponentInParent<HealthSystem>();
+            if (victim == null) continue;
+            if (victim == attackerHealth) continue;             // don't damage the attacker
+            if (!_hitRoots.Add(victim.gameObject)) continue;    // already damaged this swing
+            EventBus.Raise(new OnDamageDealtEvent(attacker, victim.gameObject, damage));
         }
     }
 }

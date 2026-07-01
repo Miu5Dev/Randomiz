@@ -32,6 +32,6 @@ MonoBehaviour:
   hitboxReach: 1.33
   targetLayers:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 191
   hitboxOriginName: '[GFX]'
   attackTrigger: 

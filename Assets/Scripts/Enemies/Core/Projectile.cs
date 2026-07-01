@@ -36,11 +36,16 @@ public class Projectile : MonoBehaviour
         if (Physics.SphereCast(transform.position, _radius, _dir, out RaycastHit hit,
                                step, _hitMask, QueryTriggerInteraction.Ignore))
         {
-            GameObject root = hit.transform.root.gameObject;
-            if (root != _owner)
+            // Resolve the victim by HealthSystem, not transform.root — a target nested under
+            // a shared scene object (e.g. the Terrain) would otherwise resolve to that parent.
+            HealthSystem victim      = hit.transform.GetComponentInParent<HealthSystem>();
+            HealthSystem ownerHealth = _owner != null ? _owner.GetComponentInParent<HealthSystem>() : null;
+            bool hitOwner = victim != null && victim == ownerHealth;
+            if (!hitOwner)
             {
-                EventBus.Raise(new OnDamageDealtEvent(_owner, root, _damage));
-                Destroy(gameObject);
+                if (victim != null)
+                    EventBus.Raise(new OnDamageDealtEvent(_owner, victim.gameObject, _damage));
+                Destroy(gameObject);   // embed on any solid non-shooter surface
                 return;
             }
         }

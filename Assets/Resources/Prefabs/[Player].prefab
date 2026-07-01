@@ -375,7 +375,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHearts: 0
   currentHealth: 0
-  invincibilityDuration: 0.7
+  invincibilityDuration: 1
 --- !u!114 &5230418838899386553
 MonoBehaviour:
   m_ObjectHideFlags: 0

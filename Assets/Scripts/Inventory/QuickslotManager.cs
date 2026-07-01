@@ -16,6 +16,7 @@ public class QuickslotManager : MonoBehaviour
     public SOItem Slot2 { get; private set; }
 
     private bool wheelOpen;
+    private bool actionsEnabled = true;
 
     private void Awake()
     {
@@ -47,6 +48,10 @@ public class QuickslotManager : MonoBehaviour
         // Negative priority so this runs AFTER InventoryHandler.OnPotionConsume,
         // which updates the inventory array in response to the same event.
         EventBus.Subscribe<OnPotionConsumeEvent>(OnPotionConsume, -10);
+        // Shares the attack-enabled gate with EquipHandler: while the player is
+        // dead/dying, quickslot presses must not equip/unequip anything, or the
+        // player can respawn empty-handed (see DeathScreenUI).
+        EventBus.Subscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
 
     private void OnDisable()
@@ -56,7 +61,10 @@ public class QuickslotManager : MonoBehaviour
         EventBus.Unsubscribe<OnInteractDodgeInputEvent>(OnInteract);
         EventBus.Unsubscribe<OnInventoryWheelStateEvent>(OnWheelState);
         EventBus.Unsubscribe<OnPotionConsumeEvent>(OnPotionConsume);
+        EventBus.Unsubscribe<OnSetAttackEnabledEvent>(OnSetAttackEnabled);
     }
+
+    private void OnSetAttackEnabled(OnSetAttackEnabledEvent e) => actionsEnabled = e.enabled;
 
     private void OnPotionConsume(OnPotionConsumeEvent e)
     {
@@ -169,7 +177,7 @@ public class QuickslotManager : MonoBehaviour
 
     private void OnItemOne(OnItemOneInputEvent e)
     {
-        if (wheelOpen || !e.pressed) return;
+        if (wheelOpen || !actionsEnabled || !e.pressed) return;
         HandleQuickslotPress(Slot1);
         // Cancel so no inspector-bound EventBusListener can re-equip on top of us
         // and undo the unequip we just performed.
@@ -178,7 +186,7 @@ public class QuickslotManager : MonoBehaviour
 
     private void OnItemTwo(OnItemTwoInputEvent e)
     {
-        if (wheelOpen || !e.pressed) return;
+        if (wheelOpen || !actionsEnabled || !e.pressed) return;
         HandleQuickslotPress(Slot2);
         EventBus.Cancel<OnItemTwoInputEvent>();
     }
@@ -195,7 +203,7 @@ public class QuickslotManager : MonoBehaviour
 
     private void OnInteract(OnInteractDodgeInputEvent e)
     {
-        if (wheelOpen || !e.pressed) return;
+        if (wheelOpen || !actionsEnabled || !e.pressed) return;
         if (EquipHandler.Instance == null) return;
 
         SOItem equipped = EquipHandler.Instance.EquipedItem;

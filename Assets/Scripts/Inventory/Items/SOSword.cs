@@ -140,13 +140,19 @@ public class SOSword : SOWeapon
 
         Collider[] hits = Physics.OverlapBox(center, hitboxSize * 0.5f, rotation, targetLayers);
 
-        GameObject userRoot = user.transform.root.gameObject;
+        // Resolve the victim by walking up to its HealthSystem, NOT transform.root.
+        // Scene-placed enemies are frequently parented under a shared object (e.g. the
+        // Terrain), so .root would resolve to that parent instead of the enemy — the
+        // damage event would target the wrong GameObject and the hit would silently miss.
+        HealthSystem attackerHealth = user.GetComponentInParent<HealthSystem>();
         foreach (Collider hit in hits)
         {
-            if (hit.transform.root.gameObject == userRoot) continue;
+            HealthSystem victim = hit.GetComponentInParent<HealthSystem>();
+            if (victim == null) continue;             // not a damageable entity (wall, prop…)
+            if (victim == attackerHealth) continue;   // never hit ourselves
 
             _hasHitThisSwing = true;
-            EventBus.Raise(new OnDamageDealtEvent(user, hit.transform.root.gameObject, damage));
+            EventBus.Raise(new OnDamageDealtEvent(user, victim.gameObject, damage));
             break;
         }
     }

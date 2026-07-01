@@ -65,7 +65,12 @@ public class DeathScreenUI : MonoBehaviour
     private IEnumerator DeathSequence()
     {
         // Lock the player out while dying (death anim still plays at timeScale 1).
+        // Attack is disabled too — without this, mashing the dodge/interact button
+        // while dying reaches QuickslotManager.OnInteract, which unequips the sword
+        // (movement being disabled zeroes MoveInput, so its "player is standing
+        // still" check passes) and the player respawns empty-handed.
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = false });
+        EventBus.Raise(new OnSetAttackEnabledEvent { enabled = false });
 
         _canvas.gameObject.SetActive(true);
         _optionsRoot.SetActive(false);
@@ -119,6 +124,7 @@ public class DeathScreenUI : MonoBehaviour
 
         ShowCursor(false);
         EventBus.Raise(new OnSetMovementEnabledEvent { enabled = true });
+        EventBus.Raise(new OnSetAttackEnabledEvent { enabled = true });
 
         yield return Fade(1f, 0f, fadeTime);
 
